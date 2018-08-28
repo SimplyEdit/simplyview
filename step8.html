@@ -475,7 +475,7 @@ var simply = (function(simply) {
 		shadow.listeners.push(callback);
 	};
 
-	Binding.prototype.removeListener = function(callback) {
+	Binding.prototype.removeListener = function(jsonPath, callback) {
 		var shadow = getShadow(this.config.model, jsonPath);
 		shadow.listeners = shadow.listeners.filter(function(listener) {
 			if (listener==callback) {
