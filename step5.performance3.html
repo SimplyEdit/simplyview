@@ -1,0 +1,486 @@
+<h1>two way databinding to multiple fields with simple api</h1>
+<h2>performance test 3</h2>
+<script>
+var simply = (function(simply) {
+	function getKey(el) {
+		return el.dataset.bind;
+	}
+
+	var shadows = new WeakMap();
+	var focusedElement = null;
+	/**
+	 * Returns an object which has the original value of model[key]
+	 * If this value was a getter/setter, the shadow object also has
+	 * a setter/getter.
+	 */
+	function getShadow(model, jsonPath) {
+		if (!shadows.has(model)) {
+			shadows.set(model, {});
+		}
+		var root = shadows.get(model);
+		if (typeof root[jsonPath] == 'undefined') {
+			root[jsonPath] = {
+				value: null,
+				elements: [],
+				children: {}
+			};
+		}
+		return root[jsonPath];
+	}
+
+	function attachElement(rootModel, jsonPath, el, self) {
+		if (!document.body.contains(el)) {
+			// element is no longer part of the document
+			// so don't bother changing the model or updating the element for it
+			return;
+		}
+		var keys       = jsonPath.split('.'),
+		    parentPath = '',
+		    path       = '',
+		    shadow,
+		    model      = rootModel;
+
+		do {
+			key    = keys.shift();
+			path   = (parentPath ? parentPath + '.' : '') + key;
+			shadow = getShadow(rootModel, path);
+			if (keys.length) {
+				shadow.children[ path + '.' + keys[0]] = true;
+			}
+			shadow.value = model[key];
+			Object.defineProperty(model, key, {
+				set: (function(shadow) {
+					return function(value) {
+						shadow.value = value;
+						updateElements(shadow.elements, value, self);
+						attachChildren(rootModel, shadow, self);
+						addSetTriggers(rootModel, shadow);
+					};
+				})(shadow),
+				get: (function(shadow) {
+					return function() {
+						return shadow.value;
+					}
+				})(shadow),
+				configurable: true
+			});
+			model = model[key];
+			parentPath = path;
+		} while(keys.length);
+		shadow.elements.push(el);
+		updateElements([el], model, self);
+	}
+
+	function updateElements(elements, value, self) {
+		var reconnectObserver;
+		if (self.observerConnected) {
+			self.observer.disconnect();
+			self.observerConnected = false;
+			reconnectObserver = true;
+		}
+		elements.forEach(function(el, index) {
+			if (document.body.contains(el)) {
+				setValue(el, value);
+			} else {
+				elements.splice(index,1);
+			}
+		});
+		if (reconnectObserver) {
+			self.observer.observe(document.body, {
+	        	subtree: true,
+	        	childList: true,
+	        	characterData: true
+	        });
+	        self.observerConnected = true;
+	    }
+	}
+
+	function attachChildren(model, shadow, self) {
+		// FIXME: if shadow.value is set null or {}
+		// the setters for each child must reinstate the bindings
+		// but only for elements which are in the dom
+		Object.keys(shadow.children).forEach(function(child) {
+			var value = getByPath(model, child);
+			var childShadow = getShadow(model, child);
+			childShadow.value = value;
+			childShadow.elements.forEach(function(el) {
+				attachElement(model, child, el, self);
+			});
+		});
+	}
+
+	function addSetTriggers(model, shadow){
+		Object.keys(shadow.children).forEach(function(childPath) {
+			var name = getLastKey(childPath);
+			if (typeof shadow.value[name] == 'undefined') {
+				Object.defineProperty(shadow.value, name, {
+					set: function(value) {
+						restoreBinding(model, childPath);
+					},
+					configurable: true
+				});
+			}
+		});
+	}
+
+	function restoreBinding(model, path) {
+		console.log('should restore binding for path '+path);
+	}
+
+	function getByPath(model, path) {
+		if (!path) {
+			return model;
+		}
+		return path.split('.').reduce(function(acc, name) {
+			return (acc[name] ? acc[name] : null);
+		}, model);
+	}
+
+	function getLastKey(path) {
+		return path.split('.').pop();
+	}
+
+	function setValue(el, value) {
+		if (el!=focusedElement) {
+			el.innerHTML = (typeof value != 'undefined' ? value : '');
+		}
+	}
+
+	function getValue(el) {
+		return el.innerHTML;
+	}
+
+	function updateValue(model, path, value) {
+		var pathNames = path.split('.');
+		var last = pathNames.pop();
+		var parentOb = pathNames.reduce(function(acc, name) {
+			if (!acc[name]) {
+				// attach chain is broken here, repair it
+				acc[name] = {}
+			}
+			return acc[name];
+		}, model);
+		parentOb[last] = value;
+	}
+	
+	function throttle( callbackFunction, intervalTime ) {
+		var eventId = 0;
+		return function() {
+			var myArguments = arguments;
+			var me = this;
+			if ( eventId ) {
+				return;
+			} else {
+				eventId = window.setTimeout( function() {
+					callbackFunction.apply(me, myArguments);
+					eventId = 0;
+				}, intervalTime );
+			}
+		}
+	}
+
+	simply.bind = function(config) {
+		return new Binding(config);
+	};
+
+	function getElement(node) {
+		if (node.nodeType != Node.ELEMENT_NODE) {
+			return node.parentElement;
+		}
+		return node;
+	}
+
+	function Binding(config) {
+		this.config = config;
+		if (!this.config) {
+			this.config = {};
+		}
+		if (!this.config.model) {
+			this.config.model = {};
+		}
+		if (!this.config.selector) {
+			this.config.selector = '[data-bind]';
+		}
+
+		attach(this.config.model, this.config.selector, this);
+
+		observe(document.body, this);
+	};
+
+	function attach(model, selector, self) {
+		[].forEach.call(document.querySelectorAll(selector), function(element) {
+            var key = getKey(element);
+            attachElement(model, key, element, self);
+        });
+	};
+
+	function observe(root, binding) {
+		var changes = [];
+		var handleChanges = throttle(function() {
+			changes = changes.concat(binding.observer.takeRecords());
+			binding.observer.disconnect();
+			binding.observerConnected = false;
+			var change,el;
+			var handled = {}; // list of keys already handled
+			for (var i=changes.length-1; i>=0; i--) {
+				// handle last change first, so programmatic changes are predictable
+				// last change overrides earlier changes
+				change = changes[i];
+				el = getElement(change.target);
+				if (el && !el.matches(binding.config.selector)) {
+					el = el.closest(binding.config.selector);
+				}
+				if (el) {
+					var key = getKey(el);
+					if (handled[key]) {
+						// we already handled this key, the model is uptodate
+						continue;
+					}
+					handled[key] = true;
+					focusedElement = el;
+					updateValue(binding.config.model, key, getValue(el));
+					focusedElement = null;
+				}
+			}
+			binding.observer.observe(root, {
+	        	subtree: true,
+	        	childList: true,
+	        	characterData: true				
+			});
+			binding.observerConnected = true;
+		},100);
+        binding.observer = new MutationObserver(function(changeList) {
+        	changes = changes.concat(changeList);
+        	handleChanges();
+        });
+        binding.observerConnected = true;
+        binding.observer.observe(root, {
+        	subtree: true,
+        	childList: true,
+        	characterData: true
+        });
+	}  
+    return simply;
+})(simply || {});
+</script>
+
+<h1 contenteditable=true data-bind="title">title</h1>
+<p contenteditable=true data-bind="description">description</p>
+<div><label>Name:</label><span contenteditable="true" data-bind="user.name"></span></div>
+<div><label>Email:</label><span contenteditable="true" data-bind="user.email"></span></div>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+<pre contenteditable=true data-bind="title"></pre>
+
+<script>
+  var model = {
+    title: "A nice title",
+    user: {
+      name: "Mr. User",
+      email: "user@example.org"
+    }
+  };
+  
+  var bindings = simply.bind({
+  	model: model
+  });
+</script>
+<h2>Try:</h2>
+<p>Typing in one of the fields with 'A nice title'. Both fields should change.
+<p>Or try:
+<pre>
+	model.user = null;
+</pre>
+<p>And then type in one of the user fields (name or email)
+<p>The user name and email should become available again in model.user.
+
+<pre>
+
+var bindings = simply.bind
+.config({
+	getPath: function(el) {
+		return el.dataset.bind;
+	},
+	fieldTypes: {
+		'*': {
+			set: function(el, value) {
+				el.innerHTML = value;
+			},
+			get: function(el) {
+				return el.innerHTML
+			}
+		}
+	},
+	model: model,
+})
+.attach(document.querySelectorAll('[data-bind]'));
+
+bindings.attach(moreElements);
+
+// this call should update all the matching fields immediately
+bindings.addFieldType('input', {
+	set: function(el, value) {
+		el.value = value;
+	},
+	get: function(el) {
+		return el.value;
+	}
+});
+</pre>

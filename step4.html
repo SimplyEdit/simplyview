@@ -1,0 +1,137 @@
+<h1>two way databinding to multiple fields</h1>
+<script>
+var bind = (function() {
+	function getKey(el) {
+		return el.dataset.bind;
+	}
+
+	var focusedElement = null;
+	/**
+	 * Returns an object which has the original value of model[key]
+	 * If this value was a getter/setter, the shadow object also has
+	 * a setter/getter.
+	 */
+	function getShadow(model, key) {
+		var shadow = {}
+		var desc = Object.getOwnPropertyDescriptor(model, key);
+		if (desc) {
+			Object.defineProperty(shadow, key, desc);
+		}
+		return shadow;
+	}
+
+	function attachSubProperty(model, path, el) {
+		if ( model == null) {
+			setValue(el, '');
+		} else if (!path) {
+			// this is the property bound to the element
+			setValue(el, model);
+		} else {
+			// a sub property is bound to the element, re-attach it
+			attach(model, path, el);
+		}
+	}
+	
+	function attach(model, path, el) {
+		var key     = path.split('.')[0];
+		var tail    = path.substring(key.length+1);
+		var _shadow = getShadow(model, key);
+
+		// create a setter so we know when to update the bound element
+		// this means we also need a getter
+		Object.defineProperty(model, key, {
+			set: function(value) {
+				_shadow[key] = value;
+				attachSubProperty(_shadow[key], tail, el);
+			},
+			get: function() {
+				return _shadow[key];
+			},
+			configurable: true // allow to override earlier defineProperty calls
+		});
+
+		attachSubProperty(_shadow[key], tail, el);
+	}
+
+	function setValue(el, value) {
+		if (el!=focusedElement) {
+			el.innerHTML = value;
+		}
+	}
+
+	function getValue(el) {
+		return el.innerHTML;
+	}
+
+	function updateValue(model, path, value) {
+		var pathNames = path.split('.');
+		var last = pathNames.pop();
+		var parentOb = pathNames.reduce(function(acc, name) {
+			if (!acc[name]) {
+				// attach chain is broken here, repair it
+				acc[name] = {}
+			}
+			return acc[name];
+		}, model);
+		parentOb[last] = value;
+	}
+	
+	function throttle( callbackFunction, intervalTime ) {
+		var eventId = 0;
+		return function() {
+			var myArguments = arguments;
+			var me = this;
+			if ( eventId ) {
+				return;
+			} else {
+				eventId = window.setTimeout( function() {
+					callbackFunction.apply(me, myArguments);
+					eventId = 0;
+				}, intervalTime );
+			}
+		}
+	}
+
+	var bind = function(el, model) {
+        if (el instanceof HTMLElement) {
+            var key = getKey(el);
+            attach(model, key, el);
+			el.addEventListener('keyup', throttle(function(evt) {
+				focusedElement = el;
+				updateValue(model, getKey(el), getValue(el));
+				focusedElement = null;
+			}, 100));
+        } else {
+            [].forEach.call(el, function(element) {
+                bind(element, model);      
+            });
+        }
+	};
+  
+    return bind;
+})();
+</script>
+
+<h1 contenteditable=true data-bind="title">title</h1>
+<h2>Name: <span contenteditable=true data-bind="user.name">name</span></h2>
+<p>Email: <span contenteditable=true data-bind="user.email">email</span></p>
+<pre contenteditable=true data-bind="title"></pre>
+<script>
+  var model = {
+    title: "A nice title",
+    user: {
+      name: "Mr. User",
+      email: "user@example.org"
+    }
+  };
+  
+  bind(document.querySelectorAll('[data-bind]'), model);
+</script>
+<h2>Try:</h2>
+<p>Typing in one of the fields with 'A nice title'. Both fields should change.
+<p>Or try:
+<pre>
+	model.user = null;
+</pre>
+<p>And then type in one of the user fields (name or email)
+<p>The user name and email should become available again in model.user.

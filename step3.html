@@ -1,0 +1,93 @@
+<h1>one way databinding to multiple fields</h1>
+<script>
+var bind = (function() {
+	function getKey(el) {
+		return el.dataset.bind;
+	}
+
+	/**
+	 * Returns an object which has the original value of model[key]
+	 * If this value was a getter/setter, the shadow object also has
+	 * a setter/getter.
+	 */
+	function getShadow(model, key) {
+		var shadow = {}
+		var desc = Object.getOwnPropertyDescriptor(model, key);
+		if (desc) {
+			Object.defineProperty(shadow, key, desc);
+		}
+		return shadow;
+	}
+
+	function attachSubProperty(model, path, el) {
+		if ( model == null) {
+			setValue(el, '');
+		} else if (!path) {
+			// this is the property bound to the element
+			setValue(el, model);
+		} else {
+			// a sub property is bound to the element, re-attach it
+			attach(model, path, el);
+		}
+	}
+	
+	function attach(model, path, el) {
+		var key     = path.split('.')[0];
+		var tail    = path.substring(key.length+1);
+		var _shadow = getShadow(model, key);
+
+		// create a setter so we know when to update the bound element
+		// this means we also need a getter
+		Object.defineProperty(model, key, {
+			set: function(value) {
+				_shadow[key] = value;
+				attachSubProperty(_shadow[key], tail, el);
+			},
+			get: function() {
+				return _shadow[key];
+			},
+			configurable: true // allow to override earlier defineProperty calls
+		});
+
+		attachSubProperty(_shadow[key], tail, el);
+	}
+
+	function setValue(el, value) {
+		el.innerHTML = value;
+	}
+
+	var bind = function(el, model) {
+        if (el instanceof HTMLElement) {
+            var key = getKey(el);
+            attach(model, key, el);
+        } else {
+            [].forEach.call(el, function(element) {
+                bind(element, model);      
+            });
+        }
+	};
+  
+    return bind;
+})();
+</script>
+
+<h1 data-bind="title">title</h1>
+<h2 data-bind="user.name">name</h2>
+<p data-bind="user.email">email</p>
+<pre data-bind="title"></pre>
+<script>
+  var model = {
+    title: "A nice title",
+    user: {
+      name: "Mr. User",
+      email: "user@example.org"
+    }
+  };
+  
+  bind(document.querySelectorAll('[data-bind]'), model);
+</script>
+<h2>Try:</h2>
+<pre>
+	model.title = "another title";
+</pre>
+<p>Both elements with "A nice title" should change.

@@ -1,0 +1,73 @@
+<h1>one way databinding into subproperties</h1>
+<script>
+var bind = (function() {
+	function getKey(el) {
+		return el.dataset.bind;
+	}
+
+	function attach(model, path, el) {
+		var head = path.split('.')[0];
+		var tail = path.substring(head.length+1);
+		var _value = model[head];
+		Object.defineProperty(model, head, {
+			set: function(value) {
+				_value = value;
+				if (!tail) {
+					setValue(el, value);
+				} else {
+					attach(_value, tail, el);
+				}
+			},
+			get: function() {
+				return _value;
+			}
+		});
+		if (tail) {
+			attach(_value, tail, el);
+		} else {
+			setValue(el, model[head]);
+		}
+	}
+
+	function setValue(el, value) {
+		el.innerHTML = value;
+	}
+
+	var bind = function(el, model) {
+        if (el instanceof HTMLElement) {
+            var key = getKey(el);
+            attach(model, key, el);
+        } else {
+            [].forEach.call(el, function(element) {
+                bind(element, model);      
+            });
+        }
+	};
+  
+    return bind;
+})();
+</script>
+
+<h1 data-bind="title">title</h1>
+<h2 data-bind="user.name">name</h2>
+<script>
+  var model = {
+    title: "A nice title",
+    user: {
+      name: "Mr. User",
+      email: "user@example.org"
+    }
+  };
+  
+  bind(document.querySelectorAll('[data-bind]'), model);
+</script>
+<h2>Try</h2>
+<pre>
+    model.user.name = "Yet another user";
+	
+    model.user = null;
+	
+    model.user = {
+	    name: "Another User"
+	};
+</pre>

@@ -1,0 +1,29 @@
+<h1>Most basic one way databinding</h1>
+<div id="foo" data-bind="foo"></div>
+<script>
+	var model = {
+		foo: 'bar'
+	};
+	bind(document.getElementById('foo'), model);
+
+	function bind(el, model) {
+		var key = el.dataset.bind;
+		var _value = model[key];
+		
+		Object.defineProperty(model, key, {
+			set: function(value) {
+				_value = value;
+				el.innerHTML = value;
+			},
+			get: function() {
+				return _value;
+			}
+		});
+		el.innerHTML = _value;
+	}
+
+</script>
+<h2>Try:</h2>
+<pre>
+    model.foo = 'baz';
+</pre>
