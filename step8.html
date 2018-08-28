@@ -74,6 +74,10 @@ var simply = (function(simply) {
 			var fieldType = getFieldType(binding.fieldTypes, el);
 			if (fieldType) {
 				fieldType.set.call(el, (typeof value != 'undefined' ? value : ''));
+				el.dispatchEvent(new Event('simply.bind.resolved', {
+					bubbles: true,
+					cancelable: false
+				}));
 			}
 		}
 	}
@@ -102,10 +106,17 @@ var simply = (function(simply) {
 			root[jsonPath] = {
 				value: null,
 				elements: [],
-				children: {}
+				children: {},
+				listeners: []
 			};
 		}
 		return root[jsonPath];
+	}
+
+	function triggerListeners(listeners, value) {
+		listeners.forEach(function(callback) {
+			callback.call(null, value);
+		});
 	}
 
 	/**
@@ -189,6 +200,7 @@ var simply = (function(simply) {
 								addSetTriggers(shadow);
 								updateParents(path);
 								monitorProperties(value, path);
+								triggerListeners(shadow.listeners, value);
 							};
 						})(shadow, path),
 						get: (function(shadow) {
@@ -223,14 +235,15 @@ var simply = (function(simply) {
 		var updateParents = function(jsonPath) {
 			var keys = jsonPath.split('.'), 
 				path;
-			do {
+			keys.pop();
+			while(keys.length) {
 				path = keys.join('.');
 				keys.pop();
 				shadow = getShadow(self.config.model, path);
 				if (shadow && shadow.elements.length) {
 					updateElements(shadow.elements, shadow.value);
 				}
-			} while(keys.length);
+			}
 		};
 
 		/**
@@ -243,7 +256,7 @@ var simply = (function(simply) {
 			}
 
 			var _shadow = {};
-			Object.getOwnPropertyNames(model).forEach(function(property) {
+			Object.keys(model).forEach(function(property) {
 				if (!hasShadow(self.config.model, path+'.'+property)) {
 					// If the property has a shadow, then it is already bound
 					// and has a setter that will call updateParents
@@ -376,55 +389,66 @@ var simply = (function(simply) {
         }, true);
 	};
 
+	var runWhenIdle = (function() {
+		if (window.requestIdleCallback) {
+			return function(callback) {
+				window.requestIdleCallback(callback, {timeout: 500});
+			};
+		}
+		return window.requestAnimationFrame;
+	})();
+
 	Binding.prototype.observe = function(root) {
 		var changes = [];
 		var self    = this;
 
 		var handleChanges = throttle(function() {
-			changes = changes.concat(self.observer.takeRecords());
-			self.observer.disconnect();
-			self.observing = false;
-			var change,el,children;
-			var handledKeys = {}; // list of keys already handled
-			var handledElements = new WeakMap();
-			for (var i=changes.length-1; i>=0; i--) {
-				// handle last change first, so programmatic changes are predictable
-				// last change overrides earlier changes
-				change = changes[i];
-				el = getElement(change.target);
-				if (!el) {
-					continue;
-				}
-				if (handledElements.has(el)) {
-					continue;
-				}
-				handledElements.set(el, true);
-				children = el.querySelectorAll(self.config.selector);
-				if (children.length) {
-					self.attach(children);
-				}
-				if (!el.matches(self.config.selector)) {
-					el = el.closest(self.config.selector);
-				}
-				if (el) {
-					var key = getPath(el);
-					if (handledKeys[key]) {
-						// we already handled this key, the model is uptodate
+			runWhenIdle(function() {
+				changes = changes.concat(self.observer.takeRecords());
+				self.observer.disconnect();
+				self.observing = false;
+				var change,el,children;
+				var handledKeys = {}; // list of keys already handled
+				var handledElements = new WeakMap();
+				for (var i=changes.length-1; i>=0; i--) {
+					// handle last change first, so programmatic changes are predictable
+					// last change overrides earlier changes
+					change = changes[i];
+					el = getElement(change.target);
+					if (!el) {
 						continue;
 					}
-					handledKeys[key] = true;
-					focusedElement = el;
-					updateValue(self.config.model, key, getValue(el, self));
-					focusedElement = null;
+					if (handledElements.has(el)) {
+						continue;
+					}
+					handledElements.set(el, true);
+					children = el.querySelectorAll(self.config.selector);
+					if (children.length) {
+						self.attach(children);
+					}
+					if (!el.matches(self.config.selector)) {
+						el = el.closest(self.config.selector);
+					}
+					if (el) {
+						var key = getPath(el);
+						if (handledKeys[key]) {
+							// we already handled this key, the model is uptodate
+							continue;
+						}
+						handledKeys[key] = true;
+						focusedElement = el;
+						updateValue(self.config.model, key, getValue(el, self));
+						focusedElement = null;
+					}
 				}
-			}
-			changes = [];
-			self.observing = true;
-			self.observer.observe(root, {
-	        	subtree: true,
-	        	childList: true,
-	        	characterData: true,
-	        	attributes: true				
+				changes = [];
+				self.observing = true;
+				self.observer.observe(root, {
+		        	subtree: true,
+		        	childList: true,
+		        	characterData: true,
+		        	attributes: true				
+				});
 			});
 		},100);
         this.observer = new MutationObserver(function(changeList) {
@@ -438,12 +462,27 @@ var simply = (function(simply) {
         	characterData: true,
         	attributes: true	
         });
-        return this.observer;
+        return this;
 	};
 
 	Binding.prototype.stopObserver = function() {
 		this.observer.disconnect();
 		this.observing = false;
+	};
+
+	Binding.prototype.addListener = function(jsonPath, callback) {
+		var shadow = getShadow(this.config.model, jsonPath);
+		shadow.listeners.push(callback);
+	};
+
+	Binding.prototype.removeListener = function(callback) {
+		var shadow = getShadow(this.config.model, jsonPath);
+		shadow.listeners = shadow.listeners.filter(function(listener) {
+			if (listener==callback) {
+				return false;
+			}
+			return true;
+		});
 	};
 
 	simply.bind = function(config) {
@@ -522,4 +561,63 @@ var simply = (function(simply) {
     model.link = null;
     model.link = { href: '//muze.nl/', title: 'Muze', innerHTML: 'Muze' };
     model.title = 'foo &lt;span data-bind="user.name"&gt;&lt;/span&gt; bar'
+    bindings.addListener('user.name', function(value) {
+    	console.log('user.name changed to '+value);
+	});
+	document.addEventListener('simply.bind.resolved', function(evt) {
+		console.log('resolved: '+evt.target.outerHTML);
+	});
+</pre>
+<pre>
+var bindings = simply.bind({
+	model: model,
+	selector: '[data-bind]',
+	fieldTypes: {
+		'a': {
+			set: function(value) {
+				this.href = value.href;
+				this.title = value.title;
+				this.innerHTML = value.innerHTML;
+			},
+			get: function() {
+				return {
+					href: this.href,
+					title: this.title,
+					innerHTML: this.innerHTML
+				}
+			}
+		},
+		'input[type=text]': {
+			init: function() {
+				this.addEventListener('input', function(evt) {
+					this.dispatchEvent(new Event('simply.bind.update', {
+						bubbles: true,
+						cancelable: true
+					}));
+				});
+			},
+			set: function(value) {
+				this.value = value;
+			},
+			get: function() {
+				return this.value;
+			}
+		},
+		'[data-content="template"]': {
+			init: function() {
+				// find and remove templates
+			},
+			set: function(value) {
+				this.dataset.value = value;
+				// replace contents with matching template
+			},
+			get: function() {
+				return this.dataset.value;
+			},
+			allowNesting: true
+		}
+	}
+});
+.observe(document.body);
+
 </pre>
