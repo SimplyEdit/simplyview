@@ -229,6 +229,9 @@ window.simply = (function(simply) {
 		if (!this.config.selector) {
 			this.config.selector = '[data-bind]';
 		}
+		if (!this.config.container) {
+			this.config.container = document;
+		}
 		this.fieldTypes = {
 			'*': {
 				set: function(value) {
@@ -242,13 +245,25 @@ window.simply = (function(simply) {
 		if (this.config.fieldTypes) {
 			Object.assign(this.fieldTypes, this.config.fieldTypes);
 		}
-		this.attach(document.querySelectorAll(this.config.selector));
+		this.attach(this.config.container.querySelectorAll(this.config.selector));
 	};
 
 	Binding.prototype.attach = function(elements) {
 		var self = this;
 
 
+		/**
+		 * returns a selector matching any element bound to the given path
+		 * using any of the possible attributes
+		 **/
+		var getSelector = function(attribute, path) {
+			var attributes = attribute.split(',');
+			var selector = [];
+			for (var attr of attributes) {
+				selector.push('['+attr+'="'+path+'"]');
+			}
+			return selector.join(',');
+		};
 
 		/**
 		 * Attaches a binding to a specific html element.
@@ -259,8 +274,8 @@ window.simply = (function(simply) {
 				// so don't bother changing the model or updating the element for it
 				return;
 			}
-			//FIXME: allow different property instead of 'data-bind'
-			var nested = el.parentElement.closest('[data-bind="'+el.dataset.bind+'"]');
+
+			var nested = el.parentElement.closest(getSelector(self.config.attribute, getPath(el, self.config.attribute)));
 			if (nested && !fieldAllowsNesting(nested)) {
 				console.log('Error: illegal nested data-binding found for '+el.dataset.bind);
 				console.log(el);
@@ -388,8 +403,8 @@ window.simply = (function(simply) {
 			var reconnectObserver;
 			if (self.observing) {
 				self.observer.disconnect();
+				reconnectObserver = self.observing;
 				self.observing = false;
-				reconnectObserver = true;
 			}
 			elements.forEach(function(el, index) {
 				if (document.body.contains(el)) {
@@ -403,12 +418,12 @@ window.simply = (function(simply) {
 				}
 			});
 			if (reconnectObserver) {
-		        self.observing = true;
-				self.observer.observe(document.body, {
+		        self.observing = reconnectObserver;
+				self.observer.observe(reconnectObserver, {
 		        	subtree: true,
 		        	childList: true,
 		        	characterData: true,
-		        	attributes: true	
+		        	attributes: true
 		        });
 		    }
 		};
@@ -524,12 +539,16 @@ window.simply = (function(simply) {
 						}
 						handledKeys[key] = true;
 						focusedElement = el;
-						simply.path.set(self.config.model, key, getValue(el, self));
+						var newValue = getValue(el, self);
+						var oldValue = simply.path.get(self.config.model, key);
+						if (newValue!=oldValue) {
+							simply.path.set(self.config.model, key, getValue(el, self));
+						}
 						focusedElement = null;
 					}
 				}
 				changes = [];
-				self.observing = true;
+				self.observing = root;
 				self.observer.observe(root, {
 		        	subtree: true,
 		        	childList: true,
@@ -542,7 +561,7 @@ window.simply = (function(simply) {
         	changes = changes.concat(changeList);
         	handleChanges();
         });
-        this.observing = true;
+        this.observing = root;
         this.observer.observe(root, {
         	subtree: true,
         	childList: true,
@@ -803,6 +822,7 @@ window.simply = (function(simply) {
             if (simply.bind) {
                 options.bind = simply.render(options.bind || {});
                 options.bind.model = this.view;
+                options.bind.container = this.container;
                 this.bind = simply.bind(options.bind);
                 if (options.bind.observe) {
                     this.bind.observe(this.container);

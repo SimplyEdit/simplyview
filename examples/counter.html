@@ -9,6 +9,13 @@
 	<div>Counter is now: <span data-simply-bind="counter"></span></div>
 </div>
 
+<div id="counterApp2">
+	<input type="text" data-simply-bind="counter">
+	<button data-simply-command="add1">+</button>
+	<button data-simply-command="sub1">-</button>
+	<div>Counter is now: <span data-simply-bind="counter"></span></div>
+</div>
+
 <script src="../dist/simply.everything.js"></script>
 <script>
 	var counterApp = simply.app({
@@ -25,4 +32,20 @@
 			counter: 1
 		}
 	});
+
+	var counterApp2 = simply.app({
+		container: document.getElementById('counterApp2'),
+		commands: {
+			add1: function() {
+				counterApp2.view.counter++;
+			},
+			sub1: function() {
+				counterApp2.view.counter--;
+			}
+		},
+		view: {
+			counter: 2
+		}
+	});
+
 </script>
