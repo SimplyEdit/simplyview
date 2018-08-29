@@ -1,0 +1,28 @@
+<h1>Examples</h1>
+<h2>Counter</h2>
+<link rel="stylesheet" href="examples.css">
+
+<div id="counterApp">
+	<input type="text" data-simply-bind="counter">
+	<button data-simply-command="add1">+</button>
+	<button data-simply-command="sub1">-</button>
+	<div>Counter is now: <span data-simply-bind="counter"></span></div>
+</div>
+
+<script src="../dist/simply.everything.js"></script>
+<script>
+	var counterApp = simply.app({
+		container: document.getElementById('counterApp'),
+		commands: {
+			add1: function() {
+				counterApp.view.counter++;
+			},
+			sub1: function() {
+				counterApp.view.counter--;
+			}
+		},
+		view: {
+			counter: 1
+		}
+	});
+</script>

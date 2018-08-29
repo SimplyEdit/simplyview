@@ -1,0 +1,41 @@
+<h1>Examples</h1>
+<h2>Counter</h2>
+<link rel="stylesheet" href="examples.css">
+
+<div id="todoApp">
+	<form data-simply-command="addEntry">
+		<input type="text" name="newItem" class="new-todo" placeholder="What needs to be done?">
+	</form>
+	<ul class="todo-list" data-simply-list="items">
+		<template>
+			<li>
+				<label data-simply-bind="item">Item</label>
+			</li>
+		</template>
+	</ul>
+</div>
+
+<script src="../dist/simply.everything.js"></script>
+<script>
+	var todoApp = simply.app({
+		container: document.getElementById('todoApp'),
+		commands: {
+			addEntry: function(form, values) {
+				todoApp.actions.addEntry(values.get('newItem'));
+				form.elements.newItem.value = '';
+			}
+		},
+		actions: {
+			addEntry: function(item) {
+				todoApp.view.items.push({
+					item: item,
+					completed: 0
+				});
+				return Promise.resolve();			
+			}
+		},
+		view: {
+			items: []
+		}
+	});
+</script>
