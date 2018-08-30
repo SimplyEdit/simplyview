@@ -90,10 +90,26 @@ window.simply = (function(simply) {
 		return root[jsonPath];
 	}
 
-	function triggerListeners(listeners, value) {
-		listeners.forEach(function(callback) {
-			callback.call(null, value);
+	function triggerChildListeners(path, model) {
+		var shadow = getShadow(model, path);
+		for (var childPath of Object.keys(shadow.children)) {
+			var childShadow = getShadow(model, childPath);
+			childShadow.listeners.forEach(function(callback) {
+				callback.call(null, childShadow.value);
+			});
+			triggerChildListeners(childPath, model);
+		}
+	}
+
+	function triggerListeners(path, model) {
+		var shadow = getShadow(model, path);
+		shadow.listeners.forEach(function(callback) {
+			callback.call(null, shadow.value);
 		});
+		var parent = simply.path.parent(path);
+		if (parent) {
+			triggerListeners(parent, model);
+		}
 	}
 
 	/**
@@ -116,8 +132,8 @@ window.simply = (function(simply) {
 		if (!this.config.model) {
 			this.config.model = {};
 		}
-		if (!this.config.attr) {
-			this.config.attr = 'data-bind';
+		if (!this.config.attribute) {
+			this.config.attribute = 'data-bind';
 		}
 		if (!this.config.selector) {
 			this.config.selector = '[data-bind]';
@@ -198,7 +214,8 @@ window.simply = (function(simply) {
 								addSetTriggers(shadow);
 								updateParents(path);
 								monitorProperties(value, path);
-								triggerListeners(shadow.listeners, value);
+								triggerChildListeners(path, self.config.model);
+								triggerListeners(path, self.config.model);
 							};
 						})(shadow, path),
 						get: (function(shadow) {
