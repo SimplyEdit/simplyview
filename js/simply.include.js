@@ -26,7 +26,7 @@ window.simply = (function(simply) {
     })();
 
     var rebaseHref = function(relative, base) {
-        if (/^[htps]*:?\//.test(relative)) {
+        if (/^[a-z-]*:?\//.test(relative)) {
             return relative; // absolute href, no need to rebase
         }
 
@@ -45,7 +45,7 @@ window.simply = (function(simply) {
         return stack.join("/");
     }
 
-    var observer, changes, loaded;
+    var observer, loaded;
     var head = document.documentElement.querySelector('head')
 
     var waitForPreviousScripts = function() {
@@ -112,21 +112,16 @@ window.simply = (function(simply) {
                 }
                 head.appendChild(sylesheet);
             });
-            simply.include.scripts(fragment.querySelectorAll('script'), link.href);
-            if (!link) {
-                link = document.body.lastElementChild;
-            }
             // add the remainder before the include link
-            link.parentNode.insertBefore(fragment, link);
-            // remove the include link
-            link.parentNode.removeChild(link);
+            link.parentNode.insertBefore(fragment, link ? link : null);
+            simply.include.scripts(fragment.querySelectorAll('script'), link ? link.href : window.location.href );
         }
     }
 
     var includeLinks = function(links) {
         // mark them as in progress, so handleChanges doesn't find them again
         [].forEach.call(links, function(link) {
-            link.rel = '';
+            link.rel = 'simply-include-loading';
         });
         [].forEach.call(links, function(link) {
             // fetch the html
@@ -142,15 +137,14 @@ window.simply = (function(simply) {
             .then(function(html) {
                 // if succesfull import the html
                 simply.include.html(html, link);
+                // remove the include link
+                link.parentNode.removeChild(link);
             });
         });
     };
 
     var handleChanges = throttle(function() {
         runWhenIdle(function() {
-            var myChanges = changes.concat(observer.takeRecords());
-            changes = [];
-
             var links = document.querySelectorAll('link[rel="simply-include"]');
             if (links.length) {
                 includeLinks(links);
@@ -159,11 +153,8 @@ window.simply = (function(simply) {
     };
 
     var observe = function() {
-        observer = new MutationObserver(function(changeList) {
-            changes = changes.concat(changeList);
-            handleChanges();
-        });
-        observer.observe({
+        observer = new MutationObserver(handleChanges);
+        observer.observe(document, {
             subtree: true,
             childList: true,
         });
