@@ -78,7 +78,9 @@ window.simply = (function(simply) {
 				if (!script) {
 					return;
 				}
-                var attrs  = script.getAttributeNames();
+                var attrs  = [].map.call(script.attributes, function(attr) {
+					return attr.name;
+				});
                 var clone  = document.createElement('script');
                 attrs.forEach(function(attr) {
                     clone.setAttribute(attr, script[attr]);
