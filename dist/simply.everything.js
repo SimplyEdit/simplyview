@@ -1,4 +1,520 @@
 window.simply = (function(simply) {
+    simply.app = function(options) {
+        if (!options) {
+            options = {};
+        }
+        if (!options.container) {
+            console.log('No simply.app application container element specified, using document.body.');
+        }
+        
+        function simplyApp(options) {
+            if (!options) {
+                options = {};
+            }
+            this.container = options.container  || document.body;
+            this.actions   = simply.actions ? simply.actions(this, options.actions) : false;
+            this.commands  = simply.commands ? simply.commands(this, options.commands) : false;
+            this.sizes     = {
+                'simply-tiny'   : 0,
+                'simply-xsmall' : 480,
+                'simply-small'  : 768,
+                'simply-medium' : 992,
+                'simply-large'  : 1200
+            }
+            this.view      = simply.view ? simply.view(this, options.view) : false;
+            if (simply.bind) {
+                options.bind = simply.render(options.bind || {});
+                options.bind.model = this.view;
+                options.bind.container = this.container;
+                this.bind = options.bindings = simply.bind(options.bind);
+                if (options.bind.observe) {
+                    this.bind.observe(this.container);
+                }
+            }
+        }
+
+        simplyApp.prototype.get = function(id) {
+            return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
+        }
+
+        var app = new simplyApp(options);
+
+        if ( simply.toolbar ) {
+            var toolbars = app.container.querySelectorAll('.simply-toolbar');
+            for ( var i=0,l=toolbars.length; i<l; i++) {
+                simply.toolbar.init(toolbars[i]);
+            }
+            if (simply.toolbar.scroll) {
+                for ( var i=0,l=toolbars.length; i<l; i++) {
+                    simply.toolbar.scroll(toolbars[i]);
+                }
+            }
+        }
+
+        var lastSize = 0;
+        function resizeSniffer() {
+            var size = app.container.getBoundingClientRect().width;
+            if ( lastSize==size ) {
+                return;
+            }
+            lastSize  = size;
+            var sizes = Object.keys(app.sizes);
+            var match = null;
+            while (match=sizes.pop()) {
+                if ( size<app.sizes[match] ) {
+                    if ( app.container.classList.contains(match)) {
+                        app.container.classList.remove(match);
+                    }
+                } else {
+                    if ( !app.container.classList.contains(match) ) {
+                        app.container.classList.add(match);
+                    }
+                    break;
+                }
+            }
+            while (match=sizes.pop()) {
+                if ( app.container.classList.contains(match)) {
+                    app.container.classList.remove(match);
+                }
+            }
+            var toolbars = app.container.querySelectorAll('.simply-toolbar');
+            for (var i=toolbars.length-1; i>=0; i--) {
+                toolbars[i].style.transform = '';
+            }
+        }
+
+        if ( window.attachEvent ) {
+            app.container.attachEvent('onresize', resizeSniffer);
+        } else {
+            window.setInterval(resizeSniffer, 200);
+        }
+        
+        return app;
+    };
+
+
+    return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
+    var templates = new WeakMap();
+
+    simply.render = function(options) {
+        if (!options) {
+            options = {};
+        }
+        options = Object.assign({
+            attribute: 'data-simply-field,data-simply-list',
+            selector: '[data-simply-field],[data-simply-list]',
+            observe: true,
+            model: {}
+        }, options);
+
+        options.fieldTypes = Object.assign({
+            '*': {
+                set: function(value) {
+                    this.innerHTML = value;
+                },
+                get: function() {
+                    return this.innerHTML;
+                }
+            },
+            'input,textarea,select': {
+                init: function(binding) {
+                    this.addEventListener('input', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    this.value = value;
+                },
+                get: function() {
+                    return this.value;
+                }
+            },
+            'input[type=radio]': {
+                init: function(binding) {
+                    this.addEventListener('change', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    this.checked = (value==this.value);
+                },
+                get: function() {
+                    var checked;
+                    if (this.form) {
+                        return this.form[this.name].value;
+                    } else if (checked=document.body.querySelector('input[name="'+this.name+'"][checked]')) { 
+                        return checked.value;
+                    } else {
+                        return null;
+                    }
+                }
+            },
+            'input[type=checkbox]': {
+                init: function(binding) {
+                    this.addEventListener('change', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    this.checked = (value.checked);
+                    this.value = value.value;
+                },
+                get: function() {
+                    return {
+                        checked: this.checked,
+                        value: this.value
+                    };
+                }
+            },
+            'select[multiple]': {
+                init: function(binding) {
+                    this.addEventListener('change', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    for (i=0,l=this.options.length;i<l;i++) {
+                        this.options[i].selected = (value.indexOf(this.options[i].value)>=0);
+                    }
+                },
+                get: function() {
+                    return this.value;
+                }
+            },
+//            '[data-simply-content="template"]': {
+//                 allowNesting: true
+//            },
+            '[data-simply-list]': {
+                init: function(binding) {
+                    // parse templates
+//                    parseTemplates(this);
+                    templates.set(this, this.querySelector('template'));
+                },
+                set: function(value, binding) {
+                    // first version: rerender entire array using templates
+                    var content = document.createDocumentFragment();
+                    if (value && value.length) {
+                        var template = templates.get(this);
+                        var listPath = this.dataset.simplyList;
+                        for (var i=0,l=value.length; i<l; i++) {
+                            var instance = document.importNode(template.content, true);
+                            instance.firstElementChild.dataset.simplyListItem = i;
+                            // databinding binnen de instance moet naar value[i] wijzen
+                            // mutation observer moet dit ook snappen
+                            // makkelijkst is om het data-simply-field aan te passen
+                            var fields = instance.querySelectorAll('[data-simply-field],[data-simply-list]');
+                            [].forEach.call(fields, function(field) {
+                                var attribute = (field.dataset.simplyField ? 'simplyField' : 'simplyList');
+                                field.dataset[attribute] = listPath + '.' + i + '.' + field.dataset[attribute];
+                            });
+                            content.appendChild(instance);
+                        }
+                        binding.attach(content.querySelectorAll('[data-simply-field]'), content);
+                        //FIXME: bij attach root mee kunnen geven, als elementen niet in die root zitten, dan overslaan
+                        // niet verwijderen!
+                        // specifiek in de updateElements() call in de push/pop/etc functies 
+                        // dus misschien een alternatieve updateElements() maken daar?
+                    }
+                    var self = this;
+                    window.requestAnimationFrame(function() {
+                        binding.stopObserver();
+                        self.innerHTML = '';
+                        self.appendChild(content);
+                        binding.resumeObserver();
+                    });
+                },
+                get: function() {
+                    var items = this.querySelectorAll('[data-simply-list-item]');
+                    var result = [];
+                    var self = this;
+                    [].forEach.call(items, function(item) {
+                        result.push(simply.path.get(options.model, self.dataset.simplyList+'.'+item.dataset.simplyListItem));
+                    });
+                    return result;
+                },
+                allowNesting: true
+            }
+        }, options.fieldTypes);
+
+        return options;
+    }
+
+    return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
+	var routeInfo = [];
+
+	function parseRoutes(routes) {
+		var paths = Object.keys(routes);
+		var matchParams = /\:(\w+)/;
+		for (var i=0; i<paths.length; i++) {
+			var path        = paths[i];
+			var matches     = matchParams.exec(path);
+			var params      = matches ? matches.slice(1) : [];
+			routeInfo.push({
+				match:  new RegExp(path.replace(/\:\w+/, '([^/]+)').replace(/\:\*/, '(.*)')),
+				params: params,
+				action: routes[path]
+			});
+		}
+	}
+
+	simply.route = {
+		load: function(routes) {
+			parseRoutes(routes);
+		},
+		match: function(path) {
+			for ( var i=0; i<routeInfo.length; i++) {
+				var matches = routeInfo[i].match.exec(path);
+				if (matches && matches.length) {
+					var params = {};
+					routeInfo[i].params.forEach(function(key, i) {
+						if (key=='*') {
+							key = 'remainder';
+						}
+						params[key] = matches[i+1];
+					});
+					return routeInfo[i].action.call(simply.route, params);
+				}
+			}
+		},
+		goto: function(path) {
+			history.pushState({},'',path);
+			return simply.route.match(path);
+		},
+		has: function(path) {
+			for ( var i=0; i<routeInfo.length; i++) {
+				var matches = routeInfo[i].match.exec(path);
+				if (matches && matches.length) {
+					return true;
+				}
+			}
+			return false;
+		}
+	};
+
+	window.addEventListener('popstate', function() {
+		simply.route.match(document.location.pathname);
+	});
+
+	var linkHandler = function(evt) {
+		if (evt.ctrlKey) {
+			return;
+		}
+		var link = evt.target;
+		while (link && link.tagName!='A') {
+			link = link.parentElement;
+		}
+		if (link 
+			&& link.pathname 
+			&& link.hostname==document.location.hostname 
+			&& !link.link
+			&& !link.dataset.simplyCommand
+			&& simply.route.has(link.pathname)
+		) {
+			simply.route.goto(link.pathname);
+			evt.preventDefault();
+			return false;
+		}
+	};
+
+	document.addEventListener('click', linkHandler);
+
+	return simply;
+
+})(window.simply || {});
+window.simply = (function(simply) {
+
+    var throttle = function( callbackFunction, intervalTime ) {
+        var eventId = 0;
+        return function() {
+            var myArguments = arguments;
+            var me = this;
+            if ( eventId ) {
+                return;
+            } else {
+                eventId = window.setTimeout( function() {
+                    callbackFunction.apply(me, myArguments);
+                    eventId = 0;
+                }, intervalTime );
+            }
+        }
+    };
+
+    var runWhenIdle = (function() {
+        if (window.requestIdleCallback) {
+            return function(callback) {
+                window.requestIdleCallback(callback, {timeout: 500});
+            };
+        }
+        return window.requestAnimationFrame;
+    })();
+
+    var rebaseHref = function(relative, base) {
+        if (/^[a-z-]*:?\//.test(relative)) {
+            return relative; // absolute href, no need to rebase
+        }
+
+        var stack = base.split("/"),
+            parts = relative.split("/");
+        stack.pop(); // remove current file name (or empty string)
+                     // (omit if "base" is the current folder without trailing slash)
+        for (var i=0; i<parts.length; i++) {
+            if (parts[i] == ".")
+                continue;
+            if (parts[i] == "..")
+                stack.pop();
+            else
+                stack.push(parts[i]);
+        }
+        return stack.join("/");
+    }
+
+    var observer, loaded;
+    var head = document.documentElement.querySelector('head')
+
+    var waitForPreviousScripts = function() {
+        // because of the async=false attribute, this script will run after
+        // the previous scripts have been loaded and run
+        // simply.include.signal.js only fires the simply-next-script event
+        // that triggers the Promise.resolve method
+        return new Promise(function(resolve, reject) {
+            var next = document.createElement('script');
+            next.src = rebaseHref('simply.include.next.js', document.currentScript.src);
+            next.async = false;
+            document.addEventListener('simply-include-next', function() {
+                head.removeChild(next);
+                resolve();
+            }, { once: true, passive: true});
+            head.appendChild(next);
+        });
+    };
+
+    simply.include = {
+        scripts: function(scripts, base) {
+            var arr = [];
+            for(var i = scripts.length; i--; arr.unshift(scripts[i]));
+            var importScript = function() {
+                var script = arr.shift();
+                var attrs  = script.getAttributeNames();
+                var clone  = document.createElement('script');
+                attrs.forEach(function(attr) {
+                    clone.setAttribute(attr, script[attr]);
+                });
+                if (!clone.src) {
+                    // this is an inline script, so copy the content and wait for previous scripts to run
+                    clone.innerHTML = script.innerHTML;
+                    waitForPreviousScripts()
+                    .then(function() {
+                        script.parentNode.insertBefore(clone, script);
+                        script.parentNode.removeChild(script);
+                        importScript();
+                    });
+                } else {
+                    clone.src = rebaseHref(clone.src, base);
+                    // FIXME: remove loaded check? browser loads/runs same script multiple times...
+                    // should we do that also?
+                    if (!loaded[clone.src] || clone.dataset.simplyIncludeMultiple) {
+                        if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
+                            clone.setAttribute('async', false);
+                        }
+                        script.parentNode.insertBefore(clone, script);
+                        script.parentNode.removeChild(script);
+                        loaded[clone.src]=true;
+                    }
+                    importScript();
+                }
+            }
+        },
+        html: function(html, link) {
+            var fragment = document.createDocumentFragment();
+            fragment.innerHTML = html;
+            var stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
+            // add all stylesheets to head
+            [].forEach.call(stylesheets, function(stylesheet) {
+                if (stylesheet.href) {
+                    stylesheet.href = rebaseHref(stylesheet.href, link.href);
+                }
+                head.appendChild(sylesheet);
+            });
+            // add the remainder before the include link
+            link.parentNode.insertBefore(fragment, link ? link : null);
+            simply.include.scripts(fragment.querySelectorAll('script'), link ? link.href : window.location.href );
+        }
+    }
+
+    var includeLinks = function(links) {
+        // mark them as in progress, so handleChanges doesn't find them again
+        [].forEach.call(links, function(link) {
+            link.rel = 'simply-include-loading';
+        });
+        [].forEach.call(links, function(link) {
+            // fetch the html
+            fetch(link.href)
+            .then(function(response) {
+                if (response.ok) {
+                    console.log('simply-include: loaded '+link.href);
+                    return response.text();
+                } else {
+                    console.log('simply-include: failed to load '+link.href);
+                }
+            })
+            .then(function(html) {
+                // if succesfull import the html
+                simply.include.html(html, link);
+                // remove the include link
+                link.parentNode.removeChild(link);
+            });
+        });
+    };
+
+    var handleChanges = throttle(function() {
+        runWhenIdle(function() {
+            var links = document.querySelectorAll('link[rel="simply-include"]');
+            if (links.length) {
+                includeLinks(links);
+            }
+        }
+    };
+
+    var observe = function() {
+        observer = new MutationObserver(handleChanges);
+        observer.observe(document, {
+            subtree: true,
+            childList: true,
+        });
+    };
+
+    observe();
+
+    return simply;
+
+})(window.simply || {});
+window.simply = (function(simply) {
     var defaultActions = {
         'simply-hide': function(el) {
             el.classList.remove('simply-visible');
@@ -107,6 +623,135 @@ window.simply = (function(simply) {
 })(window.simply || {});
 window.simply = (function(simply) {
 
+    var knownCollections = {};
+    
+    simply.collections = {
+        addListener: function(name, callback) {
+            if (!knownCollections[name]) {
+                knownCollections[name] = [];
+            }
+            if (knownCollections[name].indexOf(callback) == -1) {
+                knownCollections[name].push(callback);
+            }
+        },
+        removeListener: function(name, callback) {
+            if (knowCollections[name]) {
+                var index = knownCollections[name].indexOf(callback);
+                if (index>=0) {
+                    knownCollections[name].splice(index, 1);
+                }
+            }
+        },
+        update: function(element, value) {
+            element.value = value;
+            editor.fireEvent('change', element);
+        }
+    };
+
+    function findCollection(el) {
+        while (el && !el.dataset.simplyCollection) {
+            el = el.parentElement;
+        }
+        return el;
+    }
+    
+    document.addEventListener('change', function(evt) {
+        var root = null;
+        var name = '';
+        if (evt.target.dataset.simplyElement) {
+            root = findCollection(evt.target);
+            if (root && root.dataset) {
+                name = root.dataset.simplyCollection;
+            }
+        }
+        if (name && knownCollections[name]) {
+            var inputs = root.querySelectorAll('[data-simply-element]');
+            var elements = [].reduce.call(inputs, function(elements, input) {
+                elements[input.dataset.simplyElement] = input;
+                return elements;
+            }, {});
+            for (var i=knownCollections[name].length-1; i>=0; i--) {
+                var result = knownCollections[name][i].call(evt.target.form, elements);
+                if (result === false) {
+                    break;
+                }
+            }
+        }
+    }, true);
+
+    return simply;
+
+})(window.simply || {});
+var simply = (function(simply) {
+
+	simply.path = {
+		get: function(model, path) {
+			if (!path) {
+				return model;
+			}
+			return path.split('.').reduce(function(acc, name) {
+				return (acc && acc[name] ? acc[name] : null);
+			}, model);
+		},
+		set: function(model, path, value) {
+			var lastName   = simply.path.pop(path);
+			var parentPath = simply.path.parent(path);
+			var parentOb   = simply.path.get(model, parentPath);
+			parentOb[lastName] = value;
+		},
+		pop: function(path) {
+			return path.split('.').pop();
+		},
+		push: function(path, name) {
+			return (path ? path + '.' : '') + name;
+		},
+		parent: function(path) {
+			var p = path.split('.');
+			p.pop();
+			return p.join('.');
+		},
+		parents: function(path) {
+			var result = [];
+			path.split('.').reduce(function(acc, name) {
+				acc.push( (acc.length ? acc[acc.length-1] + '.' : '') + name );
+				return acc;
+			},result);
+			return result;
+		}
+	};
+
+	return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
+	simply.view = function(app, view) {
+
+		app.view = view || {}
+
+		var load = function() {
+			var data = app.view;
+			var path = editor.data.getDataPath(app.container);
+			app.view = editor.currentData[path];
+			Object.keys(data).forEach(function(key) {
+				app.view[key] = data[key];
+			});
+		}
+
+		if (window.editor && editor.currentData) {
+			load();
+		} else {
+			document.addEventListener('simply-content-loaded', function() {
+				load();
+			});
+		}
+		
+		return app.view;
+	};
+
+	return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
 	/*** utility functions ****/	
 	function throttle( callbackFunction, intervalTime ) {
 		var eventId = 0;
@@ -146,7 +791,7 @@ window.simply = (function(simply) {
 		if (el!=focusedElement) {
 			var fieldType = getFieldType(binding.fieldTypes, el);
 			if (fieldType) {
-				fieldType.set.call(el, (typeof value != 'undefined' ? value : ''));
+				fieldType.set.call(el, (typeof value != 'undefined' ? value : ''), binding);
 				el.dispatchEvent(new Event('simply.bind.resolved', {
 					bubbles: true,
 					cancelable: false
@@ -178,6 +823,8 @@ window.simply = (function(simply) {
 	/*** shadow values ***/
 	var shadows = new WeakMap();
 	var focusedElement = null;
+	var initialized = new WeakMap();
+
 	/**
 	 * Returns an object ment to keep the original value of model[jsonPath]
 	 */
@@ -197,10 +844,26 @@ window.simply = (function(simply) {
 		return root[jsonPath];
 	}
 
-	function triggerListeners(listeners, value) {
-		listeners.forEach(function(callback) {
-			callback.call(null, value);
+	function triggerChildListeners(path, model) {
+		var shadow = getShadow(model, path);
+		for (var childPath of Object.keys(shadow.children)) {
+			var childShadow = getShadow(model, childPath);
+			childShadow.listeners.forEach(function(callback) {
+				callback.call(null, childShadow.value);
+			});
+			triggerChildListeners(childPath, model);
+		}
+	}
+
+	function triggerListeners(path, model) {
+		var shadow = getShadow(model, path);
+		shadow.listeners.forEach(function(callback) {
+			callback.call(null, shadow.value);
 		});
+		var parent = simply.path.parent(path);
+		if (parent) {
+			triggerListeners(parent, model);
+		}
 	}
 
 	/**
@@ -223,8 +886,8 @@ window.simply = (function(simply) {
 		if (!this.config.model) {
 			this.config.model = {};
 		}
-		if (!this.config.attr) {
-			this.config.attr = 'data-bind';
+		if (!this.config.attribute) {
+			this.config.attribute = 'data-bind';
 		}
 		if (!this.config.selector) {
 			this.config.selector = '[data-bind]';
@@ -245,10 +908,10 @@ window.simply = (function(simply) {
 		if (this.config.fieldTypes) {
 			Object.assign(this.fieldTypes, this.config.fieldTypes);
 		}
-		this.attach(this.config.container.querySelectorAll(this.config.selector));
+		this.attach(this.config.container.querySelectorAll(this.config.selector), this.config.container);
 	};
 
-	Binding.prototype.attach = function(elements) {
+	Binding.prototype.attach = function(elements, root) {
 		var self = this;
 
 
@@ -269,7 +932,7 @@ window.simply = (function(simply) {
 		 * Attaches a binding to a specific html element.
 		 **/
 		var attachElement = function(jsonPath, el) {
-			if (!document.body.contains(el)) {
+			if (!root.contains(el)) {
 				// element is no longer part of the document
 				// so don't bother changing the model or updating the element for it
 				return;
@@ -295,27 +958,24 @@ window.simply = (function(simply) {
 					shadow.children[ simply.path.push(path,keys[0]) ] = true;
 				}
 				if (model && typeof model == 'object') {
-					shadow.value = model[key];
-					Object.defineProperty(model, key, {
-						set: (function(shadow, path) {
-							return function(value) {
-								shadow.value = value;
-								updateElements(shadow.elements, value);
-								attachChildren(shadow);
-								addSetTriggers(shadow);
-								updateParents(path);
-								monitorProperties(value, path);
-								triggerListeners(shadow.listeners, value);
-							};
-						})(shadow, path),
-						get: (function(shadow) {
-							return function() {
-								return shadow.value;
-							}
-						})(shadow),
-						configurable: true,
-						enumerable: true
-					});
+					if (!Array.isArray(model)) {
+						shadow.value = model[key];
+						Object.defineProperty(model, key, {
+							set: (function(shadow, path) {
+								return function(value) {
+									shadow.value = value;
+									setHandlers(shadow, path)
+								};
+							})(shadow, path),
+							get: (function(shadow) {
+								return function() {
+									return shadow.value;
+								}
+							})(shadow),
+							configurable: true,
+							enumerable: true
+						});
+					}
 					model = model[key];
 				}
 				parentPath = path;
@@ -325,6 +985,9 @@ window.simply = (function(simply) {
 			}
 			initElement(el);
 			updateElements([el], model);
+			if (Array.isArray(shadow.value)) {
+				attachArray(shadow, path);
+			}
 			monitorProperties(model, path);
 		};
 
@@ -385,6 +1048,10 @@ window.simply = (function(simply) {
 		 * Runs the init() method of the fieldType, if it is defined.
 		 **/
 		var initElement = function(el) {
+			if (initialized.has(el)) {
+				return;
+			}
+			initialized.set(el, true);
 			var selectors = Object.keys(self.fieldTypes);
 			for (var i=selectors.length-1; i>=0; i--) {
 				if (self.fieldTypes[selectors[i]].init && el.matches(selectors[i])) {
@@ -407,14 +1074,14 @@ window.simply = (function(simply) {
 				self.observing = false;
 			}
 			elements.forEach(function(el, index) {
-				if (document.body.contains(el)) {
+				if (root.contains(el)) {
 					setValue(el, value, self);
 					var children = el.querySelectorAll(self.config.selector);
 					if (children.length) {
 						self.attach(children);
 					}
-				} else {
-					elements.splice(index,1);
+//				} else {
+//					elements.splice(index,1);
 				}
 			});
 			if (reconnectObserver) {
@@ -427,6 +1094,49 @@ window.simply = (function(simply) {
 		        });
 		    }
 		};
+
+		var setHandlers = function(shadow, path) {
+			updateElements(shadow.elements, shadow.value);
+			if (Array.isArray(shadow.value)) {
+				attachArray(shadow, path);
+			} else {
+				attachChildren(shadow);
+				addSetTriggers(shadow);
+				updateParents(path);
+			}
+			monitorProperties(shadow.value, path);
+			triggerChildListeners(path, self.config.model);
+			triggerListeners(path, self.config.model);
+		}
+
+		var attachArray = function(shadow, path) {
+			var listPath = path;
+			var desc = Object.getOwnPropertyDescriptor(shadow.value, 'push');
+			if (!desc || desc.configurable) {
+				for (var f of ['push','pop','reverse','shift','sort','splice','unshift']) {
+					(function(f) {
+						//FIXME: change prototype? at least make sure that push/pop/etc
+						//aren't listen in the console / debugger as properties
+						Object.defineProperty(shadow.value, f, {
+							value: function() {
+								var result = Array.prototype[f].apply(this, arguments);
+								//FIXME: the shadows staan nog verkeerd
+								//na een unshift() moeten de paden van alle shadows
+								//opnieuw gezet worden
+								//of eigenlijk moeten alle child shadows weggegooid
+								//en opnieuw gezet
+								shadow.elements.forEach(function(el, index) {
+									setValue(el, shadow.value, self);
+								});
+								return result;
+							},
+							readable: false,
+							enumerable: false
+						});
+					}(f));
+				}
+			}
+		}
 
 		/**
 		 * Loops over registered children of the shadow, that means a sub property
@@ -477,6 +1187,9 @@ window.simply = (function(simply) {
         	});
 		}
 
+		if (!root) {
+			root = document.body;
+		}
 		if ( elements instanceof HTMLElement ) {
 			elements = [ elements ];
 		}
@@ -507,8 +1220,7 @@ window.simply = (function(simply) {
 		var handleChanges = throttle(function() {
 			runWhenIdle(function() {
 				changes = changes.concat(self.observer.takeRecords());
-				self.observer.disconnect();
-				self.observing = false;
+				self.stopObserver();
 				var change,el,children;
 				var handledKeys = {}; // list of keys already handled
 				var handledElements = new WeakMap();
@@ -548,33 +1260,36 @@ window.simply = (function(simply) {
 					}
 				}
 				changes = [];
-				self.observing = root;
-				self.observer.observe(root, {
-		        	subtree: true,
-		        	childList: true,
-		        	characterData: true,
-		        	attributes: true				
-				});
+				self.resumeObserver();
 			});
 		},100);
         this.observer = new MutationObserver(function(changeList) {
         	changes = changes.concat(changeList);
         	handleChanges();
         });
-        this.observing = root;
-        this.observer.observe(root, {
-        	subtree: true,
-        	childList: true,
-        	characterData: true,
-        	attributes: true	
-        });
+        this.wasObserving = root;
+        this.resumeObserver();
         return this;
 	};
 
 	Binding.prototype.stopObserver = function() {
 		this.observer.disconnect();
+		this.wasObserving = this.observing;
 		this.observing = false;
 	};
+
+	Binding.prototype.resumeObserver = function() {
+		if (this.wasObserving) {
+			this.observing = this.wasObserving;
+			this.observer.observe(this.observing, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+				attributes: true
+			});
+			this.wasObserving = false;
+		}
+	}
 
 	Binding.prototype.addListener = function(jsonPath, callback) {
 		var shadow = getShadow(this.config.model, jsonPath);
@@ -596,67 +1311,6 @@ window.simply = (function(simply) {
 	};
 
     return simply;
-})(window.simply || {});
-window.simply = (function(simply) {
-
-    var knownCollections = {};
-    
-    simply.collections = {
-        addListener: function(name, callback) {
-            if (!knownCollections[name]) {
-                knownCollections[name] = [];
-            }
-            if (knownCollections[name].indexOf(callback) == -1) {
-                knownCollections[name].push(callback);
-            }
-        },
-        removeListener: function(name, callback) {
-            if (knowCollections[name]) {
-                var index = knownCollections[name].indexOf(callback);
-                if (index>=0) {
-                    knownCollections[name].splice(index, 1);
-                }
-            }
-        },
-        update: function(element, value) {
-            element.value = value;
-            editor.fireEvent('change', element);
-        }
-    };
-
-    function findCollection(el) {
-        while (el && !el.dataset.simplyCollection) {
-            el = el.parentElement;
-        }
-        return el;
-    }
-    
-    document.addEventListener('change', function(evt) {
-        var root = null;
-        var name = '';
-        if (evt.target.dataset.simplyElement) {
-            root = findCollection(evt.target);
-            if (root && root.dataset) {
-                name = root.dataset.simplyCollection;
-            }
-        }
-        if (name && knownCollections[name]) {
-            var inputs = root.querySelectorAll('[data-simply-element]');
-            var elements = [].reduce.call(inputs, function(elements, input) {
-                elements[input.dataset.simplyElement] = input;
-                return elements;
-            }, {});
-            for (var i=knownCollections[name].length-1; i>=0; i--) {
-                var result = knownCollections[name][i].call(evt.target.form, elements);
-                if (result === false) {
-                    break;
-                }
-            }
-        }
-    }, true);
-
-    return simply;
-
 })(window.simply || {});
 window.simply = (function(simply) {
 
@@ -794,365 +1448,4 @@ window.simply = (function(simply) {
 
     return simply;
     
-})(window.simply || {});
-window.simply = (function(simply) {
-    simply.app = function(options) {
-        if (!options) {
-            options = {};
-        }
-        if (!options.container) {
-            console.log('No simply.app application container element specified, using document.body.');
-        }
-        
-        function simplyApp(options) {
-            if (!options) {
-                options = {};
-            }
-            this.container = options.container  || document.body;
-            this.actions   = simply.actions ? simply.actions(this, options.actions) : false;
-            this.commands  = simply.commands ? simply.commands(this, options.commands) : false;
-            this.sizes     = {
-                'simply-tiny'   : 0,
-                'simply-xsmall' : 480,
-                'simply-small'  : 768,
-                'simply-medium' : 992,
-                'simply-large'  : 1200
-            }
-            this.view      = simply.view ? simply.view(this, options.view) : false;
-            if (simply.bind) {
-                options.bind = simply.render(options.bind || {});
-                options.bind.model = this.view;
-                options.bind.container = this.container;
-                this.bind = simply.bind(options.bind);
-                if (options.bind.observe) {
-                    this.bind.observe(this.container);
-                }
-            }
-        }
-
-        simplyApp.prototype.get = function(id) {
-            return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
-        }
-
-        var app = new simplyApp(options);
-
-        if ( simply.toolbar ) {
-            var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            for ( var i=0,l=toolbars.length; i<l; i++) {
-                simply.toolbar.init(toolbars[i]);
-            }
-            if (simply.toolbar.scroll) {
-                for ( var i=0,l=toolbars.length; i<l; i++) {
-                    simply.toolbar.scroll(toolbars[i]);
-                }
-            }
-        }
-
-        var lastSize = 0;
-        function resizeSniffer() {
-            var size = app.container.getBoundingClientRect().width;
-            if ( lastSize==size ) {
-                return;
-            }
-            lastSize  = size;
-            var sizes = Object.keys(app.sizes);
-            var match = null;
-            while (match=sizes.pop()) {
-                if ( size<app.sizes[match] ) {
-                    if ( app.container.classList.contains(match)) {
-                        app.container.classList.remove(match);
-                    }
-                } else {
-                    if ( !app.container.classList.contains(match) ) {
-                        app.container.classList.add(match);
-                    }
-                    break;
-                }
-            }
-            while (match=sizes.pop()) {
-                if ( app.container.classList.contains(match)) {
-                    app.container.classList.remove(match);
-                }
-            }
-            var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            for (var i=toolbars.length-1; i>=0; i--) {
-                toolbars[i].style.transform = '';
-            }
-        }
-
-        if ( window.attachEvent ) {
-            app.container.attachEvent('onresize', resizeSniffer);
-        } else {
-            window.setInterval(resizeSniffer, 200);
-        }
-        
-        return app;
-    };
-
-
-    return simply;
-})(window.simply || {});
-var simply = (function(simply) {
-
-	simply.path = {
-		get: function(model, path) {
-			if (!path) {
-				return model;
-			}
-			return path.split('.').reduce(function(acc, name) {
-				return (acc && acc[name] ? acc[name] : null);
-			}, model);
-		},
-		set: function(model, path, value) {
-			var lastName   = simply.path.pop(path);
-			var parentPath = simply.path.parent(path);
-			var parentOb   = simply.path.get(model, parentPath);
-			parentOb[lastName] = value;
-		},
-		pop: function(path) {
-			return path.split('.').pop();
-		},
-		push: function(path, name) {
-			return (path ? path + '.' : '') + name;
-		},
-		parent: function(path) {
-			var p = path.split('.');
-			p.pop();
-			return p.join('.');
-		},
-		parents: function(path) {
-			var result = [];
-			path.split('.').reduce(function(acc, name) {
-				acc.push( (acc.length ? acc[acc.length-1] + '.' : '') + name );
-				return acc;
-			},result);
-			return result;
-		}
-	};
-
-	return simply;
-})(window.simply || {});
-window.simply = (function(simply) {
-
-    simply.render = function(options) {
-        if (!options) {
-            options = {};
-        }
-        options = Object.assign({
-            attribute: 'data-simply-bind,data-simply-list',
-            selector: '[data-simply-bind],[data-simply-list]',
-            observe: true
-        }, options);
-
-        options.fieldTypes = Object.assign({
-            '*': {
-                set: function(value) {
-                    this.innerHTML = value;
-                },
-                get: function() {
-                    return this.innerHTML;
-                }
-            },
-            'input,textarea,select': {
-                init: function(binding) {
-                    this.addEventListener('input', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    this.value = value;
-                },
-                get: function() {
-                    return this.value;
-                }
-            },
-            'input[type=radio]': {
-                init: function(binding) {
-                    this.addEventListener('change', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    this.checked = (value==this.value);
-                },
-                get: function() {
-                    var checked;
-                    if (this.form) {
-                        return this.form[this.name].value;
-                    } else if (checked=document.body.querySelector('input[name="'+this.name+'"][checked]')) { 
-                        return checked.value;
-                    } else {
-                        return null;
-                    }
-                }
-            },
-            'input[type=checkbox]': {
-                init: function(binding) {
-                    this.addEventListener('change', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    this.checked = (value.checked);
-                    this.value = value.value;
-                },
-                get: function() {
-                    return {
-                        checked: this.checked,
-                        value: this.value
-                    };
-                }
-            },
-            'select[multiple]': {
-                init: function(binding) {
-                    this.addEventListener('change', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    for (i=0,l=this.options.length;i<l;i++) {
-                        this.options[i].selected = (value.indexOf(this.options[i].value)>=0);
-                    }
-                },
-                get: function() {
-                    return this.value;
-                }
-            }
-        }, options.fieldTypes);
-
-        return options;
-    }
-
-    return simply;
-})(window.simply || {});
-window.simply = (function(simply) {
-
-	var routeInfo = [];
-
-	function parseRoutes(routes) {
-		var paths = Object.keys(routes);
-		var matchParams = /\:(\w+)/;
-		for (var i=0; i<paths.length; i++) {
-			var path        = paths[i];
-			var matches     = matchParams.exec(path);
-			var params      = matches ? matches.slice(1) : [];
-			routeInfo.push({
-				match:  new RegExp(path.replace(/\:\w+/, '([^/]+)').replace(/\:\*/, '(.*)')),
-				params: params,
-				action: routes[path]
-			});
-		}
-	}
-
-	simply.route = {
-		load: function(routes) {
-			parseRoutes(routes);
-		},
-		match: function(path) {
-			for ( var i=0; i<routeInfo.length; i++) {
-				var matches = routeInfo[i].match.exec(path);
-				if (matches && matches.length) {
-					var params = {};
-					routeInfo[i].params.forEach(function(key, i) {
-						if (key=='*') {
-							key = 'remainder';
-						}
-						params[key] = matches[i+1];
-					});
-					return routeInfo[i].action.call(simply.route, params);
-				}
-			}
-		},
-		goto: function(path) {
-			history.pushState({},'',path);
-			return simply.route.match(path);
-		},
-		has: function(path) {
-			for ( var i=0; i<routeInfo.length; i++) {
-				var matches = routeInfo[i].match.exec(path);
-				if (matches && matches.length) {
-					return true;
-				}
-			}
-			return false;
-		}
-	};
-
-	window.addEventListener('popstate', function() {
-		simply.route.match(document.location.pathname);
-	});
-
-	var linkHandler = function(evt) {
-		if (evt.ctrlKey) {
-			return;
-		}
-		var link = evt.target;
-		while (link && link.tagName!='A') {
-			link = link.parentElement;
-		}
-		if (link 
-			&& link.pathname 
-			&& link.hostname==document.location.hostname 
-			&& !link.link
-			&& !link.dataset.simplyCommand
-			&& simply.route.has(link.pathname)
-		) {
-			simply.route.goto(link.pathname);
-			evt.preventDefault();
-			return false;
-		}
-	};
-
-	document.addEventListener('click', linkHandler);
-
-	return simply;
-
-})(window.simply || {});
-window.simply = (function(simply) {
-
-	simply.view = function(app, view) {
-
-		app.view = view || {}
-
-		var load = function() {
-			var data = app.view;
-			var path = editor.data.getDataPath(app.container);
-			app.view = editor.currentData[path];
-			Object.keys(data).forEach(function(key) {
-				app.view[key] = data[key];
-			});
-		}
-
-		if (window.editor && editor.currentData) {
-			load();
-		} else {
-			document.addEventListener('simply-content-loaded', function() {
-				load();
-			});
-		}
-		
-		return app.view;
-	};
-
-	return simply;
 })(window.simply || {});
