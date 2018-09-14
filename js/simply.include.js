@@ -45,8 +45,9 @@ window.simply = (function(simply) {
         return stack.join("/");
     }
 
-    var observer, loaded;
+    var observer, loaded = {};
     var head = document.documentElement.querySelector('head')
+	var currentScript = document.currentScript;
 
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
@@ -55,8 +56,9 @@ window.simply = (function(simply) {
         // that triggers the Promise.resolve method
         return new Promise(function(resolve, reject) {
             var next = document.createElement('script');
-            next.src = rebaseHref('simply.include.next.js', document.currentScript.src);
-            next.async = false;
+			var cachebuster = Date.now();
+            next.src = rebaseHref('simply.include.next.js?'+cachebuster, currentScript.src);
+            next.setAttribute('async', false);
             document.addEventListener('simply-include-next', function() {
                 head.removeChild(next);
                 resolve();
@@ -65,26 +67,33 @@ window.simply = (function(simply) {
         });
     };
 
+	var scriptLocations = [];
+
     simply.include = {
         scripts: function(scripts, base) {
             var arr = [];
             for(var i = scripts.length; i--; arr.unshift(scripts[i]));
             var importScript = function() {
                 var script = arr.shift();
+				if (!script) {
+					return;
+				}
                 var attrs  = script.getAttributeNames();
                 var clone  = document.createElement('script');
                 attrs.forEach(function(attr) {
                     clone.setAttribute(attr, script[attr]);
                 });
+				clone.removeAttribute('data-simply-location');
                 if (!clone.src) {
                     // this is an inline script, so copy the content and wait for previous scripts to run
                     clone.innerHTML = script.innerHTML;
                     waitForPreviousScripts()
                     .then(function() {
-                        script.parentNode.insertBefore(clone, script);
-                        script.parentNode.removeChild(script);
-                        importScript();
-                    });
+						var node = scriptLocations[script.dataset.simplyLocation];
+						node.parentNode.insertBefore(clone, node);
+						node.parentNode.removeChild(node);
+						window.setTimeout(importScript, 10);
+					});
                 } else {
                     clone.src = rebaseHref(clone.src, base);
                     // FIXME: remove loaded check? browser loads/runs same script multiple times...
@@ -93,17 +102,20 @@ window.simply = (function(simply) {
                         if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
                             clone.setAttribute('async', false);
                         }
-                        script.parentNode.insertBefore(clone, script);
-                        script.parentNode.removeChild(script);
-                        loaded[clone.src]=true;
+						var node = scriptLocations[script.dataset.simplyLocation];
+						node.parentNode.insertBefore(clone, node);
+						node.parentNode.removeChild(node);
+                   	    loaded[clone.src]=true;
                     }
                     importScript();
                 }
             }
+			if (arr.length) {
+				importScript();
+			}
         },
         html: function(html, link) {
-            var fragment = document.createDocumentFragment();
-            fragment.innerHTML = html;
+    		var fragment = document.createRange().createContextualFragment(html);
             var stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
             // add all stylesheets to head
             [].forEach.call(stylesheets, function(stylesheet) {
@@ -112,9 +124,24 @@ window.simply = (function(simply) {
                 }
                 head.appendChild(sylesheet);
             });
+			// remove the scripts from the fragment, as they will not run in the
+			// order in which they are defined
+			var scriptsFragment = document.createDocumentFragment();
+			// FIXME: this loses the original position of the script
+			// should add a placeholder so we can reinsert the clone
+			var scripts = fragment.querySelectorAll('script');
+			[].forEach.call(scripts, function(script) {
+				var placeholder = document.createComment(script.src || 'inline script');
+				script.parentNode.insertBefore(placeholder, script);
+				script.dataset.simplyLocation = scriptLocations.length;
+				scriptLocations.push(placeholder);
+				scriptsFragment.appendChild(script);
+			});
             // add the remainder before the include link
             link.parentNode.insertBefore(fragment, link ? link : null);
-            simply.include.scripts(fragment.querySelectorAll('script'), link ? link.href : window.location.href );
+			window.setTimeout(function() {
+	            simply.include.scripts(scriptsFragment.childNodes, link ? link.href : window.location.href );
+			}, 10);
         }
     }
 
@@ -149,8 +176,8 @@ window.simply = (function(simply) {
             if (links.length) {
                 includeLinks(links);
             }
-        }
-    };
+        });
+    });
 
     var observe = function() {
         observer = new MutationObserver(handleChanges);
