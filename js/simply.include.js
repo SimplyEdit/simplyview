@@ -60,7 +60,7 @@ window.simply = (function(simply) {
             document.addEventListener('simply-include-next', function() {
                 head.removeChild(next);
                 resolve();
-            });
+            }, { once: true, passive: true});
             head.appendChild(next);
         });
     };
@@ -81,16 +81,20 @@ window.simply = (function(simply) {
                     clone.innerHTML = script.innerHTML;
                     waitForPreviousScripts()
                     .then(function() {
-                        head.appendChild(clone);
+                        script.parentNode.insertBefore(clone, script);
+                        script.parentNode.removeChild(script);
                         importScript();
                     });
                 } else {
                     clone.src = rebaseHref(clone.src, base);
+                    // FIXME: remove loaded check? browser loads/runs same script multiple times...
+                    // should we do that also?
                     if (!loaded[clone.src] || clone.dataset.simplyIncludeMultiple) {
                         if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
                             clone.setAttribute('async', false);
                         }
-                        head.appendChild(clone);
+                        script.parentNode.insertBefore(clone, script);
+                        script.parentNode.removeChild(script);
                         loaded[clone.src]=true;
                     }
                     importScript();
