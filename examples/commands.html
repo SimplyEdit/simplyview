@@ -36,7 +36,7 @@
 	<div><a href="foo" data-simply-command="testClick">testClick A</a></div>
 	<div><button data-simply-command="testClick" data-simply-value="bar">testClick Button</button></div>
 
-	<pre data-simply-bind="out"></pre>
+	<pre data-simply-field="out"></pre>
 
 	<script src="../dist/simply.everything.js"></script>
 
@@ -53,8 +53,8 @@
 
 		test.commands.testSubmit = function(form, values) {
 			var out = [];
-			for (var key of values.keys()) {
-				out.push(key+': '+values.get(key));
+			for (var key of Object.keys(values)) {
+				out.push(key+': '+values[key]);
 			}
 			test.view.out = out.join('\n');
 		}

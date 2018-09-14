@@ -21,7 +21,7 @@
 		container: document.getElementById('todoApp'),
 		commands: {
 			addEntry: function(form, values) {
-				todoApp.actions.addEntry(values.get('newItem'));
+				todoApp.actions.addEntry(values.newItem);
 				form.elements.newItem.value = '';
 			}
 		},
