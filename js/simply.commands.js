@@ -62,7 +62,11 @@ window.simply = (function(simply) {
         {
             match: 'form',
             get: function(el) {
-                return new FormData(el);
+				var data = {};
+				[].forEach.call(el.elements, function(el) {
+					data[el.name] = el.value;
+				});
+                return data;//new FormData(el);
             },
             check: function(el,evt) {
                 return evt.type=='submit';
