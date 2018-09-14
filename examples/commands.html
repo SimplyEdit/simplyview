@@ -1,0 +1,70 @@
+
+<!doctype html>
+<body>
+
+	<label>testSubmit:</label>
+	<form data-simply-command="testSubmit">
+		<div>
+			<label>
+				testChange:
+				<input type="text" name="a" data-simply-command="testChange">
+			</label>
+		</div>
+		<div>
+			<label>
+				testChange:
+				<select name="b" data-simply-command="testChange">
+					<option>foo</option>
+					<option>bar</option>
+				</select>
+			</label>
+		</div>
+		<div>
+			<label>
+				testChange:
+				<textarea name="c" data-simply-command="testChange"></textarea>
+			</label>
+		</div>
+		<div>
+			<label>
+				testInput:
+				<input type="text" name="d" data-simply-command="testInput" data-simply-immediate="true">
+			</label>
+		</div>
+		<button type="submit">Submit</button>
+	</form>
+	<div><a href="foo" data-simply-command="testClick">testClick A</a></div>
+	<div><button data-simply-command="testClick" data-simply-value="bar">testClick Button</button></div>
+
+	<pre data-simply-bind="out"></pre>
+
+	<script src="../dist/simply.everything.js"></script>
+
+	<script>
+		var test = simply.app({
+			view: {
+				out: 'start'
+			}
+		});
+		
+		test.commands.testChange = function(el, value) {
+			test.view.out = el.name+': '+value;
+		};
+
+		test.commands.testSubmit = function(form, values) {
+			var out = [];
+			for (var key of values.keys()) {
+				out.push(key+': '+values.get(key));
+			}
+			test.view.out = out.join('\n');
+		}
+
+		test.commands.testInput = function(el, value) {
+			test.view.out = el.name + ': '+value;
+		}
+
+		test.commands.testClick = function(el, value) {
+			test.view.out = el.tagName + ': '+value;
+		}
+	</script>
+</body>
