@@ -4,12 +4,12 @@
 
 <div id="todoApp">
 	<form data-simply-command="addEntry">
-		<input type="text" name="newItem" class="new-todo" placeholder="What needs to be done?">
+		<input type="text" name="newItem" class="new-todo" placeholder="What needs to be done?" autocomplete="off">
 	</form>
 	<ul class="todo-list" data-simply-list="items">
 		<template>
 			<li>
-				<label data-simply-bind="item">Item</label>
+				<label data-simply-field="item">Item</label>
 			</li>
 		</template>
 	</ul>
@@ -35,7 +35,11 @@
 			}
 		},
 		view: {
-			items: []
+			items: [
+				{
+					item: 'iets'
+				}
+			]
 		}
 	});
 </script>
