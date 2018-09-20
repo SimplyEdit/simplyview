@@ -27,9 +27,6 @@ window.simply = (function(simply) {
                 options.bind.model = this.view;
                 options.bind.container = this.container;
                 this.bind = options.bindings = simply.bind(options.bind);
-                if (options.bind.observe) {
-                    this.bind.observe(this.container);
-                }
             }
         }
 
@@ -94,661 +91,6 @@ window.simply = (function(simply) {
 
 
     return simply;
-})(window.simply || {});
-window.simply = (function(simply) {
-
-    var templates = new WeakMap();
-
-    simply.render = function(options) {
-        if (!options) {
-            options = {};
-        }
-        options = Object.assign({
-            attribute: 'data-simply-field,data-simply-list',
-            selector: '[data-simply-field],[data-simply-list]',
-            observe: true,
-            model: {}
-        }, options);
-
-        options.fieldTypes = Object.assign({
-            '*': {
-                set: function(value) {
-                    this.innerHTML = value;
-                },
-                get: function() {
-                    return this.innerHTML;
-                }
-            },
-            'input,textarea,select': {
-                init: function(binding) {
-                    this.addEventListener('input', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    this.value = value;
-                },
-                get: function() {
-                    return this.value;
-                }
-            },
-            'input[type=radio]': {
-                init: function(binding) {
-                    this.addEventListener('change', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    this.checked = (value==this.value);
-                },
-                get: function() {
-                    var checked;
-                    if (this.form) {
-                        return this.form[this.name].value;
-                    } else if (checked=document.body.querySelector('input[name="'+this.name+'"][checked]')) { 
-                        return checked.value;
-                    } else {
-                        return null;
-                    }
-                }
-            },
-            'input[type=checkbox]': {
-                init: function(binding) {
-                    this.addEventListener('change', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    this.checked = (value.checked);
-                    this.value = value.value;
-                },
-                get: function() {
-                    return {
-                        checked: this.checked,
-                        value: this.value
-                    };
-                }
-            },
-            'select[multiple]': {
-                init: function(binding) {
-                    this.addEventListener('change', function(evt) {
-                        if (binding.observing) {
-                            this.dispatchEvent(new Event('simply.bind.update', {
-                                bubbles: true,
-                                cancelable: true
-                            }));
-                        }
-                    });
-                },
-                set: function(value) {
-                    for (i=0,l=this.options.length;i<l;i++) {
-                        this.options[i].selected = (value.indexOf(this.options[i].value)>=0);
-                    }
-                },
-                get: function() {
-                    return this.value;
-                }
-            },
-//            '[data-simply-content="template"]': {
-//                 allowNesting: true
-//            },
-            '[data-simply-list]': {
-                init: function(binding) {
-                    // parse templates
-//                    parseTemplates(this);
-                    templates.set(this, this.querySelector('template'));
-                },
-                set: function(value, binding) {
-                    // first version: rerender entire array using templates
-                    var content = document.createDocumentFragment();
-                    if (value && value.length) {
-                        var template = templates.get(this);
-                        var listPath = this.dataset.simplyList;
-                        for (var i=0,l=value.length; i<l; i++) {
-                            var instance = document.importNode(template.content, true);
-                            instance.firstElementChild.dataset.simplyListItem = i;
-                            // databinding binnen de instance moet naar value[i] wijzen
-                            // mutation observer moet dit ook snappen
-                            // makkelijkst is om het data-simply-field aan te passen
-                            var fields = instance.querySelectorAll('[data-simply-field],[data-simply-list]');
-                            [].forEach.call(fields, function(field) {
-                                var attribute = (field.dataset.simplyField ? 'simplyField' : 'simplyList');
-                                field.dataset[attribute] = listPath + '.' + i + '.' + field.dataset[attribute];
-                            });
-                            content.appendChild(instance);
-                        }
-                        binding.attach(content.querySelectorAll('[data-simply-field]'), content);
-                        //FIXME: bij attach root mee kunnen geven, als elementen niet in die root zitten, dan overslaan
-                        // niet verwijderen!
-                        // specifiek in de updateElements() call in de push/pop/etc functies 
-                        // dus misschien een alternatieve updateElements() maken daar?
-                    }
-                    var self = this;
-                    window.requestAnimationFrame(function() {
-                        binding.stopObserver();
-                        self.innerHTML = '';
-                        self.appendChild(content);
-                        binding.resumeObserver();
-                    });
-                },
-                get: function() {
-                    var items = this.querySelectorAll('[data-simply-list-item]');
-                    var result = [];
-                    var self = this;
-                    [].forEach.call(items, function(item) {
-                        result.push(simply.path.get(options.model, self.dataset.simplyList+'.'+item.dataset.simplyListItem));
-                    });
-                    return result;
-                },
-                allowNesting: true
-            }
-        }, options.fieldTypes);
-
-        return options;
-    }
-
-    return simply;
-})(window.simply || {});
-window.simply = (function(simply) {
-
-	var routeInfo = [];
-
-	function parseRoutes(routes) {
-		var paths = Object.keys(routes);
-		var matchParams = /\:(\w+)/;
-		for (var i=0; i<paths.length; i++) {
-			var path        = paths[i];
-			var matches     = matchParams.exec(path);
-			var params      = matches ? matches.slice(1) : [];
-			routeInfo.push({
-				match:  new RegExp(path.replace(/\:\w+/, '([^/]+)').replace(/\:\*/, '(.*)')),
-				params: params,
-				action: routes[path]
-			});
-		}
-	}
-
-	simply.route = {
-		load: function(routes) {
-			parseRoutes(routes);
-		},
-		match: function(path) {
-			for ( var i=0; i<routeInfo.length; i++) {
-				var matches = routeInfo[i].match.exec(path);
-				if (matches && matches.length) {
-					var params = {};
-					routeInfo[i].params.forEach(function(key, i) {
-						if (key=='*') {
-							key = 'remainder';
-						}
-						params[key] = matches[i+1];
-					});
-					return routeInfo[i].action.call(simply.route, params);
-				}
-			}
-		},
-		goto: function(path) {
-			history.pushState({},'',path);
-			return simply.route.match(path);
-		},
-		has: function(path) {
-			for ( var i=0; i<routeInfo.length; i++) {
-				var matches = routeInfo[i].match.exec(path);
-				if (matches && matches.length) {
-					return true;
-				}
-			}
-			return false;
-		}
-	};
-
-	window.addEventListener('popstate', function() {
-		simply.route.match(document.location.pathname);
-	});
-
-	var linkHandler = function(evt) {
-		if (evt.ctrlKey) {
-			return;
-		}
-		var link = evt.target;
-		while (link && link.tagName!='A') {
-			link = link.parentElement;
-		}
-		if (link 
-			&& link.pathname 
-			&& link.hostname==document.location.hostname 
-			&& !link.link
-			&& !link.dataset.simplyCommand
-			&& simply.route.has(link.pathname)
-		) {
-			simply.route.goto(link.pathname);
-			evt.preventDefault();
-			return false;
-		}
-	};
-
-	document.addEventListener('click', linkHandler);
-
-	return simply;
-
-})(window.simply || {});
-window.simply = (function(simply) {
-
-    var throttle = function( callbackFunction, intervalTime ) {
-        var eventId = 0;
-        return function() {
-            var myArguments = arguments;
-            var me = this;
-            if ( eventId ) {
-                return;
-            } else {
-                eventId = window.setTimeout( function() {
-                    callbackFunction.apply(me, myArguments);
-                    eventId = 0;
-                }, intervalTime );
-            }
-        }
-    };
-
-    var runWhenIdle = (function() {
-        if (window.requestIdleCallback) {
-            return function(callback) {
-                window.requestIdleCallback(callback, {timeout: 500});
-            };
-        }
-        return window.requestAnimationFrame;
-    })();
-
-    var rebaseHref = function(relative, base) {
-        if (/^[a-z-]*:?\//.test(relative)) {
-            return relative; // absolute href, no need to rebase
-        }
-
-        var stack = base.split("/"),
-            parts = relative.split("/");
-        stack.pop(); // remove current file name (or empty string)
-                     // (omit if "base" is the current folder without trailing slash)
-        for (var i=0; i<parts.length; i++) {
-            if (parts[i] == ".")
-                continue;
-            if (parts[i] == "..")
-                stack.pop();
-            else
-                stack.push(parts[i]);
-        }
-        return stack.join("/");
-    }
-
-    var observer, loaded;
-    var head = document.documentElement.querySelector('head')
-
-    var waitForPreviousScripts = function() {
-        // because of the async=false attribute, this script will run after
-        // the previous scripts have been loaded and run
-        // simply.include.signal.js only fires the simply-next-script event
-        // that triggers the Promise.resolve method
-        return new Promise(function(resolve, reject) {
-            var next = document.createElement('script');
-            next.src = rebaseHref('simply.include.next.js', document.currentScript.src);
-            next.async = false;
-            document.addEventListener('simply-include-next', function() {
-                head.removeChild(next);
-                resolve();
-            }, { once: true, passive: true});
-            head.appendChild(next);
-        });
-    };
-
-    simply.include = {
-        scripts: function(scripts, base) {
-            var arr = [];
-            for(var i = scripts.length; i--; arr.unshift(scripts[i]));
-            var importScript = function() {
-                var script = arr.shift();
-                var attrs  = script.getAttributeNames();
-                var clone  = document.createElement('script');
-                attrs.forEach(function(attr) {
-                    clone.setAttribute(attr, script[attr]);
-                });
-                if (!clone.src) {
-                    // this is an inline script, so copy the content and wait for previous scripts to run
-                    clone.innerHTML = script.innerHTML;
-                    waitForPreviousScripts()
-                    .then(function() {
-                        script.parentNode.insertBefore(clone, script);
-                        script.parentNode.removeChild(script);
-                        importScript();
-                    });
-                } else {
-                    clone.src = rebaseHref(clone.src, base);
-                    // FIXME: remove loaded check? browser loads/runs same script multiple times...
-                    // should we do that also?
-                    if (!loaded[clone.src] || clone.dataset.simplyIncludeMultiple) {
-                        if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
-                            clone.setAttribute('async', false);
-                        }
-                        script.parentNode.insertBefore(clone, script);
-                        script.parentNode.removeChild(script);
-                        loaded[clone.src]=true;
-                    }
-                    importScript();
-                }
-            }
-        },
-        html: function(html, link) {
-            var fragment = document.createDocumentFragment();
-            fragment.innerHTML = html;
-            var stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
-            // add all stylesheets to head
-            [].forEach.call(stylesheets, function(stylesheet) {
-                if (stylesheet.href) {
-                    stylesheet.href = rebaseHref(stylesheet.href, link.href);
-                }
-                head.appendChild(sylesheet);
-            });
-            // add the remainder before the include link
-            link.parentNode.insertBefore(fragment, link ? link : null);
-            simply.include.scripts(fragment.querySelectorAll('script'), link ? link.href : window.location.href );
-        }
-    }
-
-    var includeLinks = function(links) {
-        // mark them as in progress, so handleChanges doesn't find them again
-        [].forEach.call(links, function(link) {
-            link.rel = 'simply-include-loading';
-        });
-        [].forEach.call(links, function(link) {
-            // fetch the html
-            fetch(link.href)
-            .then(function(response) {
-                if (response.ok) {
-                    console.log('simply-include: loaded '+link.href);
-                    return response.text();
-                } else {
-                    console.log('simply-include: failed to load '+link.href);
-                }
-            })
-            .then(function(html) {
-                // if succesfull import the html
-                simply.include.html(html, link);
-                // remove the include link
-                link.parentNode.removeChild(link);
-            });
-        });
-    };
-
-    var handleChanges = throttle(function() {
-        runWhenIdle(function() {
-            var links = document.querySelectorAll('link[rel="simply-include"]');
-            if (links.length) {
-                includeLinks(links);
-            }
-        }
-    };
-
-    var observe = function() {
-        observer = new MutationObserver(handleChanges);
-        observer.observe(document, {
-            subtree: true,
-            childList: true,
-        });
-    };
-
-    observe();
-
-    return simply;
-
-})(window.simply || {});
-window.simply = (function(simply) {
-    var defaultActions = {
-        'simply-hide': function(el) {
-            el.classList.remove('simply-visible');
-            return Promise.resolve();
-        },
-        'simply-show': function(el) {
-            el.classList.add('simply-visible');
-            return Promise.resolve();
-        },
-        'simply-select': function(el,group,target,targetGroup) {
-            if (group) {
-                this.call('simply-deselect', this.app.container.querySelectorAll('[data-simply-group='+group+']'));
-            }
-            el.classList.add('simply-selected');
-            if (target) {
-                this.call('simply-select',target,targetGroup)
-            }
-            return Promise.resolve();
-        },
-        'simply-toggle-select': function(el,group,target,targetGroup) {
-            if (!el.classList.contains('simply-selected')) {
-                this.call('simply-select',el,group,target,targetGroup);
-            } else {
-                this.call('simply-deselect',el,target);
-            }
-            return Promise.resolve();
-        },
-        'simply-toggle-class': function(el,className,target) {
-            if (!target) {
-                target = el;
-            }
-            return Promise.resolve(target.classList.toggle(className));
-        },
-        'simply-deselect': function(el,target) {
-            if ( typeof el.length=='number' && typeof el.item=='function') {
-                el = Array.prototype.slice.call(el);
-            }
-            if ( Array.isArray(el) ) {
-                for (var i=0,l=el.length; i<l; i++) {
-                    this.call('simply-deselect',el[i],target);
-                    target = null;
-                }
-            } else {
-                el.classList.remove('simply-selected');
-                if (target) {
-                    this.call('simply-deselect',target);
-                }
-            }
-            return Promise.resolve();
-        },
-        'simply-fullscreen': function(target) {
-            var methods = {
-                'requestFullscreen':{exit:'exitFullscreen',event:'fullscreenchange',el:'fullscreenElement'},
-                'webkitRequestFullScreen':{exit:'webkitCancelFullScreen',event:'webkitfullscreenchange',el:'webkitFullscreenElement'},
-                'msRequestFullscreen':{exit:'msExitFullscreen',event:'MSFullscreenChange',el:'msFullscreenElement'},
-                'mozRequestFullScreen':{exit:'mozCancelFullScreen',event:'mozfullscreenchange',el:'mozFullScreenElement'}
-            };
-            for ( var i in methods ) {
-                if ( typeof document.documentElement[i] != 'undefined' ) {
-                    var requestMethod = i;
-                    var cancelMethod = methods[i].exit;
-                    var event = methods[i].event;
-                    var element = methods[i].el;
-                    break;
-                }
-            }
-            if ( !requestMethod ) {
-                return;
-            }
-            if (!target.classList.contains('simply-fullscreen')) {
-                target.classList.add('simply-fullscreen');
-                target[requestMethod]();
-                var self = this;
-                var exit = function() {
-                    if ( !document[element] ) {
-                        target.classList.remove('simply-fullscreen');
-                        document.removeEventListener(event,exit);
-                    }
-                }
-                document.addEventListener(event,exit);
-            } else {
-                target.classList.remove('simply-fullscreen');
-                document[cancelMethod]();
-            }
-            return Promise.resolve();
-        }
-    };
-
-    simply.actions = function(app, inActions) {
-        actions = Object.create(defaultActions);
-		for ( var i in inActions ) {
-			actions[i] = inActions[i];
-		}
-
-        actions.app = app;
-        actions.call = function(name) {
-            var params = Array.prototype.slice.call(arguments);
-            params.shift();
-            return this[name].apply(this, params);
-        }
-        return actions;
-    }
-
-    return simply;
-    
-})(window.simply || {});
-window.simply = (function(simply) {
-
-    var knownCollections = {};
-    
-    simply.collections = {
-        addListener: function(name, callback) {
-            if (!knownCollections[name]) {
-                knownCollections[name] = [];
-            }
-            if (knownCollections[name].indexOf(callback) == -1) {
-                knownCollections[name].push(callback);
-            }
-        },
-        removeListener: function(name, callback) {
-            if (knowCollections[name]) {
-                var index = knownCollections[name].indexOf(callback);
-                if (index>=0) {
-                    knownCollections[name].splice(index, 1);
-                }
-            }
-        },
-        update: function(element, value) {
-            element.value = value;
-            editor.fireEvent('change', element);
-        }
-    };
-
-    function findCollection(el) {
-        while (el && !el.dataset.simplyCollection) {
-            el = el.parentElement;
-        }
-        return el;
-    }
-    
-    document.addEventListener('change', function(evt) {
-        var root = null;
-        var name = '';
-        if (evt.target.dataset.simplyElement) {
-            root = findCollection(evt.target);
-            if (root && root.dataset) {
-                name = root.dataset.simplyCollection;
-            }
-        }
-        if (name && knownCollections[name]) {
-            var inputs = root.querySelectorAll('[data-simply-element]');
-            var elements = [].reduce.call(inputs, function(elements, input) {
-                elements[input.dataset.simplyElement] = input;
-                return elements;
-            }, {});
-            for (var i=knownCollections[name].length-1; i>=0; i--) {
-                var result = knownCollections[name][i].call(evt.target.form, elements);
-                if (result === false) {
-                    break;
-                }
-            }
-        }
-    }, true);
-
-    return simply;
-
-})(window.simply || {});
-var simply = (function(simply) {
-
-	simply.path = {
-		get: function(model, path) {
-			if (!path) {
-				return model;
-			}
-			return path.split('.').reduce(function(acc, name) {
-				return (acc && acc[name] ? acc[name] : null);
-			}, model);
-		},
-		set: function(model, path, value) {
-			var lastName   = simply.path.pop(path);
-			var parentPath = simply.path.parent(path);
-			var parentOb   = simply.path.get(model, parentPath);
-			parentOb[lastName] = value;
-		},
-		pop: function(path) {
-			return path.split('.').pop();
-		},
-		push: function(path, name) {
-			return (path ? path + '.' : '') + name;
-		},
-		parent: function(path) {
-			var p = path.split('.');
-			p.pop();
-			return p.join('.');
-		},
-		parents: function(path) {
-			var result = [];
-			path.split('.').reduce(function(acc, name) {
-				acc.push( (acc.length ? acc[acc.length-1] + '.' : '') + name );
-				return acc;
-			},result);
-			return result;
-		}
-	};
-
-	return simply;
-})(window.simply || {});
-window.simply = (function(simply) {
-
-	simply.view = function(app, view) {
-
-		app.view = view || {}
-
-		var load = function() {
-			var data = app.view;
-			var path = editor.data.getDataPath(app.container);
-			app.view = editor.currentData[path];
-			Object.keys(data).forEach(function(key) {
-				app.view[key] = data[key];
-			});
-		}
-
-		if (window.editor && editor.currentData) {
-			load();
-		} else {
-			document.addEventListener('simply-content-loaded', function() {
-				load();
-			});
-		}
-		
-		return app.view;
-	};
-
-	return simply;
 })(window.simply || {});
 window.simply = (function(simply) {
 
@@ -1314,6 +656,1103 @@ window.simply = (function(simply) {
 })(window.simply || {});
 window.simply = (function(simply) {
 
+    var templates = new WeakMap();
+
+    simply.render = function(options) {
+        if (!options) {
+            options = {};
+        }
+        options = Object.assign({
+            attribute: 'data-simply-field,data-simply-list',
+            selector: '[data-simply-field],[data-simply-list]',
+            observe: true,
+            model: {}
+        }, options);
+
+        options.fieldTypes = Object.assign({
+            '*': {
+                set: function(value) {
+                    this.innerHTML = value;
+                },
+                get: function() {
+                    return this.innerHTML;
+                }
+            },
+            'input,textarea,select': {
+                init: function(binding) {
+                    this.addEventListener('input', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    this.value = value;
+                },
+                get: function() {
+                    return this.value;
+                }
+            },
+            'input[type=radio]': {
+                init: function(binding) {
+                    this.addEventListener('change', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    this.checked = (value==this.value);
+                },
+                get: function() {
+                    var checked;
+                    if (this.form) {
+                        return this.form[this.name].value;
+                    } else if (checked=document.body.querySelector('input[name="'+this.name+'"][checked]')) { 
+                        return checked.value;
+                    } else {
+                        return null;
+                    }
+                }
+            },
+            'input[type=checkbox]': {
+                init: function(binding) {
+                    this.addEventListener('change', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    this.checked = (value.checked);
+                    this.value = value.value;
+                },
+                get: function() {
+                    return {
+                        checked: this.checked,
+                        value: this.value
+                    };
+                }
+            },
+            'select[multiple]': {
+                init: function(binding) {
+                    this.addEventListener('change', function(evt) {
+                        if (binding.observing) {
+                            this.dispatchEvent(new Event('simply.bind.update', {
+                                bubbles: true,
+                                cancelable: true
+                            }));
+                        }
+                    });
+                },
+                set: function(value) {
+                    for (i=0,l=this.options.length;i<l;i++) {
+                        this.options[i].selected = (value.indexOf(this.options[i].value)>=0);
+                    }
+                },
+                get: function() {
+                    return this.value;
+                }
+            },
+//            '[data-simply-content="template"]': {
+//                 allowNesting: true
+//            },
+            '[data-simply-list]': {
+                init: function(binding) {
+                    // parse templates
+//                    parseTemplates(this);
+                    templates.set(this, this.querySelector('template'));
+                },
+                set: function(value, binding) {
+                    // first version: rerender entire array using templates
+                    var content = document.createDocumentFragment();
+                    if (value && value.length) {
+                        var template = templates.get(this);
+                        var listPath = this.dataset.simplyList;
+                        for (var i=0,l=value.length; i<l; i++) {
+                            var instance = document.importNode(template.content, true);
+                            instance.firstElementChild.dataset.simplyListItem = i;
+                            //FIXME: voeg extra binding call toe voor elke template instantie
+                            // dan hoef je de paden niet aan te passen, je past de root aan
+                            simply.bind(Object.assign(binding.config, {
+                                container: instance.firstElementChild,
+                                model: value[i]
+                            }));
+                            content.appendChild(instance);
+                        }
+                        binding.attach(content.querySelectorAll('[data-simply-field]'), binding.config.model);
+                    }
+                    var self = this;
+                    window.requestAnimationFrame(function() {
+                        binding.pauseObservers();
+                        self.innerHTML = '';
+                        self.appendChild(content);
+                        binding.resumeObservers();
+                    });
+                },
+                get: function() {
+                    var items = this.querySelectorAll('[data-simply-list-item]');
+                    var result = [];
+                    var self = this;
+                    [].forEach.call(items, function(item) {
+                        result.push(simply.path.get(options.model, self.dataset.simplyList+'.'+item.dataset.simplyListItem));
+                    });
+                    return result;
+                },
+                allowNesting: true
+            }
+        }, options.fieldTypes);
+
+        return options;
+    }
+
+    return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
+	var routeInfo = [];
+
+	function parseRoutes(routes) {
+		var paths = Object.keys(routes);
+		var matchParams = /\:(\w+)/;
+		for (var i=0; i<paths.length; i++) {
+			var path        = paths[i];
+			var matches     = matchParams.exec(path);
+			var params      = matches ? matches.slice(1) : [];
+			routeInfo.push({
+				match:  new RegExp(path.replace(/\:\w+/, '([^/]+)').replace(/\:\*/, '(.*)')),
+				params: params,
+				action: routes[path]
+			});
+		}
+	}
+
+	simply.route = {
+		load: function(routes) {
+			parseRoutes(routes);
+		},
+		match: function(path) {
+			for ( var i=0; i<routeInfo.length; i++) {
+				var matches = routeInfo[i].match.exec(path);
+				if (matches && matches.length) {
+					var params = {};
+					routeInfo[i].params.forEach(function(key, i) {
+						if (key=='*') {
+							key = 'remainder';
+						}
+						params[key] = matches[i+1];
+					});
+					return routeInfo[i].action.call(simply.route, params);
+				}
+			}
+		},
+		goto: function(path) {
+			history.pushState({},'',path);
+			return simply.route.match(path);
+		},
+		has: function(path) {
+			for ( var i=0; i<routeInfo.length; i++) {
+				var matches = routeInfo[i].match.exec(path);
+				if (matches && matches.length) {
+					return true;
+				}
+			}
+			return false;
+		}
+	};
+
+	window.addEventListener('popstate', function() {
+		simply.route.match(document.location.pathname);
+	});
+
+	var linkHandler = function(evt) {
+		if (evt.ctrlKey) {
+			return;
+		}
+		var link = evt.target;
+		while (link && link.tagName!='A') {
+			link = link.parentElement;
+		}
+		if (link 
+			&& link.pathname 
+			&& link.hostname==document.location.hostname 
+			&& !link.link
+			&& !link.dataset.simplyCommand
+			&& simply.route.has(link.pathname)
+		) {
+			simply.route.goto(link.pathname);
+			evt.preventDefault();
+			return false;
+		}
+	};
+
+	document.addEventListener('click', linkHandler);
+
+	return simply;
+
+})(window.simply || {});
+window.simply = (function(simply) {
+
+    var throttle = function( callbackFunction, intervalTime ) {
+        var eventId = 0;
+        return function() {
+            var myArguments = arguments;
+            var me = this;
+            if ( eventId ) {
+                return;
+            } else {
+                eventId = window.setTimeout( function() {
+                    callbackFunction.apply(me, myArguments);
+                    eventId = 0;
+                }, intervalTime );
+            }
+        }
+    };
+
+    var runWhenIdle = (function() {
+        if (window.requestIdleCallback) {
+            return function(callback) {
+                window.requestIdleCallback(callback, {timeout: 500});
+            };
+        }
+        return window.requestAnimationFrame;
+    })();
+
+    var rebaseHref = function(relative, base) {
+        if (/^[a-z-]*:?\//.test(relative)) {
+            return relative; // absolute href, no need to rebase
+        }
+
+        var stack = base.split("/"),
+            parts = relative.split("/");
+        stack.pop(); // remove current file name (or empty string)
+                     // (omit if "base" is the current folder without trailing slash)
+        for (var i=0; i<parts.length; i++) {
+            if (parts[i] == ".")
+                continue;
+            if (parts[i] == "..")
+                stack.pop();
+            else
+                stack.push(parts[i]);
+        }
+        return stack.join("/");
+    }
+
+    var observer, loaded = {};
+    var head = document.documentElement.querySelector('head')
+	var currentScript = document.currentScript;
+
+    var waitForPreviousScripts = function() {
+        // because of the async=false attribute, this script will run after
+        // the previous scripts have been loaded and run
+        // simply.include.signal.js only fires the simply-next-script event
+        // that triggers the Promise.resolve method
+        return new Promise(function(resolve, reject) {
+            var next = document.createElement('script');
+			var cachebuster = Date.now();
+            next.src = rebaseHref('simply.include.next.js?'+cachebuster, currentScript.src);
+            next.setAttribute('async', false);
+            document.addEventListener('simply-include-next', function() {
+                head.removeChild(next);
+                resolve();
+            }, { once: true, passive: true});
+            head.appendChild(next);
+        });
+    };
+
+	var scriptLocations = [];
+
+    simply.include = {
+        scripts: function(scripts, base) {
+            var arr = [];
+            for(var i = scripts.length; i--; arr.unshift(scripts[i]));
+            var importScript = function() {
+                var script = arr.shift();
+				if (!script) {
+					return;
+				}
+                var attrs  = [].map.call(script.attributes, function(attr) {
+					return attr.name;
+				});
+                var clone  = document.createElement('script');
+                attrs.forEach(function(attr) {
+                    clone.setAttribute(attr, script[attr]);
+                });
+				clone.removeAttribute('data-simply-location');
+                if (!clone.src) {
+                    // this is an inline script, so copy the content and wait for previous scripts to run
+                    clone.innerHTML = script.innerHTML;
+                    waitForPreviousScripts()
+                    .then(function() {
+						var node = scriptLocations[script.dataset.simplyLocation];
+						node.parentNode.insertBefore(clone, node);
+						node.parentNode.removeChild(node);
+						window.setTimeout(importScript, 10);
+					});
+                } else {
+                    clone.src = rebaseHref(clone.src, base);
+                    // FIXME: remove loaded check? browser loads/runs same script multiple times...
+                    // should we do that also?
+                    if (!loaded[clone.src] || clone.dataset.simplyIncludeMultiple) {
+                        if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
+                            clone.setAttribute('async', false);
+                        }
+						var node = scriptLocations[script.dataset.simplyLocation];
+						node.parentNode.insertBefore(clone, node);
+						node.parentNode.removeChild(node);
+                   	    loaded[clone.src]=true;
+                    }
+                    importScript();
+                }
+            }
+			if (arr.length) {
+				importScript();
+			}
+        },
+        html: function(html, link) {
+    		var fragment = document.createRange().createContextualFragment(html);
+            var stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
+            // add all stylesheets to head
+            [].forEach.call(stylesheets, function(stylesheet) {
+                if (stylesheet.href) {
+                    stylesheet.href = rebaseHref(stylesheet.href, link.href);
+                }
+                head.appendChild(sylesheet);
+            });
+			// remove the scripts from the fragment, as they will not run in the
+			// order in which they are defined
+			var scriptsFragment = document.createDocumentFragment();
+			// FIXME: this loses the original position of the script
+			// should add a placeholder so we can reinsert the clone
+			var scripts = fragment.querySelectorAll('script');
+			[].forEach.call(scripts, function(script) {
+				var placeholder = document.createComment(script.src || 'inline script');
+				script.parentNode.insertBefore(placeholder, script);
+				script.dataset.simplyLocation = scriptLocations.length;
+				scriptLocations.push(placeholder);
+				scriptsFragment.appendChild(script);
+			});
+            // add the remainder before the include link
+            link.parentNode.insertBefore(fragment, link ? link : null);
+			window.setTimeout(function() {
+	            simply.include.scripts(scriptsFragment.childNodes, link ? link.href : window.location.href );
+			}, 10);
+        }
+    }
+
+    var includeLinks = function(links) {
+        // mark them as in progress, so handleChanges doesn't find them again
+        [].forEach.call(links, function(link) {
+            link.rel = 'simply-include-loading';
+        });
+        [].forEach.call(links, function(link) {
+            // fetch the html
+            fetch(link.href)
+            .then(function(response) {
+                if (response.ok) {
+                    console.log('simply-include: loaded '+link.href);
+                    return response.text();
+                } else {
+                    console.log('simply-include: failed to load '+link.href);
+                }
+            })
+            .then(function(html) {
+                // if succesfull import the html
+                simply.include.html(html, link);
+                // remove the include link
+                link.parentNode.removeChild(link);
+            });
+        });
+    };
+
+    var handleChanges = throttle(function() {
+        runWhenIdle(function() {
+            var links = document.querySelectorAll('link[rel="simply-include"]');
+            if (links.length) {
+                includeLinks(links);
+            }
+        });
+    });
+
+    var observe = function() {
+        observer = new MutationObserver(handleChanges);
+        observer.observe(document, {
+            subtree: true,
+            childList: true,
+        });
+    };
+
+    observe();
+
+    return simply;
+
+})(window.simply || {});
+window.simply = (function(simply) {
+	
+	var changeListeners = new WeakMap();
+	var parentListeners = new WeakMap();
+	var childListeners = new WeakMap();
+	var changesSignalled = {};
+	function signalChange(model, key, value, recursing) {
+		if (!recursing) {
+			changesSignalled = {};
+		}
+		if (changeListeners[model] && changeListeners[model][key]) {
+			// changeListeners[model][key] contains callback methods
+			changeListeners[model][key].forEach(function(callback) {
+				changesSignalled[key] = true;
+				callback(value);
+			});
+
+		} else if (!recursing && parentListeners[model] && parentListeners[model][key]) {
+			// parentListeners[model][key] contains child paths to signal change on
+			// if a parent object is changed, this signals the change to the child objects
+			parentListeners[model][key].forEach(function(path) {
+				if (!changesSignalled[path]) {
+					var value = getByPath(model, path);
+					if (value) {
+						attach(model, path);
+					}
+					signalChange(model, path, value, true);
+					changesSignalled[path] = true;
+				}
+			});
+		}
+		if (!recursing && childListeners[model] && childListeners[model][key]) {
+			// childListeners[model][key] contains parent paths to signal change on
+			// if a child object is changed, this signals the change to the parent objects
+			childListeners[model][key].forEach(function(path) {
+				if (!changesSignalled[path]) {
+					var value = getByPath(model, path);
+					signalChange(model, path, value, true);
+					changesSignalled[path] = true;
+				}
+			});
+		}
+	}
+
+	function getByPath(model, path) {
+		var parts = path.split('.');
+		var curr = model;
+		do {
+			curr = curr[parts.shift()];
+		} while (parts.length && curr);
+		return curr;
+	}
+
+	function parent(path) {
+		var parts = path.split('.');
+		parts.pop();
+		return parts.join('.');
+	}
+	
+	function onParents(model, path, callback) {
+		var tail = path;
+		var parent = '';
+		var parentOb = model;
+		var parents = path.split('.');
+		do {
+			var head = parents.shift();
+			callback(parentOb, head, (parent ? parent + '.' + head : head));
+			parentOb = parentOb[head];
+			parent += head;
+		} while (parents.length);
+	}
+
+	function onChildren(model, path, callback) {
+		var onChildObjects = function(object, path, callback) {
+			if (typeof object != 'object' || object == null) {
+				return;
+			}
+			Object.keys(object).forEach(function(key) {
+				callback(object, key, path+'.'+key);
+				onChildObjects(object[key], path+'.'+key, callback);
+			});
+		};
+		var parent = getByPath(model, path);
+		onChildObjects(parent, path, callback);
+	}
+
+	function addChangeListener(model, path, callback) {
+		if (!changeListeners[model]) {
+			changeListeners[model] = {};
+		}
+		if (!changeListeners[model][path]) {
+			changeListeners[model][path] = [];
+		}
+		changeListeners[model][path].push(callback);
+
+		if (!parentListeners[model]) {
+			parentListeners[model] = {};
+		}
+		var parentPath = parent(path);
+		onParents(model, parentPath, function(parentOb, key, currPath) {
+			if (!parentListeners[model][currPath]) {
+				parentListeners[model][currPath] = [];
+			}
+			parentListeners[model][currPath].push(path);
+		});
+
+		if (!childListeners[model]) {
+			childListeners[model] = {};
+		}
+		onChildren(model, path, function(childOb, key, currPath) {
+			if (!childListeners[model][currPath]) {
+				childListeners[model][currPath] = [];
+			}
+			childListeners[model][currPath].push(path);
+		});
+	}
+
+	function removeChangeListener(model, path, callback) {
+		if (!changeListeners[model]) {
+			return;
+		}
+		if (changeListeners[model][path]) {
+			changeListeners[model][path] = changeListeners[model][path].filter(function(f) {
+				return f != callback;
+			});
+		}
+	}
+
+	function attach(model, path) {
+		var addSetter = function(object, key, currPath) {
+			if (Object.getOwnPropertyDescriptor(object, key).configurable) {
+				// assume object keys are only unconfigurable if the
+				// following code has already been run on this property
+				var _value = object[key]
+				Object.defineProperty(object, key, {
+					set: function(value) {
+						_value = value;
+						signalChange(model, currPath, value);
+					},
+					get: function() {
+						return _value;
+					}
+				});
+				if (Array.isArray(object[key])) {
+					attachArray(object[key], currPath);
+				}
+			}			
+		};
+		var attachArray = function(object, path) {
+			var desc = Object.getOwnPropertyDescriptor(object, 'push');
+			if (!desc || desc.configurable) {
+				for (var f of ['push','pop','reverse','shift','sort','splice','unshift']) {
+					(function(f) {
+						//FIXME: change prototype? at least make sure that push/pop/etc
+						//aren't listen in the console / debugger as properties
+						Object.defineProperty(object, f, {
+							value: function() {
+								var result = Array.prototype[f].apply(this, arguments);
+								signalChange(model, path, this);
+								return result;
+							},
+							readable: false,
+							enumerable: false
+						});
+					}(f));
+				}
+			}
+		}
+
+		onParents(model, path, addSetter);
+		onChildren(model, path, addSetter);
+	}
+
+	simply.observe = function(model, path, callback) {
+		attach(model, path);
+		addChangeListener(model, path, callback);
+		return function() {
+			removeChangeListener(model, path, callback);
+		};
+	};
+
+	return simply;
+})(window.simply || {});window.simply = (function(simply) {
+    var defaultActions = {
+        'simply-hide': function(el) {
+            el.classList.remove('simply-visible');
+            return Promise.resolve();
+        },
+        'simply-show': function(el) {
+            el.classList.add('simply-visible');
+            return Promise.resolve();
+        },
+        'simply-select': function(el,group,target,targetGroup) {
+            if (group) {
+                this.call('simply-deselect', this.app.container.querySelectorAll('[data-simply-group='+group+']'));
+            }
+            el.classList.add('simply-selected');
+            if (target) {
+                this.call('simply-select',target,targetGroup)
+            }
+            return Promise.resolve();
+        },
+        'simply-toggle-select': function(el,group,target,targetGroup) {
+            if (!el.classList.contains('simply-selected')) {
+                this.call('simply-select',el,group,target,targetGroup);
+            } else {
+                this.call('simply-deselect',el,target);
+            }
+            return Promise.resolve();
+        },
+        'simply-toggle-class': function(el,className,target) {
+            if (!target) {
+                target = el;
+            }
+            return Promise.resolve(target.classList.toggle(className));
+        },
+        'simply-deselect': function(el,target) {
+            if ( typeof el.length=='number' && typeof el.item=='function') {
+                el = Array.prototype.slice.call(el);
+            }
+            if ( Array.isArray(el) ) {
+                for (var i=0,l=el.length; i<l; i++) {
+                    this.call('simply-deselect',el[i],target);
+                    target = null;
+                }
+            } else {
+                el.classList.remove('simply-selected');
+                if (target) {
+                    this.call('simply-deselect',target);
+                }
+            }
+            return Promise.resolve();
+        },
+        'simply-fullscreen': function(target) {
+            var methods = {
+                'requestFullscreen':{exit:'exitFullscreen',event:'fullscreenchange',el:'fullscreenElement'},
+                'webkitRequestFullScreen':{exit:'webkitCancelFullScreen',event:'webkitfullscreenchange',el:'webkitFullscreenElement'},
+                'msRequestFullscreen':{exit:'msExitFullscreen',event:'MSFullscreenChange',el:'msFullscreenElement'},
+                'mozRequestFullScreen':{exit:'mozCancelFullScreen',event:'mozfullscreenchange',el:'mozFullScreenElement'}
+            };
+            for ( var i in methods ) {
+                if ( typeof document.documentElement[i] != 'undefined' ) {
+                    var requestMethod = i;
+                    var cancelMethod = methods[i].exit;
+                    var event = methods[i].event;
+                    var element = methods[i].el;
+                    break;
+                }
+            }
+            if ( !requestMethod ) {
+                return;
+            }
+            if (!target.classList.contains('simply-fullscreen')) {
+                target.classList.add('simply-fullscreen');
+                target[requestMethod]();
+                var self = this;
+                var exit = function() {
+                    if ( !document[element] ) {
+                        target.classList.remove('simply-fullscreen');
+                        document.removeEventListener(event,exit);
+                    }
+                }
+                document.addEventListener(event,exit);
+            } else {
+                target.classList.remove('simply-fullscreen');
+                document[cancelMethod]();
+            }
+            return Promise.resolve();
+        }
+    };
+
+    simply.actions = function(app, inActions) {
+        actions = Object.create(defaultActions);
+		for ( var i in inActions ) {
+			actions[i] = inActions[i];
+		}
+
+        actions.app = app;
+        actions.call = function(name) {
+            var params = Array.prototype.slice.call(arguments);
+            params.shift();
+            return this[name].apply(this, params);
+        }
+        return actions;
+    }
+
+    return simply;
+    
+})(window.simply || {});
+window.simply = (function(simply) {
+
+    var knownCollections = {};
+    
+    simply.collections = {
+        addListener: function(name, callback) {
+            if (!knownCollections[name]) {
+                knownCollections[name] = [];
+            }
+            if (knownCollections[name].indexOf(callback) == -1) {
+                knownCollections[name].push(callback);
+            }
+        },
+        removeListener: function(name, callback) {
+            if (knowCollections[name]) {
+                var index = knownCollections[name].indexOf(callback);
+                if (index>=0) {
+                    knownCollections[name].splice(index, 1);
+                }
+            }
+        },
+        update: function(element, value) {
+            element.value = value;
+            editor.fireEvent('change', element);
+        }
+    };
+
+    function findCollection(el) {
+        while (el && !el.dataset.simplyCollection) {
+            el = el.parentElement;
+        }
+        return el;
+    }
+    
+    document.addEventListener('change', function(evt) {
+        var root = null;
+        var name = '';
+        if (evt.target.dataset.simplyElement) {
+            root = findCollection(evt.target);
+            if (root && root.dataset) {
+                name = root.dataset.simplyCollection;
+            }
+        }
+        if (name && knownCollections[name]) {
+            var inputs = root.querySelectorAll('[data-simply-element]');
+            var elements = [].reduce.call(inputs, function(elements, input) {
+                elements[input.dataset.simplyElement] = input;
+                return elements;
+            }, {});
+            for (var i=knownCollections[name].length-1; i>=0; i--) {
+                var result = knownCollections[name][i].call(evt.target.form, elements);
+                if (result === false) {
+                    break;
+                }
+            }
+        }
+    }, true);
+
+    return simply;
+
+})(window.simply || {});
+var simply = (function(simply) {
+
+	simply.path = {
+		get: function(model, path) {
+			if (!path) {
+				return model;
+			}
+			return path.split('.').reduce(function(acc, name) {
+				return (acc && acc[name] ? acc[name] : null);
+			}, model);
+		},
+		set: function(model, path, value) {
+			var lastName   = simply.path.pop(path);
+			var parentPath = simply.path.parent(path);
+			var parentOb   = simply.path.get(model, parentPath);
+			parentOb[lastName] = value;
+		},
+		pop: function(path) {
+			return path.split('.').pop();
+		},
+		push: function(path, name) {
+			return (path ? path + '.' : '') + name;
+		},
+		parent: function(path) {
+			var p = path.split('.');
+			p.pop();
+			return p.join('.');
+		},
+		parents: function(path) {
+			var result = [];
+			path.split('.').reduce(function(acc, name) {
+				acc.push( (acc.length ? acc[acc.length-1] + '.' : '') + name );
+				return acc;
+			},result);
+			return result;
+		}
+	};
+
+	return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
+	simply.view = function(app, view) {
+
+		app.view = view || {}
+
+		var load = function() {
+			var data = app.view;
+			var path = editor.data.getDataPath(app.container);
+			app.view = editor.currentData[path];
+			Object.keys(data).forEach(function(key) {
+				app.view[key] = data[key];
+			});
+		}
+
+		if (window.editor && editor.currentData) {
+			load();
+		} else {
+			document.addEventListener('simply-content-loaded', function() {
+				load();
+			});
+		}
+		
+		return app.view;
+	};
+
+	return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+	if (!simply.observe) {
+		console.log('Error: simply.bind requires simply.observe');
+		return simply;
+	}
+
+	function getByPath(model, path) {
+		var parts = path.split('.');
+		var curr = model;
+		do {
+			curr = curr[parts.shift()];
+		} while (parts.length && curr);
+		return curr;
+	}
+
+	function setByPath(model, path, value) {
+		var parts = path.split('.');
+		var curr = model;
+		while (parts.length>1 && curr) {
+			var key = parts.shift();
+			if (typeof curr[key] == 'undefined' || curr[key]==null) {
+				curr[key] = {};
+			}
+			curr = curr[key];
+		}
+		curr[parts.shift()] = value;
+	}
+
+	function setValue(el, value, binding) {
+		if (el!=focusedElement) {
+			var fieldType = getFieldType(binding.fieldTypes, el);
+			if (fieldType) {
+				fieldType.set.call(el, (typeof value != 'undefined' ? value : ''), binding);
+				el.dispatchEvent(new Event('simply.bind.resolved', {
+					bubbles: true,
+					cancelable: false
+				}));
+			}
+		}
+	}
+
+	function getValue(el, binding) {
+		var setters = Object.keys(binding.fieldTypes);
+		for(var i=setters.length-1;i>=0;i--) {
+			if (el.matches(setters[i])) {
+				return binding.fieldTypes[setters[i]].get.call(el);
+			}
+		}
+	}
+
+	function getFieldType(fieldTypes, el) {
+		var setters = Object.keys(fieldTypes);
+		for(var i=setters.length-1;i>=0;i--) {
+			if (el.matches(setters[i])) {
+				return fieldTypes[setters[i]];
+			}
+		}
+		return null;
+	}
+
+	function getPath(el, attribute) {
+		var attributes = attribute.split(',');
+		for (var attr of attributes) {
+			if (el.hasAttribute(attr)) {
+				return el.getAttribute(attr);
+			}
+		}
+		return null;
+	}
+
+	function throttle( callbackFunction, intervalTime ) {
+		var eventId = 0;
+		return function() {
+			var myArguments = arguments;
+			var me = this;
+			if ( eventId ) {
+				return;
+			} else {
+				eventId = window.setTimeout( function() {
+					callbackFunction.apply(me, myArguments);
+					eventId = 0;
+				}, intervalTime );
+			}
+		}
+	}
+
+	var runWhenIdle = (function() {
+		if (window.requestIdleCallback) {
+			return function(callback) {
+				window.requestIdleCallback(callback, {timeout: 500});
+			};
+		}
+		return window.requestAnimationFrame;
+	})();
+
+	function Binding(config) {
+		this.config = config;
+		if (!this.config) {
+			this.config = {};
+		}
+		if (!this.config.model) {
+			this.config.model = {};
+		}
+		if (!this.config.attribute) {
+			this.config.attribute = 'data-simply-bind';
+		}
+		if (!this.config.selector) {
+			this.config.selector = '[data-simply-bind]';
+		}
+		if (!this.config.container) {
+			this.config.container = document;
+		}
+		if (typeof this.config.twoway == 'undefined') {
+			this.config.twoway = true;
+		}
+		this.fieldTypes = {
+			'*': {
+				set: function(value) {
+					this.innerHTML = value;
+				},
+				get: function() {
+					return this.innerHTML;
+				}
+			}
+		};
+		if (this.config.fieldTypes) {
+			Object.assign(this.fieldTypes, this.config.fieldTypes);
+		}
+		this.attach(this.config.container.querySelectorAll(this.config.selector), this.config.model);
+		if (this.config.twoway) {
+			var self = this;
+			var observer = new MutationObserver(throttle, function() {
+				runWhenIdle(function() {
+					self.attach(self.config.container.querySelectorAll(self.config.selector), self.config.model);
+				});
+			});
+			observer.observe(this.config.container, {
+				subtree: true,
+				childList: true
+			});
+		}
+	}
+
+	var focusedElement = null;
+	var initialized = new WeakMap();
+	var observers = new WeakMap();
+	var observersPaused = 0;
+
+	Binding.prototype.attach = function(el, model) {
+		var attachElement = function(jsonPath) {
+			if (el.dataset.simplyBound) {
+				return;
+			}
+			el.dataset.simplyBound = true;
+			initElement(el);
+			setValue(el, getByPath(model, jsonPath), self);
+			simply.observe(model, jsonPath, function(value) {
+				if (el != focusedElement) {
+					setValue(el, value, self);
+				}
+			});
+		}
+
+		var addMutationObserver = function(jsonPath) {
+			var observer = new MutationObserver(function() {
+				if (observersPaused) {
+					return;
+				}
+				throttle(function() {
+					runWhenIdle(function() {
+		            	var v = getValue(el, self);
+		            	var s = getByPath(model, jsonPath);
+		            	if (v != s) {
+		            		focusedElement = el;
+		            		setByPath(model, jsonPath, v);
+		            		focusedElement = null;
+		            	}
+					});
+				}, 250);
+			});
+			observer.observe(el, {
+				characterData: true,
+				subtree: true,
+				childList: true,
+				attributes: true
+			});
+			if (!observers[el]) {
+				observers[el] = [];
+			}
+			observers[el].push(observer);
+			return observer;
+		}
+
+		/**
+		 * Runs the init() method of the fieldType, if it is defined.
+		 **/
+		var initElement = function(el) {
+			if (initialized.has(el)) {
+				return;
+			}
+			initialized.set(el, true);
+			var selectors = Object.keys(self.fieldTypes);
+			for (var i=selectors.length-1; i>=0; i--) {
+				if (self.fieldTypes[selectors[i]].init && el.matches(selectors[i])) {
+					self.fieldTypes[selectors[i]].init.call(el, self);
+					return;
+				}
+			}
+		};
+
+		var self = this;
+		if (el instanceof HTMLElement) {
+			var jsonPath = getPath(el, this.config.attribute);
+			attachElement(jsonPath);
+			if (this.config.twoway) {
+				addMutationObserver(jsonPath);
+			}
+		} else {
+			[].forEach.call(el, function(element) {
+                self.attach(element, model);
+            });
+		}
+	};
+
+	Binding.prototype.pauseObservers = function() {
+		observersPaused++;
+	}
+
+	Binding.prototype.resumeObservers = function() {
+		observersPaused--;
+	}
+
+	simply.bind = function(config) {
+		return new Binding(config);
+	};
+
+	return simply;
+})(window.simply || {});window.simply = (function(simply) {
+
     var defaultCommands = {
         'simply-hide': function(el, value) {
             var target = this.app.get(value);
@@ -1376,7 +1815,11 @@ window.simply = (function(simply) {
         {
             match: 'form',
             get: function(el) {
-                return new FormData(el);
+				var data = {};
+				[].forEach.call(el.elements, function(el) {
+					data[el.name] = el.value;
+				});
+                return data;//new FormData(el);
             },
             check: function(el,evt) {
                 return evt.type=='submit';
