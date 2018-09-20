@@ -39,7 +39,7 @@ window.simply = (function(simply) {
 		if (el!=focusedElement) {
 			var fieldType = getFieldType(binding.fieldTypes, el);
 			if (fieldType) {
-				fieldType.set.call(el, (typeof value != 'undefined' ? value : ''));
+				fieldType.set.call(el, (typeof value != 'undefined' ? value : ''), binding);
 				el.dispatchEvent(new Event('simply.bind.resolved', {
 					bubbles: true,
 					cancelable: false
@@ -71,6 +71,8 @@ window.simply = (function(simply) {
 	/*** shadow values ***/
 	var shadows = new WeakMap();
 	var focusedElement = null;
+	var initialized = new WeakMap();
+
 	/**
 	 * Returns an object ment to keep the original value of model[jsonPath]
 	 */
@@ -154,10 +156,10 @@ window.simply = (function(simply) {
 		if (this.config.fieldTypes) {
 			Object.assign(this.fieldTypes, this.config.fieldTypes);
 		}
-		this.attach(this.config.container.querySelectorAll(this.config.selector));
+		this.attach(this.config.container.querySelectorAll(this.config.selector), this.config.container);
 	};
 
-	Binding.prototype.attach = function(elements) {
+	Binding.prototype.attach = function(elements, root) {
 		var self = this;
 
 
@@ -178,7 +180,7 @@ window.simply = (function(simply) {
 		 * Attaches a binding to a specific html element.
 		 **/
 		var attachElement = function(jsonPath, el) {
-			if (!document.body.contains(el)) {
+			if (!root.contains(el)) {
 				// element is no longer part of the document
 				// so don't bother changing the model or updating the element for it
 				return;
@@ -204,28 +206,24 @@ window.simply = (function(simply) {
 					shadow.children[ simply.path.push(path,keys[0]) ] = true;
 				}
 				if (model && typeof model == 'object') {
-					shadow.value = model[key];
-					Object.defineProperty(model, key, {
-						set: (function(shadow, path) {
-							return function(value) {
-								shadow.value = value;
-								updateElements(shadow.elements, value);
-								attachChildren(shadow);
-								addSetTriggers(shadow);
-								updateParents(path);
-								monitorProperties(value, path);
-								triggerChildListeners(path, self.config.model);
-								triggerListeners(path, self.config.model);
-							};
-						})(shadow, path),
-						get: (function(shadow) {
-							return function() {
-								return shadow.value;
-							}
-						})(shadow),
-						configurable: true,
-						enumerable: true
-					});
+					if (!Array.isArray(model)) {
+						shadow.value = model[key];
+						Object.defineProperty(model, key, {
+							set: (function(shadow, path) {
+								return function(value) {
+									shadow.value = value;
+									setHandlers(shadow, path)
+								};
+							})(shadow, path),
+							get: (function(shadow) {
+								return function() {
+									return shadow.value;
+								}
+							})(shadow),
+							configurable: true,
+							enumerable: true
+						});
+					}
 					model = model[key];
 				}
 				parentPath = path;
@@ -235,6 +233,9 @@ window.simply = (function(simply) {
 			}
 			initElement(el);
 			updateElements([el], model);
+			if (Array.isArray(shadow.value)) {
+				attachArray(shadow, path);
+			}
 			monitorProperties(model, path);
 		};
 
@@ -295,6 +296,10 @@ window.simply = (function(simply) {
 		 * Runs the init() method of the fieldType, if it is defined.
 		 **/
 		var initElement = function(el) {
+			if (initialized.has(el)) {
+				return;
+			}
+			initialized.set(el, true);
 			var selectors = Object.keys(self.fieldTypes);
 			for (var i=selectors.length-1; i>=0; i--) {
 				if (self.fieldTypes[selectors[i]].init && el.matches(selectors[i])) {
@@ -317,14 +322,14 @@ window.simply = (function(simply) {
 				self.observing = false;
 			}
 			elements.forEach(function(el, index) {
-				if (document.body.contains(el)) {
+				if (root.contains(el)) {
 					setValue(el, value, self);
 					var children = el.querySelectorAll(self.config.selector);
 					if (children.length) {
 						self.attach(children);
 					}
-				} else {
-					elements.splice(index,1);
+//				} else {
+//					elements.splice(index,1);
 				}
 			});
 			if (reconnectObserver) {
@@ -337,6 +342,49 @@ window.simply = (function(simply) {
 		        });
 		    }
 		};
+
+		var setHandlers = function(shadow, path) {
+			updateElements(shadow.elements, shadow.value);
+			if (Array.isArray(shadow.value)) {
+				attachArray(shadow, path);
+			} else {
+				attachChildren(shadow);
+				addSetTriggers(shadow);
+				updateParents(path);
+			}
+			monitorProperties(shadow.value, path);
+			triggerChildListeners(path, self.config.model);
+			triggerListeners(path, self.config.model);
+		}
+
+		var attachArray = function(shadow, path) {
+			var listPath = path;
+			var desc = Object.getOwnPropertyDescriptor(shadow.value, 'push');
+			if (!desc || desc.configurable) {
+				for (var f of ['push','pop','reverse','shift','sort','splice','unshift']) {
+					(function(f) {
+						//FIXME: change prototype? at least make sure that push/pop/etc
+						//aren't listen in the console / debugger as properties
+						Object.defineProperty(shadow.value, f, {
+							value: function() {
+								var result = Array.prototype[f].apply(this, arguments);
+								//FIXME: the shadows staan nog verkeerd
+								//na een unshift() moeten de paden van alle shadows
+								//opnieuw gezet worden
+								//of eigenlijk moeten alle child shadows weggegooid
+								//en opnieuw gezet
+								shadow.elements.forEach(function(el, index) {
+									setValue(el, shadow.value, self);
+								});
+								return result;
+							},
+							readable: false,
+							enumerable: false
+						});
+					}(f));
+				}
+			}
+		}
 
 		/**
 		 * Loops over registered children of the shadow, that means a sub property
@@ -387,6 +435,9 @@ window.simply = (function(simply) {
         	});
 		}
 
+		if (!root) {
+			root = document.body;
+		}
 		if ( elements instanceof HTMLElement ) {
 			elements = [ elements ];
 		}
@@ -417,8 +468,7 @@ window.simply = (function(simply) {
 		var handleChanges = throttle(function() {
 			runWhenIdle(function() {
 				changes = changes.concat(self.observer.takeRecords());
-				self.observer.disconnect();
-				self.observing = false;
+				self.stopObserver();
 				var change,el,children;
 				var handledKeys = {}; // list of keys already handled
 				var handledElements = new WeakMap();
@@ -458,33 +508,36 @@ window.simply = (function(simply) {
 					}
 				}
 				changes = [];
-				self.observing = root;
-				self.observer.observe(root, {
-		        	subtree: true,
-		        	childList: true,
-		        	characterData: true,
-		        	attributes: true				
-				});
+				self.resumeObserver();
 			});
 		},100);
         this.observer = new MutationObserver(function(changeList) {
         	changes = changes.concat(changeList);
         	handleChanges();
         });
-        this.observing = root;
-        this.observer.observe(root, {
-        	subtree: true,
-        	childList: true,
-        	characterData: true,
-        	attributes: true	
-        });
+        this.wasObserving = root;
+        this.resumeObserver();
         return this;
 	};
 
 	Binding.prototype.stopObserver = function() {
 		this.observer.disconnect();
+		this.wasObserving = this.observing;
 		this.observing = false;
 	};
+
+	Binding.prototype.resumeObserver = function() {
+		if (this.wasObserving) {
+			this.observing = this.wasObserving;
+			this.observer.observe(this.observing, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+				attributes: true
+			});
+			this.wasObserving = false;
+		}
+	}
 
 	Binding.prototype.addListener = function(jsonPath, callback) {
 		var shadow = getShadow(this.config.model, jsonPath);
