@@ -125,28 +125,20 @@ window.simply = (function(simply) {
                         for (var i=0,l=value.length; i<l; i++) {
                             var instance = document.importNode(template.content, true);
                             instance.firstElementChild.dataset.simplyListItem = i;
-                            // databinding binnen de instance moet naar value[i] wijzen
-                            // mutation observer moet dit ook snappen
-                            // makkelijkst is om het data-simply-field aan te passen
-                            var fields = instance.querySelectorAll('[data-simply-field],[data-simply-list]');
-                            [].forEach.call(fields, function(field) {
-                                var attribute = (field.dataset.simplyField ? 'simplyField' : 'simplyList');
-                                field.dataset[attribute] = listPath + '.' + i + '.' + field.dataset[attribute];
-                            });
+                            simply.bind(Object.assign(binding.config, {
+                                container: instance.firstElementChild,
+                                model: value[i]
+                            }));
                             content.appendChild(instance);
                         }
-                        binding.attach(content.querySelectorAll('[data-simply-field]'), content);
-                        //FIXME: bij attach root mee kunnen geven, als elementen niet in die root zitten, dan overslaan
-                        // niet verwijderen!
-                        // specifiek in de updateElements() call in de push/pop/etc functies 
-                        // dus misschien een alternatieve updateElements() maken daar?
+                        binding.attach(content.querySelectorAll('[data-simply-field]'), binding.config.model);
                     }
                     var self = this;
                     window.requestAnimationFrame(function() {
-                        binding.stopObserver();
+                        binding.pauseObservers();
                         self.innerHTML = '';
                         self.appendChild(content);
-                        binding.resumeObserver();
+                        binding.resumeObservers();
                     });
                 },
                 get: function() {

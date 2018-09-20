@@ -26,10 +26,7 @@ window.simply = (function(simply) {
                 options.bind = simply.render(options.bind || {});
                 options.bind.model = this.view;
                 options.bind.container = this.container;
-                this.bind = simply.bind(options.bind);
-                if (options.bind.observe) {
-                    this.bind.observe(this.container);
-                }
+                this.bind = options.bindings = simply.bind(options.bind);
             }
         }
 

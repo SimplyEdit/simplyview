@@ -1,38 +1,29 @@
 window.simply = (function(simply) {
-
-	/*** utility functions ****/	
-	function throttle( callbackFunction, intervalTime ) {
-		var eventId = 0;
-		return function() {
-			var myArguments = arguments;
-			var me = this;
-			if ( eventId ) {
-				return;
-			} else {
-				eventId = window.setTimeout( function() {
-					callbackFunction.apply(me, myArguments);
-					eventId = 0;
-				}, intervalTime );
-			}
-		}
+	if (!simply.observe) {
+		console.log('Error: simply.bind requires simply.observe');
+		return simply;
 	}
 
-	function getElement(node) {
-		if (node.nodeType != Node.ELEMENT_NODE) {
-			return node.parentElement;
-		}
-		return node;
+	function getByPath(model, path) {
+		var parts = path.split('.');
+		var curr = model;
+		do {
+			curr = curr[parts.shift()];
+		} while (parts.length && curr);
+		return curr;
 	}
 
-
-	function getFieldType(fieldTypes, el) {
-		var setters = Object.keys(fieldTypes);
-		for(var i=setters.length-1;i>=0;i--) {
-			if (el.matches(setters[i])) {
-				return fieldTypes[setters[i]];
+	function setByPath(model, path, value) {
+		var parts = path.split('.');
+		var curr = model;
+		while (parts.length>1 && curr) {
+			var key = parts.shift();
+			if (typeof curr[key] == 'undefined' || curr[key]==null) {
+				curr[key] = {};
 			}
+			curr = curr[key];
 		}
-		return null;
+		curr[parts.shift()] = value;
 	}
 
 	function setValue(el, value, binding) {
@@ -57,7 +48,16 @@ window.simply = (function(simply) {
 		}
 	}
 
-	/** FIXME: getPath should be configurable **/
+	function getFieldType(fieldTypes, el) {
+		var setters = Object.keys(fieldTypes);
+		for(var i=setters.length-1;i>=0;i--) {
+			if (el.matches(setters[i])) {
+				return fieldTypes[setters[i]];
+			}
+		}
+		return null;
+	}
+
 	function getPath(el, attribute) {
 		var attributes = attribute.split(',');
 		for (var attr of attributes) {
@@ -68,63 +68,30 @@ window.simply = (function(simply) {
 		return null;
 	}
 
-	/*** shadow values ***/
-	var shadows = new WeakMap();
-	var focusedElement = null;
-	var initialized = new WeakMap();
-
-	/**
-	 * Returns an object ment to keep the original value of model[jsonPath]
-	 */
-	function getShadow(model, jsonPath) {
-		if (!shadows.has(model)) {
-			shadows.set(model, {});
+	function throttle( callbackFunction, intervalTime ) {
+		var eventId = 0;
+		return function() {
+			var myArguments = arguments;
+			var me = this;
+			if ( eventId ) {
+				return;
+			} else {
+				eventId = window.setTimeout( function() {
+					callbackFunction.apply(me, myArguments);
+					eventId = 0;
+				}, intervalTime );
+			}
 		}
-		var root = shadows.get(model);
-		if (typeof root[jsonPath] == 'undefined') {
-			root[jsonPath] = {
-				value: null,
-				elements: [],
-				children: {},
-				listeners: []
+	}
+
+	var runWhenIdle = (function() {
+		if (window.requestIdleCallback) {
+			return function(callback) {
+				window.requestIdleCallback(callback, {timeout: 500});
 			};
 		}
-		return root[jsonPath];
-	}
-
-	function triggerChildListeners(path, model) {
-		var shadow = getShadow(model, path);
-		for (var childPath of Object.keys(shadow.children)) {
-			var childShadow = getShadow(model, childPath);
-			childShadow.listeners.forEach(function(callback) {
-				callback.call(null, childShadow.value);
-			});
-			triggerChildListeners(childPath, model);
-		}
-	}
-
-	function triggerListeners(path, model) {
-		var shadow = getShadow(model, path);
-		shadow.listeners.forEach(function(callback) {
-			callback.call(null, shadow.value);
-		});
-		var parent = simply.path.parent(path);
-		if (parent) {
-			triggerListeners(parent, model);
-		}
-	}
-
-	/**
-	 * Returns true if a shadow for this path and rootModel exist
-	 * This means that there is already a setter/getter pair for it.
-	 **/
-	function hasShadow(model, jsonPath) {
-		if (!shadows.has(model)) {
-			shadows.set(model, {});
-		}
-		var root = shadows.get(model);
-		return typeof root[jsonPath] != 'undefined';
-	}
+		return window.requestAnimationFrame;
+	})();
 
 	function Binding(config) {
 		this.config = config;
@@ -135,13 +102,16 @@ window.simply = (function(simply) {
 			this.config.model = {};
 		}
 		if (!this.config.attribute) {
-			this.config.attribute = 'data-bind';
+			this.config.attribute = 'data-simply-bind';
 		}
 		if (!this.config.selector) {
-			this.config.selector = '[data-bind]';
+			this.config.selector = '[data-simply-bind]';
 		}
 		if (!this.config.container) {
 			this.config.container = document;
+		}
+		if (typeof this.config.twoway == 'undefined') {
+			this.config.twoway = true;
 		}
 		this.fieldTypes = {
 			'*': {
@@ -156,142 +126,71 @@ window.simply = (function(simply) {
 		if (this.config.fieldTypes) {
 			Object.assign(this.fieldTypes, this.config.fieldTypes);
 		}
-		this.attach(this.config.container.querySelectorAll(this.config.selector), this.config.container);
-	};
-
-	Binding.prototype.attach = function(elements, root) {
-		var self = this;
-
-
-		/**
-		 * returns a selector matching any element bound to the given path
-		 * using any of the possible attributes
-		 **/
-		var getSelector = function(attribute, path) {
-			var attributes = attribute.split(',');
-			var selector = [];
-			for (var attr of attributes) {
-				selector.push('['+attr+'="'+path+'"]');
-			}
-			return selector.join(',');
-		};
-
-		/**
-		 * Attaches a binding to a specific html element.
-		 **/
-		var attachElement = function(jsonPath, el) {
-			if (!root.contains(el)) {
-				// element is no longer part of the document
-				// so don't bother changing the model or updating the element for it
-				return;
-			}
-
-			var nested = el.parentElement.closest(getSelector(self.config.attribute, getPath(el, self.config.attribute)));
-			if (nested && !fieldAllowsNesting(nested)) {
-				console.log('Error: illegal nested data-binding found for '+el.dataset.bind);
-				console.log(el);
-				return;
-			}
-			var keys       = jsonPath.split('.'),
-			    parentPath = '',
-			    path       = '',
-			    shadow,
-			    model      = self.config.model;
-
-			do {
-				key    = keys.shift();
-				path   = simply.path.push(path, key);
-				shadow = getShadow(self.config.model, path);
-				if (keys.length) {
-					shadow.children[ simply.path.push(path,keys[0]) ] = true;
-				}
-				if (model && typeof model == 'object') {
-					if (!Array.isArray(model)) {
-						shadow.value = model[key];
-						Object.defineProperty(model, key, {
-							set: (function(shadow, path) {
-								return function(value) {
-									shadow.value = value;
-									setHandlers(shadow, path)
-								};
-							})(shadow, path),
-							get: (function(shadow) {
-								return function() {
-									return shadow.value;
-								}
-							})(shadow),
-							configurable: true,
-							enumerable: true
-						});
-					}
-					model = model[key];
-				}
-				parentPath = path;
-			} while(keys.length);
-			if (shadow.elements.indexOf(el)==-1) {
-				shadow.elements.push(el);
-			}
-			initElement(el);
-			updateElements([el], model);
-			if (Array.isArray(shadow.value)) {
-				attachArray(shadow, path);
-			}
-			monitorProperties(model, path);
-		};
-
-		var fieldAllowsNesting = function(el) {
-			var fieldType = getFieldType(self.fieldTypes, el);
-			return fieldType && fieldType.allowNesting;
-		};
-
-		/**
-		 * This will call updateElements on all parents of jsonPath that are
-		 * bound to some elements.
-		 **/
-		var updateParents = function(jsonPath) {
-			var parents = simply.path.parents(jsonPath);
-			parents.pop();
-			parents.reverse().forEach(function(parent) {
-				shadow = getShadow(self.config.model, parent);
-				if (shadow && shadow.elements.length) {
-					updateElements(shadow.elements, shadow.value);
-				}
+		this.attach(this.config.container.querySelectorAll(this.config.selector), this.config.model);
+		if (this.config.twoway) {
+			var self = this;
+			var observer = new MutationObserver(throttle, function() {
+				runWhenIdle(function() {
+					self.attach(self.config.container.querySelectorAll(self.config.selector), self.config.model);
+				});
 			});
-		};
+			observer.observe(this.config.container, {
+				subtree: true,
+				childList: true
+			});
+		}
+	}
 
-		/**
-		 * This defines setters/getters for properties that aren't bound
-		 * to elements directly, but who have a parent object that is.
-		 **/
-		var monitorProperties = function(model, path) {
-			if (!model || typeof model != 'object') {
+	var focusedElement = null;
+	var initialized = new WeakMap();
+	var observers = new WeakMap();
+	var observersPaused = 0;
+
+	Binding.prototype.attach = function(el, model) {
+		var attachElement = function(jsonPath) {
+			if (el.dataset.simplyBound) {
 				return;
 			}
-
-			var _shadow = {};
-			Object.keys(model).forEach(function(property) {
-				if (!hasShadow(self.config.model, simply.path.push(path,property))) {
-					// If the property has a shadow, then it is already bound
-					// and has a setter that will call updateParents
-					_shadow[property] = model[property];
-					Object.defineProperty(model, property, {
-						set: function(value) {
-							_shadow[property] = value;
-							updateParents(path);
-						},
-						get: function() {
-							return _shadow[property];
-						},
-						configurable: true,
-						enumerable: true
-					});
-				}
-				if (model[property] && typeof model[property] == 'object') {
-					monitorProperties(model[property], simply.path.push(path,property));
+			el.dataset.simplyBound = true;
+			initElement(el);
+			setValue(el, getByPath(model, jsonPath), self);
+			simply.observe(model, jsonPath, function(value) {
+				if (el != focusedElement) {
+					setValue(el, value, self);
 				}
 			});
 		}
-		
+
+		var addMutationObserver = function(jsonPath) {
+			var observer = new MutationObserver(function() {
+				if (observersPaused) {
+					return;
+				}
+				throttle(function() {
+					runWhenIdle(function() {
+		            	var v = getValue(el, self);
+		            	var s = getByPath(model, jsonPath);
+		            	if (v != s) {
+		            		focusedElement = el;
+		            		setByPath(model, jsonPath, v);
+		            		focusedElement = null;
+		            	}
+					});
+				}, 250);
+			});
+			observer.observe(el, {
+				characterData: true,
+				subtree: true,
+				childList: true,
+				attributes: true
+			});
+			if (!observers[el]) {
+				observers[el] = [];
+			}
+			observers[el].push(observer);
+			return observer;
+		}
+
 		/**
 		 * Runs the init() method of the fieldType, if it is defined.
 		 **/
@@ -309,254 +208,31 @@ window.simply = (function(simply) {
 			}
 		};
 
-		/**
-		 * Updates the given elements with the new value, if the element is still
-		 * in the document.body. Otherwiste it will remove the element from the
-		 * elements list. During the update the observer is paused.
-		 **/
-		var updateElements = function(elements, value) {
-			var reconnectObserver;
-			if (self.observing) {
-				self.observer.disconnect();
-				reconnectObserver = self.observing;
-				self.observing = false;
+		var self = this;
+		if (el instanceof HTMLElement) {
+			var jsonPath = getPath(el, this.config.attribute);
+			attachElement(jsonPath);
+			if (this.config.twoway) {
+				addMutationObserver(jsonPath);
 			}
-			elements.forEach(function(el, index) {
-				if (root.contains(el)) {
-					setValue(el, value, self);
-					var children = el.querySelectorAll(self.config.selector);
-					if (children.length) {
-						self.attach(children);
-					}
-//				} else {
-//					elements.splice(index,1);
-				}
-			});
-			if (reconnectObserver) {
-		        self.observing = reconnectObserver;
-				self.observer.observe(reconnectObserver, {
-		        	subtree: true,
-		        	childList: true,
-		        	characterData: true,
-		        	attributes: true
-		        });
-		    }
-		};
-
-		var setHandlers = function(shadow, path) {
-			updateElements(shadow.elements, shadow.value);
-			if (Array.isArray(shadow.value)) {
-				attachArray(shadow, path);
-			} else {
-				attachChildren(shadow);
-				addSetTriggers(shadow);
-				updateParents(path);
-			}
-			monitorProperties(shadow.value, path);
-			triggerChildListeners(path, self.config.model);
-			triggerListeners(path, self.config.model);
+		} else {
+			[].forEach.call(el, function(element) {
+                self.attach(element, model);
+            });
 		}
-
-		var attachArray = function(shadow, path) {
-			var listPath = path;
-			var desc = Object.getOwnPropertyDescriptor(shadow.value, 'push');
-			if (!desc || desc.configurable) {
-				for (var f of ['push','pop','reverse','shift','sort','splice','unshift']) {
-					(function(f) {
-						//FIXME: change prototype? at least make sure that push/pop/etc
-						//aren't listen in the console / debugger as properties
-						Object.defineProperty(shadow.value, f, {
-							value: function() {
-								var result = Array.prototype[f].apply(this, arguments);
-								//FIXME: the shadows staan nog verkeerd
-								//na een unshift() moeten de paden van alle shadows
-								//opnieuw gezet worden
-								//of eigenlijk moeten alle child shadows weggegooid
-								//en opnieuw gezet
-								shadow.elements.forEach(function(el, index) {
-									setValue(el, shadow.value, self);
-								});
-								return result;
-							},
-							readable: false,
-							enumerable: false
-						});
-					}(f));
-				}
-			}
-		}
-
-		/**
-		 * Loops over registered children of the shadow, that means a sub property
-		 * is bound to an element, and reattaches those to their elements with the
-		 * new values.
-		 **/
-		var attachChildren = function( shadow) {
-			Object.keys(shadow.children).forEach(function(child) {
-				var value = simply.path.get(self.config.model, child);
-				var childShadow = getShadow(self.config.model, child);
-				childShadow.value = value;
-				childShadow.elements.forEach(function(el) {
-					attachElement(child, el);
-				});
-			});
-		};
-
-		/**
-		 * Adds a setter for all bound child properties that restores the bindings
-		 * when a new value is set for them. This is to restore bindings after a
-		 * parent value is changed so the original property is no longer set.
-		 * It is not enumerable, so it won't show up in Object.keys or JSON.stringify
-		 **/
-		var addSetTriggers = function(shadow){
-			Object.keys(shadow.children).forEach(function(childPath) {
-				var name = simply.path.pop(childPath);
-				if (shadow.value && typeof shadow.value[name] == 'undefined') {
-					Object.defineProperty(shadow.value, name, {
-						set: function(value) {
-							restoreBinding(childPath);
-							shadow.value[name] = value;
-						},
-						configurable: true,
-						enumerable: false
-					});
-				}
-			});
-		}
-
-		/**
-		 * Restores the binding for all registered bound elements.
-		 * Run when the set trigger is called.
-		 **/
-		var restoreBinding = function(path) {
-			var shadow = getShadow(self.config.model, path);
-			[].forEach.call(shadow.elements, function(element) {
-            	attachElement(path, element);
-        	});
-		}
-
-		if (!root) {
-			root = document.body;
-		}
-		if ( elements instanceof HTMLElement ) {
-			elements = [ elements ];
-		}
-		[].forEach.call(elements, function(element) {
-            var key = getPath(element, self.config.attribute);
-            attachElement(key, element);
-        });
-        document.body.addEventListener('simply.bind.update', function(evt) {
-			focusedElement = evt.target;
-			simply.path.set(self.config.model, getPath(evt.target, self.config.attribute), getValue(evt.target, self));
-			focusedElement = null;
-        }, true);
 	};
 
-	var runWhenIdle = (function() {
-		if (window.requestIdleCallback) {
-			return function(callback) {
-				window.requestIdleCallback(callback, {timeout: 500});
-			};
-		}
-		return window.requestAnimationFrame;
-	})();
-
-	Binding.prototype.observe = function(root) {
-		var changes = [];
-		var self    = this;
-
-		var handleChanges = throttle(function() {
-			runWhenIdle(function() {
-				changes = changes.concat(self.observer.takeRecords());
-				self.stopObserver();
-				var change,el,children;
-				var handledKeys = {}; // list of keys already handled
-				var handledElements = new WeakMap();
-				for (var i=changes.length-1; i>=0; i--) {
-					// handle last change first, so programmatic changes are predictable
-					// last change overrides earlier changes
-					change = changes[i];
-					el = getElement(change.target);
-					if (!el) {
-						continue;
-					}
-					if (handledElements.has(el)) {
-						continue;
-					}
-					handledElements.set(el, true);
-					children = el.querySelectorAll(self.config.selector);
-					if (children.length) {
-						self.attach(children);
-					}
-					if (!el.matches(self.config.selector)) {
-						el = el.closest(self.config.selector);
-					}
-					if (el) {
-						var key = getPath(el, self.config.attribute);
-						if (handledKeys[key]) {
-							// we already handled this key, the model is uptodate
-							continue;
-						}
-						handledKeys[key] = true;
-						focusedElement = el;
-						var newValue = getValue(el, self);
-						var oldValue = simply.path.get(self.config.model, key);
-						if (newValue!=oldValue) {
-							simply.path.set(self.config.model, key, getValue(el, self));
-						}
-						focusedElement = null;
-					}
-				}
-				changes = [];
-				self.resumeObserver();
-			});
-		},100);
-        this.observer = new MutationObserver(function(changeList) {
-        	changes = changes.concat(changeList);
-        	handleChanges();
-        });
-        this.wasObserving = root;
-        this.resumeObserver();
-        return this;
-	};
-
-	Binding.prototype.stopObserver = function() {
-		this.observer.disconnect();
-		this.wasObserving = this.observing;
-		this.observing = false;
-	};
-
-	Binding.prototype.resumeObserver = function() {
-		if (this.wasObserving) {
-			this.observing = this.wasObserving;
-			this.observer.observe(this.observing, {
-				subtree: true,
-				childList: true,
-				characterData: true,
-				attributes: true
-			});
-			this.wasObserving = false;
-		}
+	Binding.prototype.pauseObservers = function() {
+		observersPaused++;
 	}
 
-	Binding.prototype.addListener = function(jsonPath, callback) {
-		var shadow = getShadow(this.config.model, jsonPath);
-		shadow.listeners.push(callback);
-	};
-
-	Binding.prototype.removeListener = function(jsonPath, callback) {
-		var shadow = getShadow(this.config.model, jsonPath);
-		shadow.listeners = shadow.listeners.filter(function(listener) {
-			if (listener==callback) {
-				return false;
-			}
-			return true;
-		});
-	};
+	Binding.prototype.resumeObservers = function() {
+		observersPaused--;
+	}
 
 	simply.bind = function(config) {
 		return new Binding(config);
 	};
 
-    return simply;
+	return simply;
 })(window.simply || {});
