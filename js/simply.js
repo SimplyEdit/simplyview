@@ -20,7 +20,7 @@ window.simply = (function(simply) {
                 'simply-small'  : 768,
                 'simply-medium' : 992,
                 'simply-large'  : 1200
-            }
+            };
             this.view      = simply.view ? simply.view(this, options.view) : false;
             if (simply.bind) {
                 options.bind = simply.render(options.bind || {});
@@ -32,20 +32,18 @@ window.simply = (function(simply) {
 
         simplyApp.prototype.get = function(id) {
             return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
-        }
+        };
 
         var app = new simplyApp(options);
 
         if ( simply.toolbar ) {
             var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            for ( var i=0,l=toolbars.length; i<l; i++) {
-                simply.toolbar.init(toolbars[i]);
-            }
-            if (simply.toolbar.scroll) {
-                for ( var i=0,l=toolbars.length; i<l; i++) {
-                    simply.toolbar.scroll(toolbars[i]);
+            [].forEach.call(toolbars, function(toolbar) {
+                simply.toolbar.init(toolbar);
+                if (simply.toolbar.scroll) {
+                    simply.toolbar.scroll(toolbar);
                 }
-            }
+            });
         }
 
         var lastSize = 0;
@@ -56,8 +54,8 @@ window.simply = (function(simply) {
             }
             lastSize  = size;
             var sizes = Object.keys(app.sizes);
-            var match = null;
-            while (match=sizes.pop()) {
+            var match = sizes.pop();
+            while (match) {
                 if ( size<app.sizes[match] ) {
                     if ( app.container.classList.contains(match)) {
                         app.container.classList.remove(match);
@@ -68,16 +66,18 @@ window.simply = (function(simply) {
                     }
                     break;
                 }
+                match = sizes.pop();
             }
-            while (match=sizes.pop()) {
+            while (match) {
                 if ( app.container.classList.contains(match)) {
                     app.container.classList.remove(match);
                 }
+                match=sizes.pop();
             }
             var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            for (var i=toolbars.length-1; i>=0; i--) {
-                toolbars[i].style.transform = '';
-            }
+            [].forEach.call(toolbars, function(toolbar) {
+                toolbar.style.transform = '';
+            });
         }
 
         if ( window.attachEvent ) {
@@ -88,7 +88,6 @@ window.simply = (function(simply) {
         
         return app;
     };
-
 
     return simply;
 })(window.simply || {});

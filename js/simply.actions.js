@@ -14,7 +14,7 @@ window.simply = (function(simply) {
             }
             el.classList.add('simply-selected');
             if (target) {
-                this.call('simply-select',target,targetGroup)
+                this.call('simply-select',target,targetGroup);
             }
             return Promise.resolve();
         },
@@ -71,13 +71,12 @@ window.simply = (function(simply) {
             if (!target.classList.contains('simply-fullscreen')) {
                 target.classList.add('simply-fullscreen');
                 target[requestMethod]();
-                var self = this;
                 var exit = function() {
                     if ( !document[element] ) {
                         target.classList.remove('simply-fullscreen');
                         document.removeEventListener(event,exit);
                     }
-                }
+                };
                 document.addEventListener(event,exit);
             } else {
                 target.classList.remove('simply-fullscreen');
@@ -88,19 +87,19 @@ window.simply = (function(simply) {
     };
 
     simply.actions = function(app, inActions) {
-        actions = Object.create(defaultActions);
-		for ( var i in inActions ) {
-			actions[i] = inActions[i];
-		}
+        var actions = Object.create(defaultActions);
+        for ( var i in inActions ) {
+            actions[i] = inActions[i];
+        }
 
         actions.app = app;
         actions.call = function(name) {
             var params = Array.prototype.slice.call(arguments);
             params.shift();
             return this[name].apply(this, params);
-        }
+        };
         return actions;
-    }
+    };
 
     return simply;
     

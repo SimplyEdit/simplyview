@@ -62,10 +62,10 @@ window.simply = (function(simply) {
         {
             match: 'form',
             get: function(el) {
-				var data = {};
-				[].forEach.call(el.elements, function(el) {
-					data[el.name] = el.value;
-				});
+                var data = {};
+                [].forEach.call(el.elements, function(el) {
+                    data[el.name] = el.value;
+                });
                 return data;//new FormData(el);
             },
             check: function(el,evt) {
@@ -106,17 +106,17 @@ window.simply = (function(simply) {
             var params = Array.prototype.slice.call(arguments);
             params.shift();
             return app.actions[name].apply(app.actions,params);
-        }
+        };
 
         commands.call = function(name) {
             var params = Array.prototype.slice.call(arguments);
             params.shift();
             return this[name].apply(this,params);            
-        }
+        };
 
         commands.addHandler = function(handler) {
             handlers.push(handler);
-        }
+        };
 
         var commandHandler = function(evt) {
             var command = getCommand(evt);

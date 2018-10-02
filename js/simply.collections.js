@@ -12,7 +12,7 @@ window.simply = (function(simply) {
             }
         },
         removeListener: function(name, callback) {
-            if (knowCollections[name]) {
+            if (knownCollections[name]) {
                 var index = knownCollections[name].indexOf(callback);
                 if (index>=0) {
                     knownCollections[name].splice(index, 1);
@@ -21,7 +21,10 @@ window.simply = (function(simply) {
         },
         update: function(element, value) {
             element.value = value;
-            editor.fireEvent('change', element);
+            element.dispatchEvent(new Event('change', {
+                bubbles: true,
+                cancelable: true
+            }));
         }
     };
 

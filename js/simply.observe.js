@@ -7,10 +7,10 @@
  * It doesn't register addition of new properties.
  * It doesn't register directly assigning new entries in an array on a previously
  * non-existant index.
- * 
+ *
  * usage:
  *
- * (function) simply.observe( (object) model, (string) path, (function) callback) 
+ * (function) simply.observe( (object) model, (string) path, (function) callback)
  *
  * var model = { foo: { bar: 'baz' } };
  * var removeObserver = simply.observe(model, 'foo.bar', function(value, sourcePath) {
@@ -32,240 +32,237 @@
  * so if foo = [ 'bar' ], the path to 'bar' would be 'foo.0'
  */
 
-window.simply = (function(simply) {
-	
-	var changeListeners = new WeakMap();
-	var parentListeners = new WeakMap();
-	var childListeners = new WeakMap();
-	var changesSignalled = {};
-	var observersPaused = 0;
+window.simply = (function (simply) {
+    var changeListeners = new WeakMap();
+    var parentListeners = new WeakMap();
+    var childListeners = new WeakMap();
+    var changesSignalled = {};
+    var observersPaused = 0;
 
-	function signalChange(model, path, value, sourcePath) {
-		if (observersPaused) {
-			return;
-		}
+    function signalChange(model, path, value, sourcePath) {
+        if (observersPaused) {
+            return;
+        }
 
-		sourcePath = sourcePath ? sourcePath : path;
-		changesSignalled = {};
+        sourcePath = sourcePath ? sourcePath : path;
+        changesSignalled = {};
 
-		var signalRecursion = function(model, path, value, sourcePath) {
-			if (changeListeners.has(model) && changeListeners.get(model)[path]) {
-				// changeListeners[model][path] contains callback methods
-				changeListeners.get(model)[path].forEach(function(callback) {
-					changesSignalled[path] = true;
-					callback(value, sourcePath);
-				});
-				return true;
-			}
-			return false;
-		}
+        var signalRecursion = function(model, path, value, sourcePath) {
+            if (changeListeners.has(model) && changeListeners.get(model)[path]) {
+                // changeListeners[model][path] contains callback methods
+                changeListeners.get(model)[path].forEach(function(callback) {
+                    changesSignalled[path] = true;
+                    callback(value, sourcePath);
+                });
+                return true;
+            }
+            return false;
+        };
 
-		if (!signalRecursion(model, path, value, sourcePath)) {
-			 if (parentListeners.has(model) && parentListeners.get(model)[path]) {
-				// parentListeners[model][path] contains child paths to signal change on
-				// if a parent object is changed, this signals the change to the child objects
-				parentListeners.get(model)[path].forEach(function(childPath) {
-					if (!changesSignalled[childPath]) {
-						var value = getByPath(model, childPath);
-						if (value) {
-							attach(model, childPath);
-						}
-						signalRecursion(model, childPath, value, sourcePath);
-						changesSignalled[childPath] = true;
-					}
-				});
-			}
-		}
+        if (!signalRecursion(model, path, value, sourcePath)) {
+            if (parentListeners.has(model) && parentListeners.get(model)[path]) {
+                // parentListeners[model][path] contains child paths to signal change on
+                // if a parent object is changed, this signals the change to the child objects
+                parentListeners.get(model)[path].forEach(function(childPath) {
+                    if (!changesSignalled[childPath]) {
+                        var value = getByPath(model, childPath);
+                        if (value) {
+                            attach(model, childPath);
+                        }
+                        signalRecursion(model, childPath, value, sourcePath);
+                        changesSignalled[childPath] = true;
+                    }
+                });
+            }
+        }
 
-		if (childListeners.has(model) && childListeners.get(model)[path]) {
-			// childListeners[model][path] contains parent paths to signal change on
-			// if a child object is changed, this signals the change to the parent objects
-			childListeners.get(model)[path].forEach(function(parentPath) {
-				if (!changesSignalled[parentPath]) {
-					var value = getByPath(model, parentPath);
-					signalRecursion(model, parentPath, value, sourcePath);
-					changesSignalled[parentPath] = true;
-				}
-			});
-		}
+        if (childListeners.has(model) && childListeners.get(model)[path]) {
+            // childListeners[model][path] contains parent paths to signal change on
+            // if a child object is changed, this signals the change to the parent objects
+            childListeners.get(model)[path].forEach(function(parentPath) {
+                if (!changesSignalled[parentPath]) {
+                    var value = getByPath(model, parentPath);
+                    signalRecursion(model, parentPath, value, sourcePath);
+                    changesSignalled[parentPath] = true;
+                }
+            });
+        }
+    }
 
-	}
+    function getByPath(model, path) {
+        var parts = path.split('.');
+        var curr = model;
+        do {
+            curr = curr[parts.shift()];
+        } while (parts.length && curr);
+        return curr;
+    }
 
-	function getByPath(model, path) {
-		var parts = path.split('.');
-		var curr = model;
-		do {
-			curr = curr[parts.shift()];
-		} while (parts.length && curr);
-		return curr;
-	}
+    function parent(path) {
+        var parts = path.split('.');
+        parts.pop();
+        return parts.join('.');
+    }
+    
+    function onParents(model, path, callback) {
+        var parent = '';
+        var parentOb = model;
+        var parents = path.split('.');
+        do {
+            var head = parents.shift();
+            if (parentOb && typeof parentOb[head] != 'undefined') {
+                callback(parentOb, head, (parent ? parent + '.' + head : head));
+                parentOb = parentOb[head];
+            }
+            parent = (parent ? parent + '.' + head : head );
+        } while (parents.length);
+    }
 
-	function parent(path) {
-		var parts = path.split('.');
-		parts.pop();
-		return parts.join('.');
-	}
-	
-	function onParents(model, path, callback) {
-		var tail = path;
-		var parent = '';
-		var parentOb = model;
-		var parents = path.split('.');
-		do {
-			var head = parents.shift();
-			if (parentOb && typeof parentOb[head] != 'undefined') {
-				callback(parentOb, head, (parent ? parent + '.' + head : head));
-				parentOb = parentOb[head];
-			}
-			parent = (parent ? parent + '.' + head : head );
-		} while (parents.length);
-	}
+    function onChildren(model, path, callback) {
+        var onChildObjects = function(object, path, callback) {
+            if (typeof object != 'object' || object == null) {
+                return;
+            }
+            Object.keys(object).forEach(function(key) {
+                callback(object, key, path+'.'+key);
+                onChildObjects(object[key], path+'.'+key, callback);
+            });
+        };
+        var parent = getByPath(model, path);
+        onChildObjects(parent, path, callback);
+    }
 
-	function onChildren(model, path, callback) {
-		var onChildObjects = function(object, path, callback) {
-			if (typeof object != 'object' || object == null) {
-				return;
-			}
-			Object.keys(object).forEach(function(key) {
-				callback(object, key, path+'.'+key);
-				onChildObjects(object[key], path+'.'+key, callback);
-			});
-		};
-		var parent = getByPath(model, path);
-		onChildObjects(parent, path, callback);
-	}
+    function addChangeListener(model, path, callback) {
+        if (!changeListeners.has(model)) {
+            changeListeners.set(model, {});
+        }
+        if (!changeListeners.get(model)[path]) {
+            changeListeners.get(model)[path] = [];
+        }
+        changeListeners.get(model)[path].push(callback);
 
-	function addChangeListener(model, path, callback) {
-		if (!changeListeners.has(model)) {
-			changeListeners.set(model, {});
-		}
-		if (!changeListeners.get(model)[path]) {
-			changeListeners.get(model)[path] = [];
-		}
-		changeListeners.get(model)[path].push(callback);
+        if (!parentListeners.has(model)) {
+            parentListeners.set(model, {});
+        }
+        var parentPath = parent(path);
+        onParents(model, parentPath, function(parentOb, key, currPath) {
+            if (!parentListeners.get(model)[currPath]) {
+                parentListeners.get(model)[currPath] = [];
+            }
+            parentListeners.get(model)[currPath].push(path);
+        });
 
-		if (!parentListeners.has(model)) {
-			parentListeners.set(model, {});
-		}
-		var parentPath = parent(path);
-		onParents(model, parentPath, function(parentOb, key, currPath) {
-			if (!parentListeners.get(model)[currPath]) {
-				parentListeners.get(model)[currPath] = [];
-			}
-			parentListeners.get(model)[currPath].push(path);
-		});
+        if (!childListeners.has(model)) {
+            childListeners.set(model, {});
+        }
+        onChildren(model, path, function(childOb, key, currPath) {
+            if (!childListeners.get(model)[currPath]) {
+                childListeners.get(model)[currPath] = [];
+            }
+            childListeners.get(model)[currPath].push(path);
+        });
+    }
 
-		if (!childListeners.has(model)) {
-			childListeners.set(model, {});
-		}
-		onChildren(model, path, function(childOb, key, currPath) {
-			if (!childListeners.get(model)[currPath]) {
-				childListeners.get(model)[currPath] = [];
-			}
-			childListeners.get(model)[currPath].push(path);
-		});
-	}
+    function removeChangeListener(model, path, callback) {
+        if (!changeListeners.has(model)) {
+            return;
+        }
+        if (changeListeners.get(model)[path]) {
+            changeListeners.get(model)[path] = changeListeners.get(model)[path].filter(function(f) {
+                return f != callback;
+            });
+        }
+    }
 
-	function removeChangeListener(model, path, callback) {
-		if (!changeListeners.has(model)) {
-			return;
-		}
-		if (changeListeners.get(model)[path]) {
-			changeListeners.get(model)[path] = changeListeners.get(model)[path].filter(function(f) {
-				return f != callback;
-			});
-		}
-	}
+    function pauseObservers() {
+        observersPaused++;
+    }
 
-	function pauseObservers() {
-		observersPaused++;
-	}
+    function resumeObservers() {
+        observersPaused--;
+    }
 
-	function resumeObservers() {
-		observersPaused--;
-	}
+    function attach(model, path) {
 
-	function attach(model, path) {
+        var attachArray = function(object, path) {
+            var desc = Object.getOwnPropertyDescriptor(object, 'push');
+            if (!desc || desc.configurable) {
+                for (var f of ['push','pop','reverse','shift','sort','splice','unshift','copyWithin']) {
+                    (function(f) {
+                        try {
+                            Object.defineProperty(object, f, {
+                                value: function() {
+                                    pauseObservers();
+                                    var result = Array.prototype[f].apply(this, arguments);
+                                    attach(model, path);
+                                    var args = [].slice.call(arguments).map(function(arg) {
+                                        return JSON.stringify(arg);
+                                    });
+                                    resumeObservers();
+                                    signalChange(model, path, this, path+'.'+f+'('+args.join(',')+')');
+                                    return result;
+                                },
+                                readable: false,
+                                enumerable: false,
+                                configurable: false
+                            });
+                        } catch(e) {
+                            console.log('simply.observer: Error: Couldn\'t redefine array method '+f+' on '+path);
+                            console.log(e);
+                        }
+                    }(f));
+                }
+                for (var i=0, l=object.length; i<l; i++) {
+                    addSetter(object, i, path+'.'+i);
+                }
+            }
+        };
 
-		var attachArray = function(object, path) {
-			var desc = Object.getOwnPropertyDescriptor(object, 'push');
-			if (!desc || desc.configurable) {
-				for (var f of ['push','pop','reverse','shift','sort','splice','unshift','copyWithin']) {
-					(function(f) {
-						try {
-							Object.defineProperty(object, f, {
-								value: function() {
-									pauseObservers();
-									var result = Array.prototype[f].apply(this, arguments);
-									attach(model, path);
-									var args = [].slice.call(arguments).map(function(arg) {
-										return JSON.stringify(arg);
-									});
-									resumeObservers();
-									signalChange(model, path, this, path+'.'+f+'('+args.join(',')+')');
-									return result;
-								},
-								readable: false,
-								enumerable: false,
-								configurable: false
-							});
-						} catch(e) {
-							console.log('simply.observer: Error: Couldn\'t redefine array method '+f+' on '+path);
-							console.log(e);
-						}
-					}(f));
-				}
-				for (var i=0, l=object.length; i<l; i++) {
-					addSetter(object, i, path+'.'+i);
-				}
-			}
-		};
+        var addSetter = function(object, key, currPath) {
+            if (Object.getOwnPropertyDescriptor(object, key).configurable) {
+                // assume object keys are only unconfigurable if the
+                // following code has already been run on this property
+                var _value = object[key];
+                Object.defineProperty(object, key, {
+                    set: function(value) {
+                        _value = value;
+                        signalChange(model, currPath, value);
+                        onChildren(model, currPath, addSetter);
+                    },
+                    get: function() {
+                        return _value;
+                    }
+                });
+                if (Array.isArray(object[key])) {
+                    attachArray(object[key], currPath);
+                }
+            }
+        };
 
-		var addSetter = function(object, key, currPath) {
-			if (Object.getOwnPropertyDescriptor(object, key).configurable) {
-				// assume object keys are only unconfigurable if the
-				// following code has already been run on this property
-				var _value = object[key]
-				Object.defineProperty(object, key, {
-					set: function(value) {
-						_value = value;
-						signalChange(model, currPath, value);
-						onChildren(model, currPath, addSetter);
-					},
-					get: function() {
-						return _value;
-					}
-				});
-				if (Array.isArray(object[key])) {
-					attachArray(object[key], currPath);
-				}
-			}			
-		};
+        onParents(model, path, addSetter);
+        onChildren(model, path, addSetter);
+    }
 
-		onParents(model, path, addSetter);
-		onChildren(model, path, addSetter);
-	}
+    simply.observe = function(model, path, callback) {
+        if (!path) {
+            var keys = Object.keys(model);
+            keys.forEach(function(key) {
+                attach(model, key);
+                addChangeListener(model, key, callback);
+            });
+            return function() {
+                keys.forEach(function(key) {
+                    removeChangeListener(model, key, callback);
+                });
+            };
+        } else {
+            attach(model, path);
+            addChangeListener(model, path, callback);
+            return function() {
+                removeChangeListener(model, path, callback);
+            };
+        }
+    };
 
-	simply.observe = function(model, path, callback) {
-		if (!path) {
-			var keys = Object.keys(model);
-			keys.forEach(function(key) {
-				attach(model, key);
-				addChangeListener(model, key, callback);
-			});
-			return function() {
-				keys.forEach(function(key) {
-					removeChangeListener(model, key, callback);
-				});
-			};
-		} else {
-			attach(model, path);
-			addChangeListener(model, path, callback);
-			return function() {
-				removeChangeListener(model, path, callback);
-			};
-		}
-	};
-
-	return simply;
+    return simply;
 })(window.simply || {});
