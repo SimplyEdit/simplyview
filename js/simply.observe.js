@@ -49,9 +49,9 @@ window.simply = (function(simply) {
 		changesSignalled = {};
 
 		var signalRecursion = function(model, path, value, sourcePath) {
-			if (changeListeners[model] && changeListeners[model][path]) {
+			if (changeListeners.has(model) && changeListeners.get(model)[path]) {
 				// changeListeners[model][path] contains callback methods
-				changeListeners[model][path].forEach(function(callback) {
+				changeListeners.get(model)[path].forEach(function(callback) {
 					changesSignalled[path] = true;
 					callback(value, sourcePath);
 				});
@@ -61,10 +61,10 @@ window.simply = (function(simply) {
 		}
 
 		if (!signalRecursion(model, path, value, sourcePath)) {
-			 if (parentListeners[model] && parentListeners[model][path]) {
+			 if (parentListeners.has(model) && parentListeners.get(model)[path]) {
 				// parentListeners[model][path] contains child paths to signal change on
 				// if a parent object is changed, this signals the change to the child objects
-				parentListeners[model][path].forEach(function(childPath) {
+				parentListeners.get(model)[path].forEach(function(childPath) {
 					if (!changesSignalled[childPath]) {
 						var value = getByPath(model, childPath);
 						if (value) {
@@ -77,10 +77,10 @@ window.simply = (function(simply) {
 			}
 		}
 
-		if (childListeners[model] && childListeners[model][path]) {
+		if (childListeners.has(model) && childListeners.get(model)[path]) {
 			// childListeners[model][path] contains parent paths to signal change on
 			// if a child object is changed, this signals the change to the parent objects
-			childListeners[model][path].forEach(function(parentPath) {
+			childListeners.get(model)[path].forEach(function(parentPath) {
 				if (!changesSignalled[parentPath]) {
 					var value = getByPath(model, parentPath);
 					signalRecursion(model, parentPath, value, sourcePath);
@@ -136,42 +136,42 @@ window.simply = (function(simply) {
 	}
 
 	function addChangeListener(model, path, callback) {
-		if (!changeListeners[model]) {
-			changeListeners[model] = {};
+		if (!changeListeners.has(model)) {
+			changeListeners.set(model, {});
 		}
-		if (!changeListeners[model][path]) {
-			changeListeners[model][path] = [];
+		if (!changeListeners.get(model)[path]) {
+			changeListeners.get(model)[path] = [];
 		}
-		changeListeners[model][path].push(callback);
+		changeListeners.get(model)[path].push(callback);
 
-		if (!parentListeners[model]) {
-			parentListeners[model] = {};
+		if (!parentListeners.has(model)) {
+			parentListeners.set(model, {});
 		}
 		var parentPath = parent(path);
 		onParents(model, parentPath, function(parentOb, key, currPath) {
-			if (!parentListeners[model][currPath]) {
-				parentListeners[model][currPath] = [];
+			if (!parentListeners.get(model)[currPath]) {
+				parentListeners.get(model)[currPath] = [];
 			}
-			parentListeners[model][currPath].push(path);
+			parentListeners.get(model)[currPath].push(path);
 		});
 
-		if (!childListeners[model]) {
-			childListeners[model] = {};
+		if (!childListeners.has(model)) {
+			childListeners.set(model, {});
 		}
 		onChildren(model, path, function(childOb, key, currPath) {
-			if (!childListeners[model][currPath]) {
-				childListeners[model][currPath] = [];
+			if (!childListeners.get(model)[currPath]) {
+				childListeners.get(model)[currPath] = [];
 			}
-			childListeners[model][currPath].push(path);
+			childListeners.get(model)[currPath].push(path);
 		});
 	}
 
 	function removeChangeListener(model, path, callback) {
-		if (!changeListeners[model]) {
+		if (!changeListeners.has(model)) {
 			return;
 		}
-		if (changeListeners[model][path]) {
-			changeListeners[model][path] = changeListeners[model][path].filter(function(f) {
+		if (changeListeners.get(model)[path]) {
+			changeListeners.get(model)[path] = changeListeners.get(model)[path].filter(function(f) {
 				return f != callback;
 			});
 		}
