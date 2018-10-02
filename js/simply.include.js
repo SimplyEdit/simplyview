@@ -55,15 +55,17 @@ window.simply = (function(simply) {
         // simply.include.signal.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve, reject) {
-            var next = document.createElement('script');
-			var cachebuster = Date.now();
-            next.src = rebaseHref('simply.include.next.js?'+cachebuster, currentScript.src);
-            next.setAttribute('async', false);
-            document.addEventListener('simply-include-next', function() {
-                head.removeChild(next);
-                resolve();
-            }, { once: true, passive: true});
-            head.appendChild(next);
+			window.setTimeout(function() {
+	            var next = document.createElement('script');
+				var cachebuster = Date.now();
+        	    next.src = rebaseHref('simply.include.next.js?'+cachebuster, currentScript.src);
+            	next.setAttribute('async', false);
+            	document.addEventListener('simply-include-next', function() {
+            	    head.removeChild(next);
+            	    resolve();
+            	}, { once: true, passive: true});
+            	head.appendChild(next);
+			},10);
         });
     };
 
@@ -109,7 +111,9 @@ window.simply = (function(simply) {
 						node.parentNode.removeChild(node);
                    	    loaded[clone.src]=true;
                     }
-                    importScript();
+					window.setTimeout(importScript, 10); // this settimeout is required, 
+					// when adding multiple scripts in one go, the browser has no idea of the order in which to load and execut them
+					// even with the async=false flag
                 }
             }
 			if (arr.length) {
