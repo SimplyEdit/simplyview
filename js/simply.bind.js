@@ -191,10 +191,10 @@ window.simply = (function(simply) {
                 childList: true,
                 attributes: true
             });
-            if (!observers[el]) {
-                observers[el] = [];
+            if (!observers.has(el)) {
+                observers.set(el, []);
             }
-            observers[el].push(observer);
+            observers.get(el).push(observer);
             return observer;
         };
 
