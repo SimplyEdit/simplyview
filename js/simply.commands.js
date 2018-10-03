@@ -89,16 +89,20 @@ window.simply = (function(simply) {
             el = el.parentElement;
         }
         if (el) {
+            var matched = false;
             for (var i=handlers.length-1; i>=0; i--) {
-                if (el.matches(handlers[i].match) && handlers[i].check(el, evt)) {
-                    return {
-                        name:   el.dataset.simplyCommand,
-                        source: el,
-                        value:  handlers[i].get(el)
-                    };
+                if (el.matches(handlers[i].match)) {
+                    matched = true;
+                    if (handlers[i].check(el, evt)) {
+                        return {
+                            name:   el.dataset.simplyCommand,
+                            source: el,
+                            value:  handlers[i].get(el)
+                        };
+                    }
                 }
             }
-            if (fallbackHandler.check(el,evt)) {
+            if (!matched && fallbackHandler.check(el,evt)) {
                 return {
                     name:   el.dataset.simplyCommand,
                     source: el,
