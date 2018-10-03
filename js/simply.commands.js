@@ -84,10 +84,7 @@ window.simply = (function(simply) {
     };
 
     function getCommand(evt) {
-        var el = evt.target;
-        while ( el && !el.dataset.simplyCommand ) {
-            el = el.parentElement;
-        }
+        var el = evt.target.closest('[data-simply-command]');
         if (el) {
             var matched = false;
             for (var i=handlers.length-1; i>=0; i--) {
@@ -145,10 +142,14 @@ window.simply = (function(simply) {
         var commandHandler = function(evt) {
             var command = getCommand(evt);
             if ( command ) {
-                commands.call(command.name, command.source, command.value);
-                evt.preventDefault();
-                evt.stopPropagation();
-                return false;
+                if (!commands[command.name]) {
+                    console.error('simply.command: undefined command '+command.name, command.source);
+                } else {
+                    commands.call(command.name, command.source, command.value);
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    return false;
+                }
             }
         };
 
