@@ -4,7 +4,7 @@ window.simply = (function(simply) {
             options = {};
         }
         if (!options.container) {
-            console.log('No simply.app application container element specified, using document.body.');
+            console.warn('No simply.app application container element specified, using document.body.');
         }
         
         function simplyApp(options) {

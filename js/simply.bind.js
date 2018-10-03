@@ -1,6 +1,6 @@
 window.simply = (function(simply) {
     if (!simply.observe) {
-        console.log('Error: simply.bind requires simply.observe');
+        console.error('Error: simply.bind requires simply.observe');
         return simply;
     }
 
@@ -223,8 +223,7 @@ window.simply = (function(simply) {
             var jsonPath = getPath(el, this.config.attribute);
             if (illegalNesting(el)) {
                 el.dataset.simplyBound = 'Error: nested binding';
-                console.log('Error: found nested data-binding element:');
-                console.log(el);
+                console.error('Error: found nested data-binding element:',el);
                 return;
             }
             attachElement(jsonPath);

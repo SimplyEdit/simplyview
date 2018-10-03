@@ -74,6 +74,15 @@ window.simply = (function(simply) {
         }
     ];
 
+    var fallbackHandler = {
+        get: function(el) {
+            return el.dataset.simplyValue;
+        },
+        check: function(el, evt) {
+            return evt.type=='click' && evt.ctrlKey==false && evt.button==0;
+        }
+    };
+
     function getCommand(evt) {
         var el = evt.target;
         while ( el && !el.dataset.simplyCommand ) {
@@ -88,6 +97,13 @@ window.simply = (function(simply) {
                         value:  handlers[i].get(el)
                     };
                 }
+            }
+            if (fallbackHandler.check(el,evt)) {
+                return {
+                    name:   el.dataset.simplyCommand,
+                    source: el,
+                    value: fallbackHandler.get(el)
+                };
             }
         }
         return null;
@@ -114,8 +130,12 @@ window.simply = (function(simply) {
             return this[name].apply(this,params);            
         };
 
-        commands.addHandler = function(handler) {
+        commands.appendHandler = function(handler) {
             handlers.push(handler);
+        };
+
+        commands.prependHandler = function(handler) {
+            handlers.unshift(handler);
         };
 
         var commandHandler = function(evt) {

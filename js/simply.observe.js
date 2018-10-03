@@ -54,26 +54,27 @@ window.simply = (function (simply) {
                     changesSignalled[path] = true;
                     callback(value, sourcePath);
                 });
-                return true;
             }
-            return false;
         };
 
-        if (!signalRecursion(model, path, value, sourcePath)) {
-            if (parentListeners.has(model) && parentListeners.get(model)[path]) {
-                // parentListeners[model][path] contains child paths to signal change on
-                // if a parent object is changed, this signals the change to the child objects
-                parentListeners.get(model)[path].forEach(function(childPath) {
-                    if (!changesSignalled[childPath]) {
-                        var value = getByPath(model, childPath);
-                        if (value) {
-                            attach(model, childPath);
-                        }
-                        signalRecursion(model, childPath, value, sourcePath);
-                        changesSignalled[childPath] = true;
+        //TODO: check if this is correct
+        //previous version only triggered parentListeners when no changeListeners were
+        //triggered. that created problems with arrays. make an exhaustive unit test.
+        signalRecursion(model, path, value, sourcePath);
+        
+        if (parentListeners.has(model) && parentListeners.get(model)[path]) {
+            // parentListeners[model][path] contains child paths to signal change on
+            // if a parent object is changed, this signals the change to the child objects
+            parentListeners.get(model)[path].forEach(function(childPath) {
+                if (!changesSignalled[childPath]) {
+                    var value = getByPath(model, childPath);
+                    if (value) {
+                        attach(model, childPath);
                     }
-                });
-            }
+                    signalRecursion(model, childPath, value, sourcePath);
+                    changesSignalled[childPath] = true;
+                }
+            });
         }
 
         if (childListeners.has(model) && childListeners.get(model)[path]) {
@@ -84,9 +85,13 @@ window.simply = (function (simply) {
                     var value = getByPath(model, parentPath);
                     signalRecursion(model, parentPath, value, sourcePath);
                     changesSignalled[parentPath] = true;
+                    // check if the parent object still has this child property
+                    //FIXME: add a setter trigger here to restore observers once the child property get set again
+
                 }
             });
         }
+
     }
 
     function getByPath(model, path) {
@@ -123,6 +128,7 @@ window.simply = (function (simply) {
             if (typeof object != 'object' || object == null) {
                 return;
             }
+            // register the current keys
             Object.keys(object).forEach(function(key) {
                 callback(object, key, path+'.'+key);
                 onChildObjects(object[key], path+'.'+key, callback);
@@ -207,8 +213,7 @@ window.simply = (function (simply) {
                                 configurable: false
                             });
                         } catch(e) {
-                            console.log('simply.observer: Error: Couldn\'t redefine array method '+f+' on '+path);
-                            console.log(e);
+                            console.error('simply.observer: Error: Couldn\'t redefine array method '+f+' on '+path, e);
                         }
                     }(f));
                 }
@@ -242,6 +247,14 @@ window.simply = (function (simply) {
         onParents(model, path, addSetter);
         onChildren(model, path, addSetter);
     }
+
+    // FIXME: if you remove a key by reassigning the parent object
+    // and then assign that missing key a new value
+    // the observer doesn't get triggered
+    // var model = { foo: { bar: 'baz' } };
+    // simply.observer(model, 'foo.bar', ...)
+    // model.foo = { }
+    // model.foo.bar = 'zab'; // this should trigger the observer but doesn't
 
     simply.observe = function(model, path, callback) {
         if (!path) {
