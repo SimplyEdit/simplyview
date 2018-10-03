@@ -4,7 +4,7 @@ window.simply = (function(simply) {
             options = {};
         }
         if (!options.container) {
-            console.log('No simply.app application container element specified, using document.body.');
+            console.warn('No simply.app application container element specified, using document.body.');
         }
         
         function simplyApp(options) {
@@ -548,26 +548,24 @@ window.simply = (function (simply) {
                     changesSignalled[path] = true;
                     callback(value, sourcePath);
                 });
-                return true;
             }
-            return false;
         };
 
-        if (!signalRecursion(model, path, value, sourcePath)) {
-            if (parentListeners.has(model) && parentListeners.get(model)[path]) {
-                // parentListeners[model][path] contains child paths to signal change on
-                // if a parent object is changed, this signals the change to the child objects
-                parentListeners.get(model)[path].forEach(function(childPath) {
-                    if (!changesSignalled[childPath]) {
-                        var value = getByPath(model, childPath);
-                        if (value) {
-                            attach(model, childPath);
-                        }
-                        signalRecursion(model, childPath, value, sourcePath);
-                        changesSignalled[childPath] = true;
+        signalRecursion(model, path, value, sourcePath);
+        
+        if (parentListeners.has(model) && parentListeners.get(model)[path]) {
+            // parentListeners[model][path] contains child paths to signal change on
+            // if a parent object is changed, this signals the change to the child objects
+            parentListeners.get(model)[path].forEach(function(childPath) {
+                if (!changesSignalled[childPath]) {
+                    var value = getByPath(model, childPath);
+                    if (value) {
+                        attach(model, childPath);
                     }
-                });
-            }
+                    signalRecursion(model, childPath, value, sourcePath);
+                    changesSignalled[childPath] = true;
+                }
+            });
         }
 
         if (childListeners.has(model) && childListeners.get(model)[path]) {
@@ -578,9 +576,13 @@ window.simply = (function (simply) {
                     var value = getByPath(model, parentPath);
                     signalRecursion(model, parentPath, value, sourcePath);
                     changesSignalled[parentPath] = true;
+                    // check if the parent object still has this child property
+                    //FIXME: add a setter trigger here to restore observers once the child property get set again
+
                 }
             });
         }
+
     }
 
     function getByPath(model, path) {
@@ -617,6 +619,7 @@ window.simply = (function (simply) {
             if (typeof object != 'object' || object == null) {
                 return;
             }
+            // register the current keys
             Object.keys(object).forEach(function(key) {
                 callback(object, key, path+'.'+key);
                 onChildObjects(object[key], path+'.'+key, callback);
@@ -701,8 +704,7 @@ window.simply = (function (simply) {
                                 configurable: false
                             });
                         } catch(e) {
-                            console.log('simply.observer: Error: Couldn\'t redefine array method '+f+' on '+path);
-                            console.log(e);
+                            console.error('simply.observer: Error: Couldn\'t redefine array method '+f+' on '+path, e);
                         }
                     }(f));
                 }
@@ -736,6 +738,14 @@ window.simply = (function (simply) {
         onParents(model, path, addSetter);
         onChildren(model, path, addSetter);
     }
+
+    // FIXME: if you remove a key by reassigning the parent object
+    // and then assign that missing key a new value
+    // the observer doesn't get triggered
+    // var model = { foo: { bar: 'baz' } };
+    // simply.observer(model, 'foo.bar', ...)
+    // model.foo = { }
+    // model.foo.bar = 'zab'; // this should trigger the observer but doesn't
 
     simply.observe = function(model, path, callback) {
         if (!path) {
@@ -999,7 +1009,7 @@ window.simply = (function(simply) {
 })(window.simply || {});
 window.simply = (function(simply) {
     if (!simply.observe) {
-        console.log('Error: simply.bind requires simply.observe');
+        console.error('Error: simply.bind requires simply.observe');
         return simply;
     }
 
@@ -1190,10 +1200,10 @@ window.simply = (function(simply) {
                 childList: true,
                 attributes: true
             });
-            if (!observers[el]) {
-                observers[el] = [];
+            if (!observers.has(el)) {
+                observers.set(el, []);
             }
-            observers[el].push(observer);
+            observers.get(el).push(observer);
             return observer;
         };
 
@@ -1222,8 +1232,7 @@ window.simply = (function(simply) {
             var jsonPath = getPath(el, this.config.attribute);
             if (illegalNesting(el)) {
                 el.dataset.simplyBound = 'Error: nested binding';
-                console.log('Error: found nested data-binding element:');
-                console.log(el);
+                console.error('Error: found nested data-binding element:',el);
                 return;
             }
             attachElement(jsonPath);
@@ -1326,6 +1335,15 @@ window.simply = (function(simply) {
         }
     ];
 
+    var fallbackHandler = {
+        get: function(el) {
+            return el.dataset.simplyValue;
+        },
+        check: function(el, evt) {
+            return evt.type=='click' && evt.ctrlKey==false && evt.button==0;
+        }
+    };
+
     function getCommand(evt) {
         var el = evt.target;
         while ( el && !el.dataset.simplyCommand ) {
@@ -1340,6 +1358,13 @@ window.simply = (function(simply) {
                         value:  handlers[i].get(el)
                     };
                 }
+            }
+            if (fallbackHandler.check(el,evt)) {
+                return {
+                    name:   el.dataset.simplyCommand,
+                    source: el,
+                    value: fallbackHandler.get(el)
+                };
             }
         }
         return null;
@@ -1366,8 +1391,12 @@ window.simply = (function(simply) {
             return this[name].apply(this,params);            
         };
 
-        commands.addHandler = function(handler) {
+        commands.appendHandler = function(handler) {
             handlers.push(handler);
+        };
+
+        commands.prependHandler = function(handler) {
+            handlers.unshift(handler);
         };
 
         var commandHandler = function(evt) {
