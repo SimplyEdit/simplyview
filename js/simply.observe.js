@@ -143,7 +143,6 @@ window.simply = (function (simply) {
     }
 
     function onMissingChildren(model, path, callback) {
-        // find child listeners for given path
         var allChildren = Object.keys(childListeners.get(model) || []).filter(function(childPath) {
             return childPath.substr(0, path.length)==path && childPath.length>path.length;
         });
@@ -153,12 +152,12 @@ window.simply = (function (simply) {
         var object = getByPath(model, path);
         var keysSeen = {};
         allChildren.forEach(function(childPath) {
-            // check if the head exists in model[path]
             var key = head(childPath.substr(path.length+1));
-            if (typeof object[key] == 'undefined' && !keysSeen[key]) {
-                // run callback here
-                callback(object, key, path+'.'+key);
-                keysSeen[key] = true;
+            if (typeof object[key] == 'undefined') {
+                if (!keysSeen[key]) {
+                    callback(object, key, path+'.'+key);
+                    keysSeen[key] = true;
+                }
             } else {
                 onMissingChildren(model, path+'.'+key, callback);
             }
