@@ -346,7 +346,7 @@ window.simply = (function (simply) {
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
         // the previous scripts have been loaded and run
-        // simply.include.signal.js only fires the simply-next-script event
+        // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
             window.setTimeout(function() {
@@ -603,6 +603,10 @@ window.simply = (function (simply) {
         return parts.join('.');
     }
     
+    function head(path) {
+        return path.split('.').shift();
+    }
+
     function onParents(model, path, callback) {
         var parent = '';
         var parentOb = model;
@@ -630,6 +634,29 @@ window.simply = (function (simply) {
         };
         var parent = getByPath(model, path);
         onChildObjects(parent, path, callback);
+    }
+
+    function onMissingChildren(model, path, callback) {
+        // find child listeners for given path
+        var allChildren = Object.keys(childListeners.get(model) || []).filter(function(childPath) {
+            return childPath.substr(0, path.length)==path && childPath.length>path.length;
+        });
+        if (!allChildren.length) {
+            return;
+        }
+        var object = getByPath(model, path);
+        var keysSeen = {};
+        allChildren.forEach(function(childPath) {
+            // check if the head exists in model[path]
+            var key = head(childPath.substr(path.length+1));
+            if (typeof object[key] == 'undefined' && !keysSeen[key]) {
+                // run callback here
+                callback(object, key, path+'.'+key);
+                keysSeen[key] = true;
+            } else {
+                onMissingChildren(model, path+'.'+key, callback);
+            }
+        });
     }
 
     function addChangeListener(model, path, callback) {
@@ -717,6 +744,18 @@ window.simply = (function (simply) {
             }
         };
 
+        var addSetTrigger = function(object, key, currPath) {
+            Object.defineProperty(object, key, {
+                set: function(value) {
+                    addSetter(object, key, currPath);
+                    object[key] = value;
+                },
+                configurable: true,
+                readable: false,
+                enumerable: false
+            });
+        };
+
         var addSetter = function(object, key, currPath) {
             if (Object.getOwnPropertyDescriptor(object, key).configurable) {
                 // assume object keys are only unconfigurable if the
@@ -726,11 +765,17 @@ window.simply = (function (simply) {
                     set: function(value) {
                         _value = value;
                         signalChange(model, currPath, value);
-                        onChildren(model, currPath, addSetter);
+                        if (value!=null) {
+                            onChildren(model, currPath, addSetter);
+                            onMissingChildren(model, currPath, addSetTrigger);
+                        }
                     },
                     get: function() {
                         return _value;
-                    }
+                    },
+                    configurable: false,
+                    readable: true,
+                    enumerable: true
                 });
                 if (Array.isArray(object[key])) {
                     attachArray(object[key], currPath);
