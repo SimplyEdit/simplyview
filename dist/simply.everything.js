@@ -11,6 +11,12 @@ window.simply = (function(simply) {
             if (!options) {
                 options = {};
             }
+            if ( options.routes ) {
+                simply.route.load(options.routes);
+                window.setTimeout(function() {
+                    simply.route.match(window.location.pathname);
+                });
+            }
             this.container = options.container  || document.body;
             this.actions   = simply.actions ? simply.actions(this, options.actions) : false;
             this.commands  = simply.commands ? simply.commands(this, options.commands) : false;
@@ -216,11 +222,18 @@ window.simply = (function(simply) {
 
     function parseRoutes(routes) {
         var paths = Object.keys(routes);
-        var matchParams = /:(\w+)/;
+        var matchParams = /:(\w+|\*)/g;
+        var matches, params, path;
         for (var i=0; i<paths.length; i++) {
-            var path        = paths[i];
-            var matches     = matchParams.exec(path);
-            var params      = matches ? matches.slice(1) : [];
+            path    = paths[i];
+            matches = [];
+            params  = [];
+            do {
+                matches = matchParams.exec(path);
+                if (matches) {
+                    params.push(matches[1]);
+                }
+            } while(matches);
             routeInfo.push({
                 match:  new RegExp(path.replace(/:\w+/, '([^/]+)').replace(/:\*/, '(.*)')),
                 params: params,
@@ -233,8 +246,15 @@ window.simply = (function(simply) {
         load: function(routes) {
             parseRoutes(routes);
         },
-        match: function(path) {
+        match: function(path, options) {
             for ( var i=0; i<routeInfo.length; i++) {
+                if (path[path.length-1]!='/') {
+                    var matches = routeInfo[i].match.exec(path+'/');
+                    if (matches) {
+                        path+='/';
+                        history.replaceState({}, '', path);
+                    }
+                }
                 var matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
                     var params = {};
@@ -244,6 +264,7 @@ window.simply = (function(simply) {
                         }
                         params[key] = matches[i+1];
                     });
+                    Object.assign(params, options);
                     return routeInfo[i].action.call(simply.route, params);
                 }
             }
@@ -346,7 +367,7 @@ window.simply = (function (simply) {
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
         // the previous scripts have been loaded and run
-        // simply.include.next.js only fires the simply-next-script event
+        // simply.include.signal.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
             window.setTimeout(function() {
