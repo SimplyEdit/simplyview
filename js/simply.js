@@ -11,6 +11,12 @@ window.simply = (function(simply) {
             if (!options) {
                 options = {};
             }
+            if ( options.routes ) {
+                simply.route.load(options.routes);
+                window.setTimeout(function() {
+                    simply.route.match(window.location.pathname);
+                });
+            }
             this.container = options.container  || document.body;
             this.actions   = simply.actions ? simply.actions(this, options.actions) : false;
             this.commands  = simply.commands ? simply.commands(this, options.commands) : false;

@@ -4,11 +4,18 @@ window.simply = (function(simply) {
 
     function parseRoutes(routes) {
         var paths = Object.keys(routes);
-        var matchParams = /:(\w+)/;
+        var matchParams = /:(\w+|\*)/g;
+        var matches, params, path;
         for (var i=0; i<paths.length; i++) {
-            var path        = paths[i];
-            var matches     = matchParams.exec(path);
-            var params      = matches ? matches.slice(1) : [];
+            path    = paths[i];
+            matches = [];
+            params  = [];
+            do {
+                matches = matchParams.exec(path);
+                if (matches) {
+                    params.push(matches[1]);
+                }
+            } while(matches);
             routeInfo.push({
                 match:  new RegExp(path.replace(/:\w+/, '([^/]+)').replace(/:\*/, '(.*)')),
                 params: params,
@@ -21,8 +28,15 @@ window.simply = (function(simply) {
         load: function(routes) {
             parseRoutes(routes);
         },
-        match: function(path) {
+        match: function(path, options) {
             for ( var i=0; i<routeInfo.length; i++) {
+                if (path[path.length-1]!='/') {
+                    var matches = routeInfo[i].match.exec(path+'/');
+                    if (matches) {
+                        path+='/';
+                        history.replaceState({}, '', path);
+                    }
+                }
                 var matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
                     var params = {};
@@ -32,6 +46,7 @@ window.simply = (function(simply) {
                         }
                         params[key] = matches[i+1];
                     });
+                    Object.assign(params, options);
                     return routeInfo[i].action.call(simply.route, params);
                 }
             }
