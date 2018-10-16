@@ -14,18 +14,29 @@
 		</template>
 	</ul>
 </div>
+<script src="../js/simply.path.js"></script>
+<script src="../js/simply.observe.js"></script>
+<script src="../js/simply.bind.js"></script>
+<script src="../js/simply.render.js"></script>
+<script src="../js/simply.view.js"></script>
+<script src="../js/simply.commands.js"></script>
+<script src="../js/simply.actions.js"></script>
+<script src="../js/simply.js"></script>
 
-<script src="../dist/simply.everything.js"></script>
+<!-- script src="../dist/simply.everything.js"></script -->
 <script>
 	var todoApp = simply.app({
+		bind: {
+			twoway: false
+		},
 		container: document.getElementById('todoApp'),
-		commands: {
+		command: {
 			addEntry: function(form, values) {
 				todoApp.actions.addEntry(values.newItem);
 				form.elements.newItem.value = '';
 			}
 		},
-		actions: {
+		action: {
 			addEntry: function(item) {
 				todoApp.view.items.push({
 					item: item,
@@ -38,6 +49,9 @@
 			items: [
 				{
 					item: 'iets'
+				},
+				{
+					item: 'iets anders'
 				}
 			]
 		}
