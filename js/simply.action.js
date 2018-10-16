@@ -86,7 +86,7 @@ window.simply = (function(simply) {
         }
     };
 
-    simply.actions = function(app, inActions) {
+    simply.action = function(app, inActions) {
         var actions = Object.create(defaultActions);
         for ( var i in inActions ) {
             actions[i] = inActions[i];

@@ -18,8 +18,8 @@ window.simply = (function(simply) {
                 });
             }
             this.container = options.container  || document.body;
-            this.actions   = simply.actions ? simply.actions(this, options.actions) : false;
-            this.commands  = simply.commands ? simply.commands(this, options.commands) : false;
+            this.actions   = simply.action ? simply.action(this, options.actions) : false;
+            this.commands  = simply.command ? simply.command(this, options.commands) : false;
             this.sizes     = {
                 'simply-tiny'   : 0,
                 'simply-xsmall' : 480,

@@ -32,6 +32,15 @@
  * so if foo = [ 'bar' ], the path to 'bar' would be 'foo.0'
  */
 
+ /*
+ FIXME: child properties added after initial observe() call aren't added to the
+ childListeners. onMissingChildren can't then find them.
+ FIXME: observe() doesn't register new observer on a child of an existing observer
+ - e.g. observe(parent, path); observe(parent.child, childpath);
+ FIXME: onMissingChildren must loop through all fields to get only the direct child
+properties for a given parent, keep seperate index for this?
+ */
+
 window.simply = (function (simply) {
     var changeListeners = new WeakMap();
     var parentListeners = new WeakMap();
@@ -132,6 +141,9 @@ window.simply = (function (simply) {
             if (typeof object != 'object' || object == null) {
                 return;
             }
+            if (Array.isArray(object)) {
+                return;
+            }
             // register the current keys
             Object.keys(object).forEach(function(key) {
                 callback(object, key, path+'.'+key);
@@ -214,7 +226,7 @@ window.simply = (function (simply) {
         observersPaused--;
     }
 
-    function attach(model, path) {
+    function attach(model, path, options) {
 
         var attachArray = function(object, path) {
             var desc = Object.getOwnPropertyDescriptor(object, 'push');
@@ -244,7 +256,12 @@ window.simply = (function (simply) {
                     }(f));
                 }
                 for (var i=0, l=object.length; i<l; i++) {
-                    addSetter(object, i, path+'.'+i);
+                    //FIXME: options becomes undefined here somewhere
+//                    if (options.skipArray) {
+                        addSetter(object, i, path+'.'+i);
+//                    } else {
+//                        attach(model, path+'.'+i, options);
+//                    }
                 }
             }
         };
@@ -282,9 +299,9 @@ window.simply = (function (simply) {
                     readable: true,
                     enumerable: true
                 });
-                if (Array.isArray(object[key])) {
-                    attachArray(object[key], currPath);
-                }
+            }
+            if (Array.isArray(object[key])) {
+                attachArray(object[key], currPath, options);
             }
         };
 
@@ -300,20 +317,20 @@ window.simply = (function (simply) {
     // model.foo = { }
     // model.foo.bar = 'zab'; // this should trigger the observer but doesn't
 
-    simply.observe = function(model, path, callback) {
+    simply.observe = function(model, path, callback, options) {
         if (!path) {
             var keys = Object.keys(model);
             keys.forEach(function(key) {
-                attach(model, key);
+                attach(model, key, options);
                 addChangeListener(model, key, callback);
-            });
+            }); 
             return function() {
                 keys.forEach(function(key) {
                     removeChangeListener(model, key, callback);
                 });
             };
         } else {
-            attach(model, path);
+            attach(model, path, options);
             addChangeListener(model, path, callback);
             return function() {
                 removeChangeListener(model, path, callback);

@@ -2,7 +2,7 @@ window.simply = (function(simply) {
 
     var knownCollections = {};
     
-    simply.collections = {
+    simply.collect = {
         addListener: function(name, callback) {
             if (!knownCollections[name]) {
                 knownCollections[name] = [];

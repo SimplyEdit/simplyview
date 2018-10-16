@@ -110,7 +110,7 @@ window.simply = (function(simply) {
         return null;
     }
 
-    simply.commands = function(app, inCommands) {
+    simply.command = function(app, inCommands) {
 
         var commands = Object.create(defaultCommands);
         for (var i in inCommands) {
