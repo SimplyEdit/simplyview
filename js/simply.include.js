@@ -149,7 +149,7 @@ window.simply = (function (simply) {
     var included = {};
     var includeLinks = function(links) {
         // mark them as in progress, so handleChanges doesn't find them again
-        remainingLinks = [].reduce.call(links, function(remainder, link) {
+        var remainingLinks = [].reduce.call(links, function(remainder, link) {
             if (link.rel=='simply-include-once' && included[link.href]) {
                 link.parentNode.removeChild(link);
             } else {
