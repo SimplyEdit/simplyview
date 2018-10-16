@@ -51,7 +51,7 @@ window.simply = (function (simply) {
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
         // the previous scripts have been loaded and run
-        // simply.include.signal.js only fires the simply-next-script event
+        // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
             window.setTimeout(function() {
@@ -64,7 +64,7 @@ window.simply = (function (simply) {
                     resolve();
                 }, { once: true, passive: true});
                 head.appendChild(next);
-            },10);
+            }, 10);
         });
     };
 
@@ -99,17 +99,13 @@ window.simply = (function (simply) {
                         });
                 } else {
                     clone.src = rebaseHref(clone.src, base);
-                    // FIXME: remove loaded check? browser loads/runs same script multiple times...
-                    // should we do that also?
-                    if (!loaded[clone.src] || clone.dataset.simplyIncludeMultiple) {
-                        if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
-                            clone.setAttribute('async', false);
-                        }
-                        var node = scriptLocations[script.dataset.simplyLocation];
-                        node.parentNode.insertBefore(clone, node);
-                        node.parentNode.removeChild(node);
-                        loaded[clone.src]=true;
+                    if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
+                        clone.setAttribute('async', false);
                     }
+                    var node = scriptLocations[script.dataset.simplyLocation];
+                    node.parentNode.insertBefore(clone, node);
+                    node.parentNode.removeChild(node);
+                    loaded[clone.src]=true;
                     window.setTimeout(importScript, 10); // this settimeout is required, 
                     // when adding multiple scripts in one go, the browser has no idea of the order in which to load and execut them
                     // even with the async=false flag
@@ -150,12 +146,23 @@ window.simply = (function (simply) {
         }
     };
 
+    var included = {};
     var includeLinks = function(links) {
         // mark them as in progress, so handleChanges doesn't find them again
-        [].forEach.call(links, function(link) {
-            link.rel = 'simply-include-loading';
-        });
-        [].forEach.call(links, function(link) {
+        remainingLinks = [].reduce.call(links, function(remainder, link) {
+            if (link.rel=='simply-include-once' && included[link.href]) {
+                link.parentNode.removeChild(link);
+            } else {
+                included[link.href]=true;
+                link.rel = 'simply-include-loading';
+                remainder.push(link);
+            }
+            return remainder;
+        }, []);
+        [].forEach.call(remainingLinks, function(link) {
+            if (!link.href) {
+                return;
+            }
             // fetch the html
             fetch(link.href)
                 .then(function(response) {
@@ -177,7 +184,7 @@ window.simply = (function (simply) {
 
     var handleChanges = throttle(function() {
         runWhenIdle(function() {
-            var links = document.querySelectorAll('link[rel="simply-include"]');
+            var links = document.querySelectorAll('link[rel="simply-include"],link[rel="simply-include-once"]');
             if (links.length) {
                 includeLinks(links);
             }
