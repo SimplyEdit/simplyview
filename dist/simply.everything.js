@@ -1,101 +1,108 @@
 window.simply = (function(simply) {
-    simply.app = function(options) {
-        if (!options) {
-            options = {};
-        }
-        if (!options.container) {
-            console.warn('No simply.app application container element specified, using document.body.');
-        }
-        
-        function simplyApp(options) {
-            if (!options) {
-                options = {};
+    var defaultActions = {
+        'simply-hide': function(el) {
+            el.classList.remove('simply-visible');
+            return Promise.resolve();
+        },
+        'simply-show': function(el) {
+            el.classList.add('simply-visible');
+            return Promise.resolve();
+        },
+        'simply-select': function(el,group,target,targetGroup) {
+            if (group) {
+                this.call('simply-deselect', this.app.container.querySelectorAll('[data-simply-group='+group+']'));
             }
-            if ( options.routes ) {
-                simply.route.load(options.routes);
-                window.setTimeout(function() {
-                    simply.route.match(window.location.pathname);
-                });
+            el.classList.add('simply-selected');
+            if (target) {
+                this.call('simply-select',target,targetGroup);
             }
-            this.container = options.container  || document.body;
-            this.actions   = simply.actions ? simply.actions(this, options.actions) : false;
-            this.commands  = simply.commands ? simply.commands(this, options.commands) : false;
-            this.sizes     = {
-                'simply-tiny'   : 0,
-                'simply-xsmall' : 480,
-                'simply-small'  : 768,
-                'simply-medium' : 992,
-                'simply-large'  : 1200
-            };
-            this.view      = simply.view ? simply.view(this, options.view) : false;
-            if (simply.bind) {
-                options.bind = simply.render(options.bind || {});
-                options.bind.model = this.view;
-                options.bind.container = this.container;
-                this.bind = options.bindings = simply.bind(options.bind);
+            return Promise.resolve();
+        },
+        'simply-toggle-select': function(el,group,target,targetGroup) {
+            if (!el.classList.contains('simply-selected')) {
+                this.call('simply-select',el,group,target,targetGroup);
+            } else {
+                this.call('simply-deselect',el,target);
             }
-        }
-
-        simplyApp.prototype.get = function(id) {
-            return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
-        };
-
-        var app = new simplyApp(options);
-
-        if ( simply.toolbar ) {
-            var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            [].forEach.call(toolbars, function(toolbar) {
-                simply.toolbar.init(toolbar);
-                if (simply.toolbar.scroll) {
-                    simply.toolbar.scroll(toolbar);
+            return Promise.resolve();
+        },
+        'simply-toggle-class': function(el,className,target) {
+            if (!target) {
+                target = el;
+            }
+            return Promise.resolve(target.classList.toggle(className));
+        },
+        'simply-deselect': function(el,target) {
+            if ( typeof el.length=='number' && typeof el.item=='function') {
+                el = Array.prototype.slice.call(el);
+            }
+            if ( Array.isArray(el) ) {
+                for (var i=0,l=el.length; i<l; i++) {
+                    this.call('simply-deselect',el[i],target);
+                    target = null;
                 }
-            });
-        }
-
-        var lastSize = 0;
-        function resizeSniffer() {
-            var size = app.container.getBoundingClientRect().width;
-            if ( lastSize==size ) {
-                return;
+            } else {
+                el.classList.remove('simply-selected');
+                if (target) {
+                    this.call('simply-deselect',target);
+                }
             }
-            lastSize  = size;
-            var sizes = Object.keys(app.sizes);
-            var match = sizes.pop();
-            while (match) {
-                if ( size<app.sizes[match] ) {
-                    if ( app.container.classList.contains(match)) {
-                        app.container.classList.remove(match);
-                    }
-                } else {
-                    if ( !app.container.classList.contains(match) ) {
-                        app.container.classList.add(match);
-                    }
+            return Promise.resolve();
+        },
+        'simply-fullscreen': function(target) {
+            var methods = {
+                'requestFullscreen':{exit:'exitFullscreen',event:'fullscreenchange',el:'fullscreenElement'},
+                'webkitRequestFullScreen':{exit:'webkitCancelFullScreen',event:'webkitfullscreenchange',el:'webkitFullscreenElement'},
+                'msRequestFullscreen':{exit:'msExitFullscreen',event:'MSFullscreenChange',el:'msFullscreenElement'},
+                'mozRequestFullScreen':{exit:'mozCancelFullScreen',event:'mozfullscreenchange',el:'mozFullScreenElement'}
+            };
+            for ( var i in methods ) {
+                if ( typeof document.documentElement[i] != 'undefined' ) {
+                    var requestMethod = i;
+                    var cancelMethod = methods[i].exit;
+                    var event = methods[i].event;
+                    var element = methods[i].el;
                     break;
                 }
-                match = sizes.pop();
             }
-            while (match) {
-                if ( app.container.classList.contains(match)) {
-                    app.container.classList.remove(match);
-                }
-                match=sizes.pop();
+            if ( !requestMethod ) {
+                return;
             }
-            var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            [].forEach.call(toolbars, function(toolbar) {
-                toolbar.style.transform = '';
-            });
+            if (!target.classList.contains('simply-fullscreen')) {
+                target.classList.add('simply-fullscreen');
+                target[requestMethod]();
+                var exit = function() {
+                    if ( !document[element] ) {
+                        target.classList.remove('simply-fullscreen');
+                        document.removeEventListener(event,exit);
+                    }
+                };
+                document.addEventListener(event,exit);
+            } else {
+                target.classList.remove('simply-fullscreen');
+                document[cancelMethod]();
+            }
+            return Promise.resolve();
+        }
+    };
+
+    simply.action = function(app, inActions) {
+        var actions = Object.create(defaultActions);
+        for ( var i in inActions ) {
+            actions[i] = inActions[i];
         }
 
-        if ( window.attachEvent ) {
-            app.container.attachEvent('onresize', resizeSniffer);
-        } else {
-            window.setInterval(resizeSniffer, 200);
-        }
-        
-        return app;
+        actions.app = app;
+        actions.call = function(name) {
+            var params = Array.prototype.slice.call(arguments);
+            params.shift();
+            return this[name].apply(this, params);
+        };
+        return actions;
     };
 
     return simply;
+    
 })(window.simply || {});
 window.simply = (function(simply) {
 
@@ -247,15 +254,16 @@ window.simply = (function(simply) {
             parseRoutes(routes);
         },
         match: function(path, options) {
+            var matches;
             for ( var i=0; i<routeInfo.length; i++) {
                 if (path[path.length-1]!='/') {
-                    var matches = routeInfo[i].match.exec(path+'/');
+                    matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
                         history.replaceState({}, '', path);
                     }
                 }
-                var matches = routeInfo[i].match.exec(path);
+                matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
                     var params = {};
                     routeInfo[i].params.forEach(function(key, i) {
@@ -367,7 +375,7 @@ window.simply = (function (simply) {
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
         // the previous scripts have been loaded and run
-        // simply.include.signal.js only fires the simply-next-script event
+        // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
             window.setTimeout(function() {
@@ -380,7 +388,7 @@ window.simply = (function (simply) {
                     resolve();
                 }, { once: true, passive: true});
                 head.appendChild(next);
-            },10);
+            }, 10);
         });
     };
 
@@ -415,17 +423,13 @@ window.simply = (function (simply) {
                         });
                 } else {
                     clone.src = rebaseHref(clone.src, base);
-                    // FIXME: remove loaded check? browser loads/runs same script multiple times...
-                    // should we do that also?
-                    if (!loaded[clone.src] || clone.dataset.simplyIncludeMultiple) {
-                        if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
-                            clone.setAttribute('async', false);
-                        }
-                        var node = scriptLocations[script.dataset.simplyLocation];
-                        node.parentNode.insertBefore(clone, node);
-                        node.parentNode.removeChild(node);
-                        loaded[clone.src]=true;
+                    if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
+                        clone.setAttribute('async', false);
                     }
+                    var node = scriptLocations[script.dataset.simplyLocation];
+                    node.parentNode.insertBefore(clone, node);
+                    node.parentNode.removeChild(node);
+                    loaded[clone.src]=true;
                     window.setTimeout(importScript, 10); // this settimeout is required, 
                     // when adding multiple scripts in one go, the browser has no idea of the order in which to load and execut them
                     // even with the async=false flag
@@ -466,12 +470,23 @@ window.simply = (function (simply) {
         }
     };
 
+    var included = {};
     var includeLinks = function(links) {
         // mark them as in progress, so handleChanges doesn't find them again
-        [].forEach.call(links, function(link) {
-            link.rel = 'simply-include-loading';
-        });
-        [].forEach.call(links, function(link) {
+        var remainingLinks = [].reduce.call(links, function(remainder, link) {
+            if (link.rel=='simply-include-once' && included[link.href]) {
+                link.parentNode.removeChild(link);
+            } else {
+                included[link.href]=true;
+                link.rel = 'simply-include-loading';
+                remainder.push(link);
+            }
+            return remainder;
+        }, []);
+        [].forEach.call(remainingLinks, function(link) {
+            if (!link.href) {
+                return;
+            }
             // fetch the html
             fetch(link.href)
                 .then(function(response) {
@@ -493,7 +508,7 @@ window.simply = (function (simply) {
 
     var handleChanges = throttle(function() {
         runWhenIdle(function() {
-            var links = document.querySelectorAll('link[rel="simply-include"]');
+            var links = document.querySelectorAll('link[rel="simply-include"],link[rel="simply-include-once"]');
             if (links.length) {
                 includeLinks(links);
             }
@@ -545,6 +560,15 @@ window.simply = (function (simply) {
  *
  * sourcePath parts are always seperated with '.', even for array indexes.
  * so if foo = [ 'bar' ], the path to 'bar' would be 'foo.0'
+ */
+
+ /*
+ FIXME: child properties added after initial observe() call aren't added to the
+ childListeners. onMissingChildren can't then find them.
+ FIXME: observe() doesn't register new observer on a child of an existing observer
+ - e.g. observe(parent, path); observe(parent.child, childpath);
+ FIXME: onMissingChildren must loop through all fields to get only the direct child
+properties for a given parent, keep seperate index for this?
  */
 
 window.simply = (function (simply) {
@@ -647,6 +671,9 @@ window.simply = (function (simply) {
             if (typeof object != 'object' || object == null) {
                 return;
             }
+            if (Array.isArray(object)) {
+                return;
+            }
             // register the current keys
             Object.keys(object).forEach(function(key) {
                 callback(object, key, path+'.'+key);
@@ -729,7 +756,7 @@ window.simply = (function (simply) {
         observersPaused--;
     }
 
-    function attach(model, path) {
+    function attach(model, path, options) {
 
         var attachArray = function(object, path) {
             var desc = Object.getOwnPropertyDescriptor(object, 'push');
@@ -759,7 +786,12 @@ window.simply = (function (simply) {
                     }(f));
                 }
                 for (var i=0, l=object.length; i<l; i++) {
-                    addSetter(object, i, path+'.'+i);
+                    //FIXME: options becomes undefined here somewhere
+//                    if (options.skipArray) {
+                        addSetter(object, i, path+'.'+i);
+//                    } else {
+//                        attach(model, path+'.'+i, options);
+//                    }
                 }
             }
         };
@@ -797,9 +829,9 @@ window.simply = (function (simply) {
                     readable: true,
                     enumerable: true
                 });
-                if (Array.isArray(object[key])) {
-                    attachArray(object[key], currPath);
-                }
+            }
+            if (Array.isArray(object[key])) {
+                attachArray(object[key], currPath, options);
             }
         };
 
@@ -815,20 +847,20 @@ window.simply = (function (simply) {
     // model.foo = { }
     // model.foo.bar = 'zab'; // this should trigger the observer but doesn't
 
-    simply.observe = function(model, path, callback) {
+    simply.observe = function(model, path, callback, options) {
         if (!path) {
             var keys = Object.keys(model);
             keys.forEach(function(key) {
-                attach(model, key);
+                attach(model, key, options);
                 addChangeListener(model, key, callback);
-            });
+            }); 
             return function() {
                 keys.forEach(function(key) {
                     removeChangeListener(model, key, callback);
                 });
             };
         } else {
-            attach(model, path);
+            attach(model, path, options);
             addChangeListener(model, path, callback);
             return function() {
                 removeChangeListener(model, path, callback);
@@ -838,116 +870,10 @@ window.simply = (function (simply) {
 
     return simply;
 })(window.simply || {});window.simply = (function(simply) {
-    var defaultActions = {
-        'simply-hide': function(el) {
-            el.classList.remove('simply-visible');
-            return Promise.resolve();
-        },
-        'simply-show': function(el) {
-            el.classList.add('simply-visible');
-            return Promise.resolve();
-        },
-        'simply-select': function(el,group,target,targetGroup) {
-            if (group) {
-                this.call('simply-deselect', this.app.container.querySelectorAll('[data-simply-group='+group+']'));
-            }
-            el.classList.add('simply-selected');
-            if (target) {
-                this.call('simply-select',target,targetGroup);
-            }
-            return Promise.resolve();
-        },
-        'simply-toggle-select': function(el,group,target,targetGroup) {
-            if (!el.classList.contains('simply-selected')) {
-                this.call('simply-select',el,group,target,targetGroup);
-            } else {
-                this.call('simply-deselect',el,target);
-            }
-            return Promise.resolve();
-        },
-        'simply-toggle-class': function(el,className,target) {
-            if (!target) {
-                target = el;
-            }
-            return Promise.resolve(target.classList.toggle(className));
-        },
-        'simply-deselect': function(el,target) {
-            if ( typeof el.length=='number' && typeof el.item=='function') {
-                el = Array.prototype.slice.call(el);
-            }
-            if ( Array.isArray(el) ) {
-                for (var i=0,l=el.length; i<l; i++) {
-                    this.call('simply-deselect',el[i],target);
-                    target = null;
-                }
-            } else {
-                el.classList.remove('simply-selected');
-                if (target) {
-                    this.call('simply-deselect',target);
-                }
-            }
-            return Promise.resolve();
-        },
-        'simply-fullscreen': function(target) {
-            var methods = {
-                'requestFullscreen':{exit:'exitFullscreen',event:'fullscreenchange',el:'fullscreenElement'},
-                'webkitRequestFullScreen':{exit:'webkitCancelFullScreen',event:'webkitfullscreenchange',el:'webkitFullscreenElement'},
-                'msRequestFullscreen':{exit:'msExitFullscreen',event:'MSFullscreenChange',el:'msFullscreenElement'},
-                'mozRequestFullScreen':{exit:'mozCancelFullScreen',event:'mozfullscreenchange',el:'mozFullScreenElement'}
-            };
-            for ( var i in methods ) {
-                if ( typeof document.documentElement[i] != 'undefined' ) {
-                    var requestMethod = i;
-                    var cancelMethod = methods[i].exit;
-                    var event = methods[i].event;
-                    var element = methods[i].el;
-                    break;
-                }
-            }
-            if ( !requestMethod ) {
-                return;
-            }
-            if (!target.classList.contains('simply-fullscreen')) {
-                target.classList.add('simply-fullscreen');
-                target[requestMethod]();
-                var exit = function() {
-                    if ( !document[element] ) {
-                        target.classList.remove('simply-fullscreen');
-                        document.removeEventListener(event,exit);
-                    }
-                };
-                document.addEventListener(event,exit);
-            } else {
-                target.classList.remove('simply-fullscreen');
-                document[cancelMethod]();
-            }
-            return Promise.resolve();
-        }
-    };
-
-    simply.actions = function(app, inActions) {
-        var actions = Object.create(defaultActions);
-        for ( var i in inActions ) {
-            actions[i] = inActions[i];
-        }
-
-        actions.app = app;
-        actions.call = function(name) {
-            var params = Array.prototype.slice.call(arguments);
-            params.shift();
-            return this[name].apply(this, params);
-        };
-        return actions;
-    };
-
-    return simply;
-    
-})(window.simply || {});
-window.simply = (function(simply) {
 
     var knownCollections = {};
     
-    simply.collections = {
+    simply.collect = {
         addListener: function(name, callback) {
             if (!knownCollections[name]) {
                 knownCollections[name] = [];
@@ -1049,6 +975,59 @@ window.simply = (function(simply) {
 })(window.simply || {});
 window.simply = (function(simply) {
 
+    var listeners = {};
+
+    simply.activate = {
+        addListener: function(name, callback) {
+            if (!listeners[name]) {
+                listeners[name] = [];
+            }
+            listeners[name].push(callback);
+        },
+        removeListener: function(name, callback) {
+            if (!listeners[name]) {
+                return false;
+            }
+            listeners[name] = listeners[name].filter(function(listener) {
+                return listener!=callback;
+            });
+        }
+    };
+
+    var callListener = function(node) {
+        if (node && node.dataset.simplyActivate 
+            && listeners[node.dataset.simplyActivate]
+        ) {
+            listeners[node.dataset.simplyActivate].call(node);
+        }
+    };
+
+    var handleChanges = function(changes) {
+        var activateNodes = [];
+        for (var change of changes) {
+            if (change.type=='childList') {
+                [].forEach.call(change.addedNodes, function(node) {
+                    node.querySelectorAll && [].slice.call(node.querySelectorAll('[data-simply-activate]')).concat(activateNodes);
+                });
+            }
+        }
+        if (activateNodes.length) {
+            activateNodes.forEach(function(node) {
+                callListener(node);
+            });
+        }
+    };
+
+    var observer = new MutationObserver(handleChanges);
+    observer.observe(document, {
+        subtree: true,
+        childList: true
+    });
+
+    return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+
     simply.view = function(app, view) {
 
         app.view = view || {};
@@ -1071,6 +1050,105 @@ window.simply = (function(simply) {
         }
         
         return app.view;
+    };
+
+    return simply;
+})(window.simply || {});
+window.simply = (function(simply) {
+    simply.app = function(options) {
+        if (!options) {
+            options = {};
+        }
+        if (!options.container) {
+            console.warn('No simply.app application container element specified, using document.body.');
+        }
+        
+        function simplyApp(options) {
+            if (!options) {
+                options = {};
+            }
+            if ( options.routes ) {
+                simply.route.load(options.routes);
+                window.setTimeout(function() {
+                    simply.route.match(window.location.pathname);
+                });
+            }
+            this.container = options.container  || document.body;
+            this.actions   = simply.action ? simply.action(this, options.actions) : false;
+            this.commands  = simply.command ? simply.command(this, options.commands) : false;
+            this.sizes     = {
+                'simply-tiny'   : 0,
+                'simply-xsmall' : 480,
+                'simply-small'  : 768,
+                'simply-medium' : 992,
+                'simply-large'  : 1200
+            };
+            this.view      = simply.view ? simply.view(this, options.view) : false;
+            if (simply.bind) {
+                options.bind = simply.render(options.bind || {});
+                options.bind.model = this.view;
+                options.bind.container = this.container;
+                this.bind = options.bindings = simply.bind(options.bind);
+            }
+        }
+
+        simplyApp.prototype.get = function(id) {
+            return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
+        };
+
+        var app = new simplyApp(options);
+
+        if ( simply.toolbar ) {
+            var toolbars = app.container.querySelectorAll('.simply-toolbar');
+            [].forEach.call(toolbars, function(toolbar) {
+                simply.toolbar.init(toolbar);
+                if (simply.toolbar.scroll) {
+                    simply.toolbar.scroll(toolbar);
+                }
+            });
+        }
+
+        var lastSize = 0;
+        function resizeSniffer() {
+            var size = app.container.getBoundingClientRect().width;
+            if ( lastSize==size ) {
+                return;
+            }
+            lastSize  = size;
+            var sizes = Object.keys(app.sizes);
+            var match = sizes.pop();
+            while (match) {
+                if ( size<app.sizes[match] ) {
+                    if ( app.container.classList.contains(match)) {
+                        app.container.classList.remove(match);
+                    }
+                } else {
+                    if ( !app.container.classList.contains(match) ) {
+                        app.container.classList.add(match);
+                    }
+                    break;
+                }
+                match = sizes.pop();
+            }
+            while (match) {
+                if ( app.container.classList.contains(match)) {
+                    app.container.classList.remove(match);
+                }
+                match=sizes.pop();
+            }
+            var toolbars = app.container.querySelectorAll('.simply-toolbar');
+            [].forEach.call(toolbars, function(toolbar) {
+                toolbar.style.transform = '';
+            });
+        }
+
+        if ( window.attachEvent ) {
+            app.container.attachEvent('onresize', resizeSniffer);
+        } else {
+            window.setInterval(resizeSniffer, 200);
+        }
+        
+        return app;
     };
 
     return simply;
@@ -1439,7 +1517,7 @@ window.simply = (function(simply) {
         return null;
     }
 
-    simply.commands = function(app, inCommands) {
+    simply.command = function(app, inCommands) {
 
         var commands = Object.create(defaultCommands);
         for (var i in inCommands) {
