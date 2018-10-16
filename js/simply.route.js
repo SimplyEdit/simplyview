@@ -29,15 +29,16 @@ window.simply = (function(simply) {
             parseRoutes(routes);
         },
         match: function(path, options) {
+            var matches;
             for ( var i=0; i<routeInfo.length; i++) {
                 if (path[path.length-1]!='/') {
-                    var matches = routeInfo[i].match.exec(path+'/');
+                    matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
                         history.replaceState({}, '', path);
                     }
                 }
-                var matches = routeInfo[i].match.exec(path);
+                matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
                     var params = {};
                     routeInfo[i].params.forEach(function(key, i) {
