@@ -60,6 +60,8 @@ this.simply = (function(simply, global) {
                 }
             });
         }
+
+		return resizeSniffer;
 	};
 
 	return simply;
