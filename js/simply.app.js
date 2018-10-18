@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply, global) {
     simply.app = function(options) {
         if (!options) {
             options = {};
@@ -13,16 +13,16 @@ window.simply = (function(simply) {
             }
             if ( options.routes ) {
                 simply.route.load(options.routes);
-                window.setTimeout(function() {
-                    simply.route.match(window.location.pathname);
+                global.setTimeout(function() {
+                    simply.route.match(global.location.pathname);
                 });
             }
             this.container = options.container  || document.body;
             this.actions   = simply.action ? simply.action(this, options.actions) : false;
             this.commands  = simply.command ? simply.command(this, options.commands) : false;
-			this.resize    = simply.resize ? simply.resize(this, options.sizes) : false;
+			this.resize    = simply.resize ? simply.resize(this, options.resize) : false;
             this.view      = simply.view ? simply.view(this, options.view) : false;
-            if (!(editor && editor.field) && simply.bind) {
+            if (!(global.editor && global.editor.field) && simply.bind) {
 				// skip simplyview databinding if SimplyEdit is loaded
                 options.bind = simply.render(options.bind || {});
                 options.bind.model = this.view;
@@ -41,4 +41,4 @@ window.simply = (function(simply) {
     };
 
     return simply;
-})(window.simply || {});
+})(this.simply || {}, this);

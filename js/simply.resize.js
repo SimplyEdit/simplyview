@@ -1,7 +1,10 @@
 this.simply = (function(simply, global) {
 
 	simply.resize = function(app, config) {
-		if(!config.size) {
+		if (!config) {
+			config = {};
+		}
+		if (!config.sizes) {
         	config.sizes     = {
 	            'simply-tiny'   : 0,
 	            'simply-xsmall' : 480,
