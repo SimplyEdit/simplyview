@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply) {
 
     simply.path = {
         get: function(model, path) {
@@ -37,4 +37,4 @@ window.simply = (function(simply) {
     };
 
     return simply;
-})(window.simply || {});
+})(this.simply || {});

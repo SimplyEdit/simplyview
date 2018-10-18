@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply, global) {
 
     var knownCollections = {};
     
@@ -61,4 +61,4 @@ window.simply = (function(simply) {
 
     return simply;
 
-})(window.simply || {});
+})(this.simply || {}, this);

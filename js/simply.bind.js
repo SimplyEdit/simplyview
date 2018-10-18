@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply, global) {
     if (!simply.observe) {
         console.error('Error: simply.bind requires simply.observe');
         return simply;
@@ -76,7 +76,7 @@ window.simply = (function(simply) {
             if ( eventId ) {
                 return;
             } else {
-                eventId = window.setTimeout( function() {
+                eventId = global.setTimeout( function() {
                     callbackFunction.apply(me, myArguments);
                     eventId = 0;
                 }, intervalTime );
@@ -85,12 +85,12 @@ window.simply = (function(simply) {
     }
 
     var runWhenIdle = (function() {
-        if (window.requestIdleCallback) {
+        if (global.requestIdleCallback) {
             return function(callback) {
-                window.requestIdleCallback(callback, {timeout: 500});
+                global.requestIdleCallback(callback, {timeout: 500});
             };
         }
-        return window.requestAnimationFrame;
+        return global.requestAnimationFrame;
     })();
 
     function Binding(config, force) {
@@ -250,4 +250,4 @@ window.simply = (function(simply) {
     };
 
     return simply;
-})(window.simply || {});
+})(this.simply || {}, this);

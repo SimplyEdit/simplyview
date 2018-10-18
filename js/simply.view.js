@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply, global) {
 
     simply.view = function(app, view) {
 
@@ -13,7 +13,7 @@ window.simply = (function(simply) {
             });
         };
 
-        if (window.editor && editor.currentData) {
+        if (global.editor && editor.currentData) {
             load();
         } else {
             document.addEventListener('simply-content-loaded', function() {
@@ -25,4 +25,4 @@ window.simply = (function(simply) {
     };
 
     return simply;
-})(window.simply || {});
+})(this.simply || {}, this);

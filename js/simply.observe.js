@@ -35,13 +35,11 @@
  /*
  FIXME: child properties added after initial observe() call aren't added to the
  childListeners. onMissingChildren can't then find them.
- FIXME: observe() doesn't register new observer on a child of an existing observer
- - e.g. observe(parent, path); observe(parent.child, childpath);
- FIXME: onMissingChildren must loop through all fields to get only the direct child
+ TODO: onMissingChildren must loop through all fields to get only the direct child
 properties for a given parent, keep seperate index for this?
  */
 
-window.simply = (function (simply) {
+this.simply = (function (simply, global) {
     var changeListeners = new WeakMap();
     var parentListeners = new WeakMap();
     var childListeners = new WeakMap();
@@ -339,4 +337,4 @@ window.simply = (function (simply) {
     };
 
     return simply;
-})(window.simply || {});
+})(this.simply || {}, this);

@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply, global) {
 
     var routeInfo = [];
 
@@ -67,7 +67,7 @@ window.simply = (function(simply) {
         }
     };
 
-    window.addEventListener('popstate', function() {
+    global.addEventListener('popstate', function() {
         simply.route.match(document.location.pathname);
     });
 
@@ -96,4 +96,4 @@ window.simply = (function(simply) {
 
     return simply;
 
-})(window.simply || {});
+})(this.simply || {}, this);

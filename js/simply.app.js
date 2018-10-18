@@ -20,15 +20,10 @@ window.simply = (function(simply) {
             this.container = options.container  || document.body;
             this.actions   = simply.action ? simply.action(this, options.actions) : false;
             this.commands  = simply.command ? simply.command(this, options.commands) : false;
-            this.sizes     = {
-                'simply-tiny'   : 0,
-                'simply-xsmall' : 480,
-                'simply-small'  : 768,
-                'simply-medium' : 992,
-                'simply-large'  : 1200
-            };
+			this.resize    = simply.resize ? simply.resize(this, options.sizes) : false;
             this.view      = simply.view ? simply.view(this, options.view) : false;
-            if (simply.bind) {
+            if (!(editor && editor.field) && simply.bind) {
+				// skip simplyview databinding if SimplyEdit is loaded
                 options.bind = simply.render(options.bind || {});
                 options.bind.model = this.view;
                 options.bind.container = this.container;
@@ -42,56 +37,6 @@ window.simply = (function(simply) {
 
         var app = new simplyApp(options);
 
-        if ( simply.toolbar ) {
-            var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            [].forEach.call(toolbars, function(toolbar) {
-                simply.toolbar.init(toolbar);
-                if (simply.toolbar.scroll) {
-                    simply.toolbar.scroll(toolbar);
-                }
-            });
-        }
-
-        var lastSize = 0;
-        function resizeSniffer() {
-            var size = app.container.getBoundingClientRect().width;
-            if ( lastSize==size ) {
-                return;
-            }
-            lastSize  = size;
-            var sizes = Object.keys(app.sizes);
-            var match = sizes.pop();
-            while (match) {
-                if ( size<app.sizes[match] ) {
-                    if ( app.container.classList.contains(match)) {
-                        app.container.classList.remove(match);
-                    }
-                } else {
-                    if ( !app.container.classList.contains(match) ) {
-                        app.container.classList.add(match);
-                    }
-                    break;
-                }
-                match = sizes.pop();
-            }
-            while (match) {
-                if ( app.container.classList.contains(match)) {
-                    app.container.classList.remove(match);
-                }
-                match=sizes.pop();
-            }
-            var toolbars = app.container.querySelectorAll('.simply-toolbar');
-            [].forEach.call(toolbars, function(toolbar) {
-                toolbar.style.transform = '';
-            });
-        }
-
-        if ( window.attachEvent ) {
-            app.container.attachEvent('onresize', resizeSniffer);
-        } else {
-            window.setInterval(resizeSniffer, 200);
-        }
-        
         return app;
     };
 

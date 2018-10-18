@@ -1,4 +1,4 @@
-window.simply = (function(simply) {
+this.simply = (function(simply, global) {
 
     var defaultCommands = {
         'simply-hide': function(el, value) {
@@ -163,4 +163,4 @@ window.simply = (function(simply) {
 
     return simply;
     
-})(window.simply || {});
+})(this.simply || {}, this);

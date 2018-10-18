@@ -1,4 +1,4 @@
-window.simply = (function (simply) {
+this.simply = (function (simply, global) {
 
     var throttle = function( callbackFunction, intervalTime ) {
         var eventId = 0;
@@ -8,7 +8,7 @@ window.simply = (function (simply) {
             if ( eventId ) {
                 return;
             } else {
-                eventId = window.setTimeout( function() {
+                eventId = global.setTimeout( function() {
                     callbackFunction.apply(me, myArguments);
                     eventId = 0;
                 }, intervalTime );
@@ -17,12 +17,12 @@ window.simply = (function (simply) {
     };
 
     var runWhenIdle = (function() {
-        if (window.requestIdleCallback) {
+        if (global.requestIdleCallback) {
             return function(callback) {
-                window.requestIdleCallback(callback, {timeout: 500});
+                global.requestIdleCallback(callback, {timeout: 500});
             };
         }
-        return window.requestAnimationFrame;
+        return global.requestAnimationFrame;
     })();
 
     var rebaseHref = function(relative, base) {
@@ -54,7 +54,7 @@ window.simply = (function (simply) {
         // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
-            window.setTimeout(function() {
+            global.setTimeout(function() {
                 var next = document.createElement('script');
                 var cachebuster = Date.now();
                 next.src = rebaseHref('simply.include.next.js?'+cachebuster, currentScript.src);
@@ -95,7 +95,7 @@ window.simply = (function (simply) {
                             var node = scriptLocations[script.dataset.simplyLocation];
                             node.parentNode.insertBefore(clone, node);
                             node.parentNode.removeChild(node);
-                            window.setTimeout(importScript, 10);
+                            global.setTimeout(importScript, 10);
                         });
                 } else {
                     clone.src = rebaseHref(clone.src, base);
@@ -106,7 +106,7 @@ window.simply = (function (simply) {
                     node.parentNode.insertBefore(clone, node);
                     node.parentNode.removeChild(node);
                     loaded[clone.src]=true;
-                    window.setTimeout(importScript, 10); // this settimeout is required, 
+                    global.setTimeout(importScript, 10); // this settimeout is required, 
                     // when adding multiple scripts in one go, the browser has no idea of the order in which to load and execut them
                     // even with the async=false flag
                 }
@@ -140,8 +140,8 @@ window.simply = (function (simply) {
             });
             // add the remainder before the include link
             link.parentNode.insertBefore(fragment, link ? link : null);
-            window.setTimeout(function() {
-                simply.include.scripts(scriptsFragment.childNodes, link ? link.href : window.location.href );
+            global.setTimeout(function() {
+                simply.include.scripts(scriptsFragment.childNodes, link ? link.href : global.location.href );
             }, 10);
         }
     };
@@ -203,4 +203,4 @@ window.simply = (function (simply) {
 
     return simply;
 
-})(window.simply || {});
+})(this.simply || {}, this);
