@@ -8,6 +8,7 @@ this.simply = (function(simply, global) {
                 listeners[name] = [];
             }
             listeners[name].push(callback);
+            initialCall(name);
         },
         removeListener: function(name, callback) {
             if (!listeners[name]) {
@@ -19,11 +20,22 @@ this.simply = (function(simply, global) {
         }
     };
 
-    var callListener = function(node) {
+    var initialCall = function(name) {
+        var nodes = document.querySelectorAll('[data-simply-activate="'+name+'"]');
+        if (nodes) {
+            [].forEach.call(nodes, function(node) {
+                callListeners(node);
+            });
+        }
+    };
+
+    var callListeners = function(node) {
         if (node && node.dataset.simplyActivate 
             && listeners[node.dataset.simplyActivate]
         ) {
-            listeners[node.dataset.simplyActivate].call(node);
+            listeners[node.dataset.simplyActivate].forEach(function(callback) {
+                callback.call(node);
+            });
         }
     };
 
@@ -32,13 +44,19 @@ this.simply = (function(simply, global) {
         for (var change of changes) {
             if (change.type=='childList') {
                 [].forEach.call(change.addedNodes, function(node) {
-                    node.querySelectorAll && [].slice.call(node.querySelectorAll('[data-simply-activate]')).concat(activateNodes);
+                    if (node.querySelectorAll) {
+                        var toActivate = [].slice.call(node.querySelectorAll('[data-simply-activate]'));
+                        if (node.matches('[data-simply-activate]')) {
+                            toActivate.push(node);
+                        }
+                        activateNodes = activateNodes.concat(toActivate);
+                    }
                 });
             }
         }
         if (activateNodes.length) {
             activateNodes.forEach(function(node) {
-                callListener(node);
+                callListeners(node);
             });
         }
     };
