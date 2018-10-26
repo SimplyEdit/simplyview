@@ -54,17 +54,14 @@ this.simply = (function (simply, global) {
         // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
-            global.setTimeout(function() {
-                var next = document.createElement('script');
-                var cachebuster = Date.now();
-                next.src = rebaseHref('simply.include.next.js?'+cachebuster, currentScript.src);
-                next.setAttribute('async', false);
-                document.addEventListener('simply-include-next', function() {
-                    head.removeChild(next);
-                    resolve();
-                }, { once: true, passive: true});
-                head.appendChild(next);
-            }, 10);
+            var next = document.createElement('script');
+            next.src = rebaseHref('simply.include.next.js', currentScript.src);
+            next.async = false;
+            document.addEventListener('simply-include-next', function() {
+                head.removeChild(next);
+                resolve();
+            }, { once: true, passive: true});
+            head.appendChild(next);
         });
     };
 
@@ -95,20 +92,18 @@ this.simply = (function (simply, global) {
                             var node = scriptLocations[script.dataset.simplyLocation];
                             node.parentNode.insertBefore(clone, node);
                             node.parentNode.removeChild(node);
-                            global.setTimeout(importScript, 10);
+                            importScript();
                         });
                 } else {
                     clone.src = rebaseHref(clone.src, base);
                     if (!clone.hasAttribute('async') && !clone.hasAttribute('defer')) {
-                        clone.setAttribute('async', false);
+                        clone.async = false; //important! do not use clone.setAttribute('async', false) - it has no effect
                     }
                     var node = scriptLocations[script.dataset.simplyLocation];
                     node.parentNode.insertBefore(clone, node);
                     node.parentNode.removeChild(node);
                     loaded[clone.src]=true;
-                    global.setTimeout(importScript, 10); // this settimeout is required, 
-                    // when adding multiple scripts in one go, the browser has no idea of the order in which to load and execut them
-                    // even with the async=false flag
+                    importScript();
                 }
             };
             if (arr.length) {
@@ -141,6 +136,10 @@ this.simply = (function (simply, global) {
             // add the remainder before the include link
             link.parentNode.insertBefore(fragment, link ? link : null);
             global.setTimeout(function() {
+                if (global.editor && global.editor.data && fragment.querySelector('[data-simply-field],[data-simply-list]')) {
+                    //TODO: remove this dependency and let simply.bind listen for dom node insertions (and simply-edit.js use simply.bind)
+                    global.editor.data.apply(editor.currentData, document);
+                }
                 simply.include.scripts(scriptsFragment.childNodes, link ? link.href : global.location.href );
             }, 10);
         }
