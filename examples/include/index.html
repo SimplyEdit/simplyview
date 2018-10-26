@@ -1,5 +1,18 @@
-<script src="../../js/simply.include.js"></script>
+<!doctype html>
+<html>
+<head>
+	<script src="../../dist/simply.everything.js"></script>
+</head>
 <body>
-<link rel="simply-include" href="include.html">
-<link rel="simply-include" href="scripts.html">
-<p>Done.</p>
+	<link rel="simply-include" href="include.html">
+	<textarea class="autosize" data-simply-activate="autosize">index</textarea>
+	<link rel="simply-include" href="scripts.html">
+	<p>Done.</p>
+	<script>
+		simply.activate.addListener('autosize', function() {
+			this.value="activated";
+			console.log('activate', this)
+		});
+	</script>
+</body>
+</html>
