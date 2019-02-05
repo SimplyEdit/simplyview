@@ -13,6 +13,7 @@ this.simply = (function(simply, global) {
             }
             if ( options.routes ) {
                 simply.route.load(options.routes);
+                simply.route.handleEvents();
                 global.setTimeout(function() {
                     simply.route.match(global.location.pathname);
                 });
@@ -20,10 +21,10 @@ this.simply = (function(simply, global) {
             this.container = options.container  || document.body;
             this.actions   = simply.action ? simply.action(this, options.actions) : false;
             this.commands  = simply.command ? simply.command(this, options.commands) : false;
-			this.resize    = simply.resize ? simply.resize(this, options.resize) : false;
+            this.resize    = simply.resize ? simply.resize(this, options.resize) : false;
             this.view      = simply.view ? simply.view(this, options.view) : false;
             if (!(global.editor && global.editor.field) && simply.bind) {
-				// skip simplyview databinding if SimplyEdit is loaded
+                // skip simplyview databinding if SimplyEdit is loaded
                 options.bind = simply.render(options.bind || {});
                 options.bind.model = this.view;
                 options.bind.container = this.container;

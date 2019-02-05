@@ -24,7 +24,34 @@ this.simply = (function(simply, global) {
         }
     }
 
+    var linkHandler = function(evt) {
+        if (evt.ctrlKey) {
+            return;
+        }
+        var link = evt.target;
+        while (link && link.tagName!='A') {
+            link = link.parentElement;
+        }
+        if (link 
+            && link.pathname 
+            && link.hostname==document.location.hostname 
+            && !link.link
+            && !link.dataset.simplyCommand
+            && simply.route.has(link.pathname)
+        ) {
+            simply.route.goto(link.pathname);
+            evt.preventDefault();
+            return false;
+        }
+    };
+
     simply.route = {
+        handleEvents: function() {
+            global.addEventListener('popstate', function() {
+                simply.route.match(document.location.pathname);
+            });
+            document.addEventListener('click', linkHandler);
+        },
         load: function(routes) {
             parseRoutes(routes);
         },
@@ -66,33 +93,6 @@ this.simply = (function(simply, global) {
             return false;
         }
     };
-
-    global.addEventListener('popstate', function() {
-        simply.route.match(document.location.pathname);
-    });
-
-    var linkHandler = function(evt) {
-        if (evt.ctrlKey) {
-            return;
-        }
-        var link = evt.target;
-        while (link && link.tagName!='A') {
-            link = link.parentElement;
-        }
-        if (link 
-            && link.pathname 
-            && link.hostname==document.location.hostname 
-            && !link.link
-            && !link.dataset.simplyCommand
-            && simply.route.has(link.pathname)
-        ) {
-            simply.route.goto(link.pathname);
-            evt.preventDefault();
-            return false;
-        }
-    };
-
-    document.addEventListener('click', linkHandler);
 
     return simply;
 
