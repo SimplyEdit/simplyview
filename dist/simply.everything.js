@@ -249,7 +249,34 @@ this.simply = (function(simply, global) {
         }
     }
 
+    var linkHandler = function(evt) {
+        if (evt.ctrlKey) {
+            return;
+        }
+        var link = evt.target;
+        while (link && link.tagName!='A') {
+            link = link.parentElement;
+        }
+        if (link 
+            && link.pathname 
+            && link.hostname==document.location.hostname 
+            && !link.link
+            && !link.dataset.simplyCommand
+            && simply.route.has(link.pathname)
+        ) {
+            simply.route.goto(link.pathname);
+            evt.preventDefault();
+            return false;
+        }
+    };
+
     simply.route = {
+        handleEvents: function() {
+            global.addEventListener('popstate', function() {
+                simply.route.match(document.location.pathname);
+            });
+            document.addEventListener('click', linkHandler);
+        },
         load: function(routes) {
             parseRoutes(routes);
         },
@@ -291,33 +318,6 @@ this.simply = (function(simply, global) {
             return false;
         }
     };
-
-    global.addEventListener('popstate', function() {
-        simply.route.match(document.location.pathname);
-    });
-
-    var linkHandler = function(evt) {
-        if (evt.ctrlKey) {
-            return;
-        }
-        var link = evt.target;
-        while (link && link.tagName!='A') {
-            link = link.parentElement;
-        }
-        if (link 
-            && link.pathname 
-            && link.hostname==document.location.hostname 
-            && !link.link
-            && !link.dataset.simplyCommand
-            && simply.route.has(link.pathname)
-        ) {
-            simply.route.goto(link.pathname);
-            evt.preventDefault();
-            return false;
-        }
-    };
-
-    document.addEventListener('click', linkHandler);
 
     return simply;
 
@@ -1019,7 +1019,6 @@ this.simply = (function(simply, global) {
                     if (node.querySelectorAll) {
                         var toActivate = [].slice.call(node.querySelectorAll('[data-simply-activate]'));
                         if (node.matches('[data-simply-activate]')) {
-                            console.log(node.outerHTML); //querySelectorAll('[data-simply-activate]'));
                             toActivate.push(node);
                         }
                         activateNodes = activateNodes.concat(toActivate);
@@ -1085,6 +1084,7 @@ this.simply = (function(simply, global) {
             }
             if ( options.routes ) {
                 simply.route.load(options.routes);
+                simply.route.handleEvents();
                 global.setTimeout(function() {
                     simply.route.match(global.location.pathname);
                 });
@@ -1092,10 +1092,10 @@ this.simply = (function(simply, global) {
             this.container = options.container  || document.body;
             this.actions   = simply.action ? simply.action(this, options.actions) : false;
             this.commands  = simply.command ? simply.command(this, options.commands) : false;
-			this.resize    = simply.resize ? simply.resize(this, options.resize) : false;
+            this.resize    = simply.resize ? simply.resize(this, options.resize) : false;
             this.view      = simply.view ? simply.view(this, options.view) : false;
             if (!(global.editor && global.editor.field) && simply.bind) {
-				// skip simplyview databinding if SimplyEdit is loaded
+                // skip simplyview databinding if SimplyEdit is loaded
                 options.bind = simply.render(options.bind || {});
                 options.bind.model = this.view;
                 options.bind.container = this.container;
