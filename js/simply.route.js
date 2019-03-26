@@ -17,7 +17,7 @@ this.simply = (function(simply, global) {
                 }
             } while(matches);
             routeInfo.push({
-                match:  new RegExp(path.replace(/:\w+/, '([^/]+)').replace(/:\*/, '(.*)')),
+                match:  new RegExp(path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
                 params: params,
                 action: routes[path]
             });
@@ -27,6 +27,9 @@ this.simply = (function(simply, global) {
     var linkHandler = function(evt) {
         if (evt.ctrlKey) {
             return;
+        }
+        if (evt.which != 1) {
+            return; // not a 'left' mouse click
         }
         var link = evt.target;
         while (link && link.tagName!='A') {
