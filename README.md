@@ -9,7 +9,15 @@ See the [reference](https://reference.simplyedit.io/simplyview/) for more inform
 
 ## Usage
 
-For now the simplest way to start is to clone this repository in your project:
+### Browser using Unpkg CDN
+
+`<script src="https://unpkg.com/simplyview@1.0.0/dist/simply.everything.js"></script>`
+
+### Using NPM
+
+`npm install simplyview`
+
+### Using GIT
 
 `git clone https://github.com/SimplyEdit/simplyview.git`
 
