@@ -13,7 +13,7 @@ this.simply = (function(simply, global) {
                 this.action('simply-show',target);
             }
         },
-        'simply-select': function(value,el) {
+        'simply-select': function(el, value) {
             var group = el.dataset.simplyGroup;
             var target = this.app.get(value);
             var targetGroup = (target ? target.dataset.simplyGroup : null);
