@@ -1,0 +1,28 @@
+{
+  "name": "simplyview",
+  "version": "1.0.0",
+  "description": "Library to rapidly build UI components, using declarative tools",
+  "main": "dist/simply.everything.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simplyedit/simplyview.git"
+  },
+  "keywords": [
+    "UI",
+    "components",
+    "declarative",
+    "reactive"
+  ],
+  "author": "auke@muze.nl",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/simplyedit/simplyview/issues"
+  },
+  "homepage": "https://github.com/simplyedit/simplyview#readme"
+}
