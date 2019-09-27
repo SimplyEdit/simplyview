@@ -3,6 +3,11 @@ this.simply = (function(simply, global) {
         console.error('Error: simply.bind requires simply.observe');
         return simply;
     }
+	if (window && window.editor && window.editor.version && window.editor.toolbars) {
+		console.log('SimplyEdit databinding is available, so skipping simply.bind');
+		return simply;
+	}
+
 
     function getByPath(model, path) {
         var parts = path.split('.');
