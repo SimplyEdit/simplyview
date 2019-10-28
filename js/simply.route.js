@@ -17,7 +17,7 @@ this.simply = (function(simply, global) {
                 }
             } while(matches);
             routeInfo.push({
-                match:  new RegExp(path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
+                match:  new RegExp('^'+path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
                 params: params,
                 action: routes[path]
             });
