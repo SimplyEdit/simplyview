@@ -795,18 +795,56 @@ this.simply = (function(simply, global) {
             && link.hostname==document.location.hostname 
             && !link.link
             && !link.dataset.simplyCommand
-            && simply.route.has(link.pathname)
         ) {
-            simply.route.goto(link.pathname);
-            evt.preventDefault();
-            return false;
+            if ( simply.route.has(link.pathname+link.hash) ) {
+                simply.route.goto(link.pathname+link.hash);
+                evt.preventDefault();
+                return false;
+            } else if (simply.route.has(link.pathname)) {
+                simply.route.goto(link.pathname);
+                evt.preventDefault();
+                return false;
+            }
         }
+    };
+
+    var options = {
+        root: '/'
+    };
+
+    var getPath = function(path) {
+        if (!path || path[0]!='/') {
+            path = '/'+path;
+        }
+        if (path.substring(0,options.root.length)==options.root
+            ||
+            ( options.root[options.root.length-1]=='/' 
+                && path.length==(options.root.length-1)
+                && path == options.root.substring(0,path.length)
+            )
+        ) {
+            path = path.substring(options.root.length-1);
+        }
+        if (path[0]!='/') {
+            path = '/'+path;
+        }
+        return path;
+    };
+
+    var getUrl = function(path) {
+        path = getPath(path);
+        if (options.root[options.root.length-1]=='/') {
+            path = path.substring(1);
+        }
+        return options.root + path;
     };
 
     simply.route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                simply.route.match(document.location.pathname);
+                if (!simply.route.match(getPath(document.location.pathname + document.location.hash))) {
+					simply.route.match(getPath(document.location.pathname));
+				}
             });
             document.addEventListener('click', linkHandler);
         },
@@ -815,12 +853,20 @@ this.simply = (function(simply, global) {
         },
         match: function(path, options) {
             var matches;
+            if (!path) {
+				if (simply.route.match(document.location.pathname+document.location.hash)) {
+					return true;
+				} else {
+					return simply.route.match(document.location.pathname);
+				}
+            }
+            path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
                 if (path[path.length-1]!='/') {
                     matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
-                        history.replaceState({}, '', path);
+                        history.replaceState({}, '', getUrl(path));
                     }
                 }
                 matches = routeInfo[i].match.exec(path);
@@ -836,12 +882,14 @@ this.simply = (function(simply, global) {
                     return routeInfo[i].action.call(simply.route, params);
                 }
             }
+			return false;
         },
         goto: function(path) {
-            history.pushState({},'',path);
+            history.pushState({},'',getUrl(path));
             return simply.route.match(path);
         },
         has: function(path) {
+            path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
                 var matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
@@ -849,6 +897,11 @@ this.simply = (function(simply, global) {
                 }
             }
             return false;
+        },
+        init: function(params) {
+            if (params.root) {
+                options.root = params.root;
+            }
         }
     };
 
