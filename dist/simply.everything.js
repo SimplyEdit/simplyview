@@ -772,7 +772,7 @@ this.simply = (function(simply, global) {
                 }
             } while(matches);
             routeInfo.push({
-                match:  new RegExp(path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
+                match:  new RegExp('^'+path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
                 params: params,
                 action: routes[path]
             });
@@ -1036,6 +1036,16 @@ this.simply = (function(simply, global) {
         {
             match: 'input,select,textarea',
             get: function(el) {
+                if (el.tagName==='SELECT' && el.multiple) {
+                    var values = [], opt;
+                    for (var i=0,l=el.options.length;i<l;i++) {
+                        var opt = el.options[i];
+                        if (opt.selected) {
+                            values.push(opt.value);
+                        }
+                    }
+                    return values;
+                }
                 return el.dataset.simplyValue || el.value;
             },
             check: function(el, evt) {
@@ -1056,7 +1066,14 @@ this.simply = (function(simply, global) {
             get: function(el) {
                 var data = {};
                 [].forEach.call(el.elements, function(el) {
-                    data[el.name] = el.value;
+                    if (data[el.name] && !Array.isArray(data[el.name])) {
+                        data[el.name] = [data[el.name]];
+                    }
+                    if (Array.isArray(data[el.name])) {
+                        data[el.name].push(el.value);
+                    } else {
+                        data[el.name] = el.value;
+                    }
                 });
                 return data;//new FormData(el);
             },
