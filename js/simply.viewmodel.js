@@ -43,7 +43,7 @@
                     callback(self.view.data);
                 }
             });
-            simply.viewmodel.updateDataSource(this.name);
+            updateDataSource(this.name);
         }
     };
 
@@ -69,10 +69,6 @@
         });
     };
 
-    var clone = function(data) {
-        return JSON.parse(JSON.stringify(data));
-    };
-
     var createSort = function(options) {
         var defaultOptions = {
             name: 'sort',
@@ -83,18 +79,14 @@
         options = Object.assign(defaultOptions, options || {});
 
         return function(params) {
-            if (!this.options[options.name]) {
-                this.options[options.name] = options;
-            }
+            this.options[options.name] = options;
             if (params[options.name]) {
                 options = Object.assign(options, params[options.name]);
             }
             if (this.view.changed || params[options.name]) {
-                   this.view.data.sort(options.getSort.call(this, this.options[options.name]));
+                this.view.data.sort(options.getSort.call(this, options));
                 this.view.changed = true;
-                this.options[options.name] = options;
-                this.view.options[options.name] = simply.viewmodel.clone(options);
-            }
+			}
         };
     };
 
@@ -110,9 +102,7 @@
         options = Object.assign(defaultOptions, options || {});
 
         return function(params) {
-            if (!this.options[options.name]) {
-                this.options[options.name] = options;
-            }
+            this.options[options.name] = options;
             if (this.view.data) {
                 options.max = Math.ceil(Array.from(this.view.data).length / options.pageSize);
             } else {
@@ -134,10 +124,8 @@
 
             var start = (options.page - 1) * options.pageSize;
             var end   = start + options.pageSize;
-            this.view.data = this.view.data.slice(start, end);
 
-            this.options[options.name] = options;
-            this.view.options[options.name] = simply.viewmodel.clone(options);
+            this.view.data = this.view.data.slice(start, end);
         };
     };
 
@@ -154,13 +142,9 @@
             options.init.call(this, options);
         }
         return function(params) {
-            if (!this.options[options.name]) {
-                this.options[options.name] = options;
-            }
-            options = Object.assign(options, simply.viewmodel.clone(this.options[options.name]));
+            this.options[options.name] = options;
             if (params[options.name]) {
                 options = Object.assign(options, params[options.name]);
-                this.options[options.name] = options;
             }
             var match = options.getMatch.call(this, options);
             if (match) {
@@ -171,8 +155,6 @@
                 options.enabled = false;
                 this.view.changed = true;
             }
-            this.options[options.name] = options;
-            this.view.options[options.name] = simply.viewmodel.clone(options);
         }
     }
 
@@ -183,7 +165,6 @@
         createFilter: createFilter,
         createSort: createSort,
         createPaging: createPaging,
-        clone: clone,
         updateDataSource: updateDataSource
     };
 
