@@ -3,44 +3,90 @@
 <head>
 	<script src="https://cdn.jsdelivr.net/npm/superagent"></script>
 	<link rel="stylesheet" type="text/css" href="css/styles.css">
+	<style>
+.loading-overlay {
+	position: absolute;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(255,255,255,0.2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+body:not(.loading) .loading-overlay {
+	display: none;
+}
+
+/* loading animation from loading.io/css/ */
+.lds-ring {
+  display: inline-block;
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.lds-ring div {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  margin: 8px;
+  border: 8px solid #666;
+  border-radius: 50%;
+  animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  border-color: #666 transparent transparent transparent;
+}
+.lds-ring div:nth-child(1) {
+  animation-delay: -0.45s;
+}
+.lds-ring div:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.lds-ring div:nth-child(3) {
+  animation-delay: -0.15s;
+}
+@keyframes lds-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+	</style>
 </head>
-<body>
+<body class="loading">
 <header class="ds-space ds-navbar">
 	<div class="demo-search">
 		<input type="text" placeholder="Search..." data-simply-command="search" data-simply-immediate="1">
 	</div>
 	<div class="ds-paging ds-navbar-right" style="margin-right: 0">
-		<div class="ds-align-right" data-simply-field="movies.options.paging.max" data-simply-content="template" data-simply-default-template="n">
-			<template data-simply-template="1">
-			</template>
-			<template data-simply-template="n">
-			    <ul class="ds-navbar-nav ds-paging">
-			        <li>
-			            <button data-simply-command="movies-prevpage" class="ds-button" disabled="" title="vorige pagina" 
-			            	data-simply-field="movies.options.paging.prev" data-simply-content="fixed" data-simply-transformer="enable">
-			            	<svg class="ds-icon ds-icon-feather"><use xlink:href="css/feather-sprite.svg#chevron-left"></use></svg>
-			            </button>
-			        </li>
-			        <li class="ds-paging-info">
-			            <span data-simply-field="movies.options.paging.page">1</span> /
-			            <span data-simply-field="movies.options.paging.max">10</span>
-			        </li>
-			        <li>
-			            <button data-simply-command="movies-nextpage" class="ds-button" title="volgende pagina" 
-			            	data-simply-field="movies.options.paging.next" data-simply-transformer="enable">
-			            	<svg class="ds-icon ds-icon-feather"><use xlink:href="css/feather-sprite.svg#chevron-right"></use></svg>
-			            </button>
-			            <button data-simply-command="movies-nextpage" class="ds-button" title="volgende pagina" 
-			            	data-simply-field="movies.paging.next" data-simply-transformer="enable">
-			            	<svg class="ds-icon ds-icon-feather"><use xlink:href="css/feather-sprite.svg#chevron-right"></use></svg>
-			            </button>
-			        </li>
-			    </ul>
-			</template>
-		</div>
+	    <ul class="ds-align-right ds-navbar-nav ds-paging">
+	        <li>
+	            <button data-simply-command="movies-prevpage" class="ds-button" disabled="" title="vorige pagina" 
+	            	data-simply-field="movies.paging.prev" data-simply-content="fixed" data-simply-transformer="enable">
+	            	<svg class="ds-icon ds-icon-feather"><use xlink:href="css/feather-sprite.svg#chevron-left"></use></svg>
+	            </button>
+	        </li>
+	        <li class="ds-paging-info">
+	            <span data-simply-field="movies.paging.page">1</span> /
+	            <span data-simply-field="movies.paging.max">10</span>
+	        </li>
+	        <li>
+	            <button data-simply-command="movies-nextpage" class="ds-button" title="volgende pagina" 
+	            	data-simply-field="movies.paging.next" data-simply-content="fixed" data-simply-transformer="enable">
+	            	<svg class="ds-icon ds-icon-feather"><use xlink:href="css/feather-sprite.svg#chevron-right"></use></svg>
+	            </button>
+	        </li>
+	    </ul>
+
 		<select class="ds-align-right" style="width: 200px;" 
 			data-simply-list="movie-genres" data-simply-data="movie-genres" data-simply-entry="genre"
-			data-simply-command="genre" data-simply-field="movies.options.genreFilter.genre"
+			data-simply-command="genre" data-simply-field="movies.genreFilter.genre"
 		>
 			<template>
 				<option data-simply-field="genre"></option>
@@ -49,11 +95,11 @@
 	</div>
 </header>
 <main class="ds-space ds-scrollbox" style="--ds-scrollbox-height: 65vh">
-	<table class="ds-datatable ds-datatable-sticky-header">
+	<table class="ds-datatable ds-datatable-sticky-header ds-datatable-rulers">
 	<thead>
 		<tr>
-			<th data-simply-command="sort" data-simply-value="title" data-simply-field="movies.options.sort" data-simply-content="fixed" data-simply-transformer="movies-sort">title</th>
-			<th data-simply-command="sort" data-simply-value="year" data-simply-field="movies.options.sort" data-simply-content="fixed" data-simply-transformer="movies-sort">year</th>
+			<th data-simply-command="sort" data-simply-value="title" data-simply-field="movies.sort.sort" data-simply-content="fixed" data-simply-transformer="movies-sort">title</th>
+			<th data-simply-command="sort" data-simply-value="year" data-simply-field="movies.sort.sort" data-simply-content="fixed" data-simply-transformer="movies-sort">year</th>
 			<th class="ds-datatable-disable-sort">genre</th>
 		</tr>
 	</thead>
@@ -68,13 +114,19 @@
 	</tbody>
 	</table>
 </main>
-
+<div class="loading-overlay">
+	<div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+</div>
 <script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
 <script src="../dist/simply.everything.js"></script>
 <script>	
+	// make these global for easier debugging
 	var movies, movieApp;
-	;
+
+	// wait for simplyedit to be loaded
 	document.addEventListener('simply-content-loaded',function() {
+
+		// fetch movie list
 		superagent
 		.get('https://raw.githubusercontent.com/prust/wikipedia-movie-data/master/movies.json')
 		.then(function(result) {
@@ -83,21 +135,166 @@
 			}
 		})
 		.then(function(json) {
-			// create viewmodel with the result and paging
-			// viewmodel should also set a data source
 
-			var genres = json.flatMap(m => m.genres);
-			var distinctGenres = Array.from(new Set(genres)).map(g => { return {value: g, innerHTML: g}});
-			
-			distinctGenres.unshift({ value: '', innerHTML: 'All genres'});
-			//FIXME: adding an empty string to an array of strings doesn't work - doesn't get rendered
-			//so made an array of objects instead.
-			
-			editor.addDataSource('movie-genres',{
-				load: function(el, callback) {
-					callback(distinctGenres);
-				}
-			});
+			movies = (function() {
+				// create a viewmodel named 'movies'
+				// this will automatically add a datasource 'movies' in SimplyEdit.
+				var m = simply.viewmodel.create('movies');
+
+				// add a text search plugin that searches through titles
+				// this goes first, in the 'select' pipe
+				m.addPlugin('select', simply.viewmodel.createFilter({
+					name: 'titleSearch',
+					getMatch: function(params) {
+						if (params.search && params.search.length>2) {
+							var re = new RegExp(params.search, 'i');
+							return function(movie) {
+								return re.test(movie.title);
+							}
+						}
+					}					
+				}));
+
+				// add a genre select tool
+				// first add a datasource of all available genres for all movies, before filtering
+				var genres = json.flatMap(m => m.genres);
+				var distinctGenres = Array.from(new Set(genres)).map(g => { return {value: g, innerHTML: g}});
+				
+				distinctGenres.unshift({ value: '', innerHTML: 'All genres'});
+
+				editor.addDataSource('movie-genres',{
+					load: function(el, callback) {
+						callback(distinctGenres);
+					}
+				});
+				
+				// start with the 'select' pipe
+
+				// if a previous filter has changed the view data
+				// then find all available genres in the filtered dataset
+				// and mark the others as disabled 
+				m.addPlugin('select', function() {
+					if (this.view.changed) {
+						var currentGenres = this.view.data.flatMap(m => m.genres);
+						var distinctGenres = new Set(currentGenres);
+						var genres = document.querySelector('[data-simply-data="movie-genres"]');
+						Array.from(genres.options).forEach(function(genre) {
+							if (genre.value && !distinctGenres.has(genre.value)) {
+								genre.disabled = 'disabled';
+							} else {
+								genre.removeAttribute('disabled');
+							}
+						});
+					}
+				});
+
+				// only then filter out all movies that don't match
+				// the selected genre
+				m.addPlugin('select', simply.viewmodel.createFilter({
+					name: 'genreFilter',
+					getMatch: function(params) {
+						if (params.genre) {
+							return function(movie) {
+								return movie.genres && movie.genres.indexOf(params.genre)>=0;
+							}
+						}
+					}
+				}));
+				
+				// the movies dataset contains an array of genres per movie
+				// this transformer turns it into a comma seperated string
+				// used in the genre column of the table body
+				editor.transformers['movies-genres'] = {
+					render: function(data) {
+						if (data) {
+							this.originalValue = data;
+							data = data.slice().join(', ');
+							this.innerHTML = data;
+						}
+						return data;
+					},
+					extract: function() {
+						return this.originalValue || [];
+					}
+				};
+
+				// on with the 'order' pipe
+
+				// add a sort function that can sort by title or year, both ascending and descending
+				m.addPlugin('order', simply.viewmodel.createSort({
+					name: 'sort',
+					getSort: function(params) {
+						if (params.sortOrder == 'ASC') {
+							var order = -1;
+						} else {
+							var order = 1;
+						}
+						switch (params.sortBy) {
+							case 'title':
+								return function(a,b) {
+									return a.title<b.title ? order : -order;
+								}
+							break;
+							case 'year':
+								return function(a,b) {
+									return a.year<b.year ? order : -order;
+								}
+							break;
+						};
+					}
+				}));
+
+				// adds a transformer to update the table headings with the correct
+				// sort order class
+				// this uses the movies.options.sort.sort variable
+				// which combines the sortBy and sortOrder in a single string
+				// these are set by the command 'sort' in the movieApp
+				editor.transformers['movies-sort'] = {
+					render: function(data) {
+						this.originalValue = data;
+						this.classList.remove('ds-datatable-sorted-descending');
+						this.classList.remove('ds-datatable-sorted-ascending');
+						var sort = data.split(' ');
+						if (sort[0]==this.innerHTML) {
+							this.classList.add(sort[1]=='ASC' ? 'ds-datatable-sorted-ascending':'ds-datatable-sorted-descending');
+						}
+						return data;
+					},
+					extract: function() {
+						return this.originalValue;
+					}
+				};
+
+
+
+				// then the 'render' pipe
+				
+				// here we add a paging plugin				
+				m.addPlugin('render', simply.viewmodel.createPaging());
+
+				// the paging buttons should be disabled when no further or earlier page
+				// is available for the next/prev buttons respectively
+				// the paging plugin has a next and prev value in the paging options
+				// if no next or prev page is available, the value is set to 0
+				// so this transformer sets the disabled property of an object
+				// depending on whether the given data evaluates to true or false
+				editor.transformers['enable'] = {
+					render: function(data) {
+						this.originalValue = data;
+						if (data) {
+							this.disabled = false;
+						} else {
+							this.disabled = true;
+						}
+						return data;
+					},
+					extract: function() {
+						return this.originalValue;
+					}
+				};
+				
+				return m;
+			})();
 
 			movieApp = simply.app({
 				commands: {
@@ -123,11 +320,12 @@
 						});
 					},
 					'sort': function(el, value) {
-						var asc = !el.classList.contains('ds-datatable-sorted-ascending');
+						var newOrder = !el.classList.contains('ds-datatable-sorted-ascending') ? 'ASC' : 'DESC';
 						movies.update({
 							sort: {
 								sortBy: value,
-								sortOrder: asc ? 'ASC' : 'DESC'
+								sortOrder: newOrder,
+								sort: value+' '+newOrder // this is added to pass all needed data in a single value for the sort order transformer
 							}
 						});
 					},
@@ -141,134 +339,18 @@
 				}
 			});
 			
-			movies = simply.viewmodel.create('movies');
-
-			movies.addPlugin('select', simply.viewmodel.createFilter({
-				name: 'titleSearch',
-				getMatch: function(params) {
-					if (params.search && params.search.length>2) {
-						var re = new RegExp(params.search, 'i');
-						return function(movie) {
-							return re.test(movie.title);
-						}
-					}
-				}					
-			}));
-
-			movies.addPlugin('select', function() {
-				var currentGenres = this.view.data.flatMap(m => m.genres);
-				var distinctGenres = new Set(currentGenres);
-				var genres = document.querySelector('[data-simply-data="movie-genres"]');
-				Array.from(genres.options).forEach(function(genre) {
-					if (genre.value && !distinctGenres.has(genre.value)) {
-						genre.disabled = 'disabled';
-					} else {
-						genre.removeAttribute('disabled');
-					}
-				});
-			});
-
-			movies.addPlugin('select', simply.viewmodel.createFilter({
-				name: 'genreFilter',
-				getMatch: function(params) {
-					if (params.genre) {
-						return function(movie) {
-							return movie.genres && movie.genres.indexOf(params.genre)>=0;
-						}
-					}
-				}
-			}));
-			
-
-			movies.addPlugin('order', simply.viewmodel.createSort({
-				name: 'sort',
-				getSort: function(params) {
-					this.view.sort = params;
-					if (params.sortOrder == 'ASC') {
-						var leftReturn = -1;
-						var rightReturn = 1;
-					} else {
-						var leftReturn = 1;
-						var rightReturn = -1;
-					}
-					switch (params.sortBy) {
-						case 'title':
-							return function(a,b) {
-								return a.title<b.title ? leftReturn : rightReturn;
-							}
-						break;
-						case 'year':
-							return function(a,b) {
-								return a.year<b.year ? leftReturn : rightReturn;
-							}
-						break;
-					};
-				}
-			}));
-
-			
-			movies.addPlugin('render', simply.viewmodel.createPaging());
-			
-			movies.addPlugin('finish', function() {
-				// waarom werkt dit wel voor de next button
-				// en waarom is de prev button wel goed?
-				movieApp.view.movies.paging = movies.options.paging;
-			});
-			
 			// only copy the options into the app view, the data should only be 
 			// linked through a datasource - for performance
-			movieApp.view.movies = {
-				options: movies.view.options
-			};
-
+			movieApp.view.movies = movies.options;
+			// this gives access to movies.options.paging, movies.options.sort, movies.options.genreFilter and movies.options.titleSearch
+			// as data-simply-field="movies.paging", "movies.sort", "movies.genreFilter" and "movies.titleSearch"
+			
+			// load movies list from the fetched json
 			movies.update({
 				data: json
 			});
-			
-			editor.transformers['movies-sort'] = {
-				render: function(data) {
-					this.originalValue = data;
-					this.classList.remove('ds-datatable-sorted-descending');
-					this.classList.remove('ds-datatable-sorted-ascending');
-					if (data.sortBy==this.innerHTML) {
-						this.classList.add(data.sortOrder=='ASC' ? 'ds-datatable-sorted-ascending':'ds-datatable-sorted-descending');
-					}
-					return data;
-				},
-				extract: function() {
-					return this.originalValue;
-				}
-			};
 
-			editor.transformers['movies-genres'] = {
-				render: function(data) {
-					if (data) {
-						this.originalValue = data;
-						data = data.slice().join(', ');
-						this.innerHTML = data;
-					}
-					return data;
-				},
-				extract: function() {
-					return this.originalValue || [];
-				}
-			};
-
-			editor.transformers['enable'] = {
-				render: function(data) {
-					this.originalValue = data;
-					if (data) {
-						this.disabled = false;
-					} else {
-						this.disabled = true;
-					}
-					return data;
-				},
-				extract: function() {
-					return this.originalValue;
-				}
-			};
-			
+			document.body.classList.remove('loading');			
 		})
 		.catch(console.error);
 	});
