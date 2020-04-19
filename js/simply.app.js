@@ -1,5 +1,7 @@
-this.simply = (function(simply, global) {
-    simply.app = function(options) {
+(function(global) {
+    'use strict';
+
+    var app = function(options) {
         if (!options) {
             options = {};
         }
@@ -13,9 +15,18 @@ this.simply = (function(simply, global) {
             }
             if ( options.routes ) {
                 simply.route.load(options.routes);
+                if (options.routeEvents) {
+                    Object.keys(options.routeEvents).forEach(function(action) {
+                        Object.keys(options.routeEvents[action]).forEach(function(route) {
+                            options.routeEvents[action][route].forEach(function(callback) {
+                                simply.route.addListener(action, route, callback);
+                            });
+                        });
+                    });
+                }
                 simply.route.handleEvents();
                 global.setTimeout(function() {
-                    simply.route.match(global.location.pathname);
+                    simply.route.match(global.location.pathname+global.location.hash);
                 });
             }
             this.container = options.container  || document.body;
@@ -36,10 +47,16 @@ this.simply = (function(simply, global) {
             return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
         };
 
-        var app = new simplyApp(options);
-
-        return app;
+        return new simplyApp(options);
     };
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = app;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.app = app;
+    }
+
+})(this);

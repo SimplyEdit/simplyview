@@ -1,6 +1,16 @@
-this.simply = (function(simply, global) {
+(function(global) {
+    'use strict';
 
     var routeInfo = [];
+    var listeners = {
+        match: {},
+        call: {},
+        finish: {}
+    };
+
+    function getRegexpFromRoute(route) {
+        return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'));
+    }
 
     function parseRoutes(routes) {
         var paths = Object.keys(routes);
@@ -17,7 +27,7 @@ this.simply = (function(simply, global) {
                 }
             } while(matches);
             routeInfo.push({
-                match:  new RegExp('^'+path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
+                match:  getRegexpFromRoute(path),
                 params: params,
                 action: routes[path]
             });
@@ -37,28 +47,62 @@ this.simply = (function(simply, global) {
         }
         if (link 
             && link.pathname 
-            && link.hostname==document.location.hostname 
+            && link.hostname==global.location.hostname 
             && !link.link
             && !link.dataset.simplyCommand
-            && simply.route.has(link.pathname)
+            && route.has(link.pathname+link.hash)
         ) {
-            simply.route.goto(link.pathname);
+            route.goto(link.pathname+link.hash);
             evt.preventDefault();
             return false;
         }
     };
 
-    simply.route = {
+    function runListeners(action, params) {
+        if (!Object.keys(listeners[action])) {
+            return;
+        }
+        Object.keys(listeners[action]).forEach(function(route) {
+            var routeRe = getRegexpFromRoute(route);
+            if (routeRe.exec(params.path)) {
+                var result;
+                listeners[action][route].forEach(function(callback) {
+                    result = callback.call(global, params);
+                    if (result) {
+                        params = result;
+                    }
+                });
+            }
+        });
+        return params;
+    }
+
+    var route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                simply.route.match(document.location.pathname);
+                route.match(global.location.pathname+global.location.hash);
             });
-            document.addEventListener('click', linkHandler);
+            global.document.addEventListener('click', linkHandler);
         },
         load: function(routes) {
             parseRoutes(routes);
         },
+        clear: function() {
+            routeInfo = [];
+            listeners = {
+                match: {},
+                call: {},
+                finish: {}
+            };
+        },
         match: function(path, options) {
+            var args = {
+                path: path,
+                options: options
+            };
+            args = runListeners('match',args);
+            path = args.path ? args.path : path;
+
             var matches;
             for ( var i=0; i<routeInfo.length; i++) {
                 if (path[path.length-1]!='/') {
@@ -78,13 +122,19 @@ this.simply = (function(simply, global) {
                         params[key] = matches[i+1];
                     });
                     Object.assign(params, options);
-                    return routeInfo[i].action.call(simply.route, params);
+                    args.route = route;
+                    args.params = params;
+                    args = runListeners('call', args);
+                    params = args.params ? args.params : params;
+                    args.result = routeInfo[i].action.call(route, params);
+                    runListeners('finish', args);
+                    return args.result;
                 }
             }
         },
         goto: function(path) {
             history.pushState({},'',path);
-            return simply.route.match(path);
+            return route.match(path);
         },
         has: function(path) {
             for ( var i=0; i<routeInfo.length; i++) {
@@ -94,9 +144,35 @@ this.simply = (function(simply, global) {
                 }
             }
             return false;
+        },
+        addListener: function(action, route, callback) {
+            if (['match','call','finish'].indexOf(action)==-1) {
+                throw new Error('Unknown action '+action);
+            }
+            if (!listeners[action][route]) {
+                listeners[action][route] = [];
+            }
+            listeners[action][route].push(callback);
+        },
+        removeListener: function(action, route, callback) {
+            if (['match','call','finish'].indexOf(action)==-1) {
+                throw new Error('Unknown action '+action);
+            }
+            if (!listeners[action][route]) {
+                return;
+            }
+            listeners[action][route] = listeners[action][route].filter(function(listener) {
+                return listener != callback;
+            });
         }
     };
 
-    return simply;
-
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = route;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.route = route;
+    }
+})(this);
