@@ -837,12 +837,12 @@ properties for a given parent, keep seperate index for this?
             && !link.link
             && !link.dataset.simplyCommand
         ) {
-            if ( simply.route.has(link.pathname+link.hash) ) {
-                simply.route.goto(link.pathname+link.hash);
+            if ( route.has(link.pathname+link.hash) ) {
+                route.goto(link.pathname+link.hash);
                 evt.preventDefault();
                 return false;
-            } else if (simply.route.has(link.pathname)) {
-                simply.route.goto(link.pathname);
+            } else if (route.has(link.pathname)) {
+                route.goto(link.pathname);
                 evt.preventDefault();
                 return false;
             }
@@ -902,8 +902,8 @@ properties for a given parent, keep seperate index for this?
     var route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                if (!simply.route.match(getPath(document.location.pathname + document.location.hash))) {
-					simply.route.match(getPath(document.location.pathname));
+                if (!route.match(getPath(document.location.pathname + document.location.hash))) {
+					route.match(getPath(document.location.pathname));
 				}
             });
             global.document.addEventListener('click', linkHandler);
@@ -929,10 +929,10 @@ properties for a given parent, keep seperate index for this?
 
             var matches;
             if (!path) {
-				if (simply.route.match(document.location.pathname+document.location.hash)) {
+				if (route.match(document.location.pathname+document.location.hash)) {
 					return true;
 				} else {
-					return simply.route.match(document.location.pathname);
+					return route.match(document.location.pathname);
 				}
             }
             path = getPath(path);
@@ -961,13 +961,13 @@ properties for a given parent, keep seperate index for this?
                     args.result = routeInfo[i].action.call(route, params);
                     runListeners('finish', args);
                     return args.result;
-                }
+				}
             }
 			return false;
         },
         goto: function(path) {
             history.pushState({},'',getUrl(path));
-            return simply.route.match(path);
+            return route.match(path);
         },
         has: function(path) {
             path = getPath(path);
@@ -1844,7 +1844,7 @@ properties for a given parent, keep seperate index for this?
                     callback(self.view.data);
                 }
             });
-            simply.viewmodel.updateDataSource(this.name);
+            updateDataSource(this.name);
         }
     };
 
@@ -1870,10 +1870,6 @@ properties for a given parent, keep seperate index for this?
         });
     };
 
-    var clone = function(data) {
-        return JSON.parse(JSON.stringify(data));
-    };
-
     var createSort = function(options) {
         var defaultOptions = {
             name: 'sort',
@@ -1884,18 +1880,14 @@ properties for a given parent, keep seperate index for this?
         options = Object.assign(defaultOptions, options || {});
 
         return function(params) {
-            if (!this.options[options.name]) {
-                this.options[options.name] = options;
-            }
+            this.options[options.name] = options;
             if (params[options.name]) {
                 options = Object.assign(options, params[options.name]);
             }
             if (this.view.changed || params[options.name]) {
-                   this.view.data.sort(options.getSort.call(this, this.options[options.name]));
+                this.view.data.sort(options.getSort.call(this, options));
                 this.view.changed = true;
-                this.options[options.name] = options;
-                this.view.options[options.name] = simply.viewmodel.clone(options);
-            }
+			}
         };
     };
 
@@ -1911,9 +1903,7 @@ properties for a given parent, keep seperate index for this?
         options = Object.assign(defaultOptions, options || {});
 
         return function(params) {
-            if (!this.options[options.name]) {
-                this.options[options.name] = options;
-            }
+            this.options[options.name] = options;
             if (this.view.data) {
                 options.max = Math.ceil(Array.from(this.view.data).length / options.pageSize);
             } else {
@@ -1935,10 +1925,8 @@ properties for a given parent, keep seperate index for this?
 
             var start = (options.page - 1) * options.pageSize;
             var end   = start + options.pageSize;
-            this.view.data = this.view.data.slice(start, end);
 
-            this.options[options.name] = options;
-            this.view.options[options.name] = simply.viewmodel.clone(options);
+            this.view.data = this.view.data.slice(start, end);
         };
     };
 
@@ -1955,13 +1943,9 @@ properties for a given parent, keep seperate index for this?
             options.init.call(this, options);
         }
         return function(params) {
-            if (!this.options[options.name]) {
-                this.options[options.name] = options;
-            }
-            options = Object.assign(options, simply.viewmodel.clone(this.options[options.name]));
+            this.options[options.name] = options;
             if (params[options.name]) {
                 options = Object.assign(options, params[options.name]);
-                this.options[options.name] = options;
             }
             var match = options.getMatch.call(this, options);
             if (match) {
@@ -1972,8 +1956,6 @@ properties for a given parent, keep seperate index for this?
                 options.enabled = false;
                 this.view.changed = true;
             }
-            this.options[options.name] = options;
-            this.view.options[options.name] = simply.viewmodel.clone(options);
         }
     }
 
@@ -1984,7 +1966,6 @@ properties for a given parent, keep seperate index for this?
         createFilter: createFilter,
         createSort: createSort,
         createPaging: createPaging,
-        clone: clone,
         updateDataSource: updateDataSource
     };
 
