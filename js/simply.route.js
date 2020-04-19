@@ -51,12 +51,12 @@
             && !link.link
             && !link.dataset.simplyCommand
         ) {
-            if ( simply.route.has(link.pathname+link.hash) ) {
-                simply.route.goto(link.pathname+link.hash);
+            if ( route.has(link.pathname+link.hash) ) {
+                route.goto(link.pathname+link.hash);
                 evt.preventDefault();
                 return false;
-            } else if (simply.route.has(link.pathname)) {
-                simply.route.goto(link.pathname);
+            } else if (route.has(link.pathname)) {
+                route.goto(link.pathname);
                 evt.preventDefault();
                 return false;
             }
@@ -116,8 +116,8 @@
     var route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                if (!simply.route.match(getPath(document.location.pathname + document.location.hash))) {
-					simply.route.match(getPath(document.location.pathname));
+                if (!route.match(getPath(document.location.pathname + document.location.hash))) {
+					route.match(getPath(document.location.pathname));
 				}
             });
             global.document.addEventListener('click', linkHandler);
@@ -143,10 +143,10 @@
 
             var matches;
             if (!path) {
-				if (simply.route.match(document.location.pathname+document.location.hash)) {
+				if (route.match(document.location.pathname+document.location.hash)) {
 					return true;
 				} else {
-					return simply.route.match(document.location.pathname);
+					return route.match(document.location.pathname);
 				}
             }
             path = getPath(path);
@@ -175,13 +175,13 @@
                     args.result = routeInfo[i].action.call(route, params);
                     runListeners('finish', args);
                     return args.result;
-                }
+				}
             }
 			return false;
         },
         goto: function(path) {
             history.pushState({},'',getUrl(path));
-            return simply.route.match(path);
+            return route.match(path);
         },
         has: function(path) {
             path = getPath(path);
