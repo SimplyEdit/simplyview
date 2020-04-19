@@ -1,18 +1,19 @@
-this.simply = (function(simply, global) {
+(function(global) {
+	'use strict';
 
-	simply.resize = function(app, config) {
-		if (!config) {
-			config = {};
-		}
-		if (!config.sizes) {
-        	config.sizes     = {
-	            'simply-tiny'   : 0,
-	            'simply-xsmall' : 480,
-	            'simply-small'  : 768,
-	            'simply-medium' : 992,
-	            'simply-large'  : 1200
-	        };
-		}
+    var resize = function(app, config) {
+        if (!config) {
+            config = {};
+        }
+        if (!config.sizes) {
+            config.sizes     = {
+                'simply-tiny'   : 0,
+                'simply-xsmall' : 480,
+                'simply-small'  : 768,
+                'simply-medium' : 992,
+                'simply-large'  : 1200
+            };
+        }
 
         var lastSize = 0;
         function resizeSniffer() {
@@ -64,9 +65,15 @@ this.simply = (function(simply, global) {
             });
         }
 
-		return resizeSniffer;
-	};
+        return resizeSniffer;
+    };
 
-	return simply;
-
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = resize;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.resize = resize;
+    }
+})(this);

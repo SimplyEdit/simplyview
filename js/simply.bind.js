@@ -1,13 +1,14 @@
-this.simply = (function(simply, global) {
+(function(global) {
+    'use strict';
+
     if (!simply.observe) {
         console.error('Error: simply.bind requires simply.observe');
-        return simply;
+        return;
     }
-	if (window && window.editor && window.editor.version && window.editor.toolbars) {
-		console.log('SimplyEdit databinding is available, so skipping simply.bind');
-		return simply;
-	}
-
+    if (global && global.editor && global.editor.version && global.editor.toolbars) {
+        console.log('SimplyEdit databinding is available, so skipping simply.bind');
+        return;
+    }
 
     function getByPath(model, path) {
         var parts = path.split('.');
@@ -250,9 +251,16 @@ this.simply = (function(simply, global) {
         observersPaused--;
     };
 
-    simply.bind = function(config, force) {
+    var bind = function(config, force) {
         return new Binding(config, force);
     };
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = bind;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.bind = bind;
+    }
+})(this);

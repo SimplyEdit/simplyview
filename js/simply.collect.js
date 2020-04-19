@@ -1,8 +1,9 @@
-this.simply = (function(simply, global) {
+(function(global) {
+    'use strict';
 
     var knownCollections = {};
     
-    simply.collect = {
+    var collect = {
         addListener: function(name, callback) {
             if (!knownCollections[name]) {
                 knownCollections[name] = [];
@@ -35,7 +36,7 @@ this.simply = (function(simply, global) {
         return el;
     }
     
-    document.addEventListener('change', function(evt) {
+    global.addEventListener('change', function(evt) {
         var root = null;
         var name = '';
         if (evt.target.dataset.simplyElement) {
@@ -59,6 +60,13 @@ this.simply = (function(simply, global) {
         }
     }, true);
 
-    return simply;
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = collect;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.collect = collect;
+    }
 
-})(this.simply || {}, this);
+})(this);

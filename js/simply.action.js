@@ -1,4 +1,6 @@
-this.simply = (function(simply, global) {
+(function(global) {
+	'use strict';
+
     var defaultActions = {
         'simply-hide': function(el) {
             el.classList.remove('simply-visible');
@@ -86,7 +88,7 @@ this.simply = (function(simply, global) {
         }
     };
 
-    simply.action = function(app, inActions) {
+     var action = function(app, inActions) {
         var actions = Object.create(defaultActions);
         for ( var i in inActions ) {
             actions[i] = inActions[i];
@@ -101,6 +103,13 @@ this.simply = (function(simply, global) {
         return actions;
     };
 
-    return simply;
-    
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = action;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.action = action;
+    }
+
+})(this);

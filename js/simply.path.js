@@ -1,6 +1,7 @@
-this.simply = (function(simply) {
+(function(global) {
+    'us strict';
 
-    simply.path = {
+    var path = {
         get: function(model, path) {
             if (!path) {
                 return model;
@@ -36,5 +37,12 @@ this.simply = (function(simply) {
         }
     };
 
-    return simply;
-})(this.simply || {});
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = path;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.path = path;
+    }
+})(this);

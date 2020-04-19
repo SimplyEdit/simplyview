@@ -39,7 +39,9 @@
 properties for a given parent, keep seperate index for this?
  */
 
-this.simply = (function (simply, global) {
+(function (global) {
+    'use strict';
+
     var changeListeners = new WeakMap();
     var parentListeners = new WeakMap();
     var childListeners = new WeakMap();
@@ -315,7 +317,7 @@ this.simply = (function (simply, global) {
     // model.foo = { }
     // model.foo.bar = 'zab'; // this should trigger the observer but doesn't
 
-    simply.observe = function(model, path, callback, options) {
+    var observe = function(model, path, callback, options) {
         if (!path) {
             var keys = Object.keys(model);
             keys.forEach(function(key) {
@@ -336,17 +338,25 @@ this.simply = (function (simply, global) {
         }
     };
 
-    return simply;
-})(this.simply || {}, this);this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = observe;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.observe = observe;
+    }
+})(this);(function(global) {
+    'use strict';
+
     if (!simply.observe) {
         console.error('Error: simply.bind requires simply.observe');
-        return simply;
+        return;
     }
-	if (window && window.editor && window.editor.version && window.editor.toolbars) {
-		console.log('SimplyEdit databinding is available, so skipping simply.bind');
-		return simply;
-	}
-
+    if (global && global.editor && global.editor.version && global.editor.toolbars) {
+        console.log('SimplyEdit databinding is available, so skipping simply.bind');
+        return;
+    }
 
     function getByPath(model, path) {
         var parts = path.split('.');
@@ -589,16 +599,22 @@ this.simply = (function (simply, global) {
         observersPaused--;
     };
 
-    simply.bind = function(config, force) {
+    var bind = function(config, force) {
         return new Binding(config, force);
     };
 
-    return simply;
-})(this.simply || {}, this);this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = bind;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.bind = bind;
+    }
+})(this);(function(global) {
+    'use strict';
 
-//    var templates = new WeakMap();
-
-    simply.render = function(options) {
+    var render = function(options) {
         if (!options) {
             options = {};
         }
@@ -711,11 +727,19 @@ this.simply = (function (simply, global) {
         return options;
     };
 
-    return simply;
-})(this.simply || {}, this);
-this.simply = (function(simply) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = render;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.render = render;
+    }
+})(this);
+(function(global) {
+    'us strict';
 
-    simply.path = {
+    var path = {
         get: function(model, path) {
             if (!path) {
                 return model;
@@ -751,11 +775,28 @@ this.simply = (function(simply) {
         }
     };
 
-    return simply;
-})(this.simply || {});
-this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = path;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.path = path;
+    }
+})(this);
+(function(global) {
+    'use strict';
 
     var routeInfo = [];
+    var listeners = {
+        match: {},
+        call: {},
+        finish: {}
+    };
+
+    function getRegexpFromRoute(route) {
+        return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'));
+    }
 
     function parseRoutes(routes) {
         var paths = Object.keys(routes);
@@ -772,7 +813,7 @@ this.simply = (function(simply, global) {
                 }
             } while(matches);
             routeInfo.push({
-                match:  new RegExp(path.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')),
+                match:  getRegexpFromRoute(path),
                 params: params,
                 action: routes[path]
             });
@@ -792,35 +833,115 @@ this.simply = (function(simply, global) {
         }
         if (link 
             && link.pathname 
-            && link.hostname==document.location.hostname 
+            && link.hostname==global.location.hostname 
             && !link.link
             && !link.dataset.simplyCommand
-            && simply.route.has(link.pathname)
         ) {
-            simply.route.goto(link.pathname);
-            evt.preventDefault();
-            return false;
+            if ( simply.route.has(link.pathname+link.hash) ) {
+                simply.route.goto(link.pathname+link.hash);
+                evt.preventDefault();
+                return false;
+            } else if (simply.route.has(link.pathname)) {
+                simply.route.goto(link.pathname);
+                evt.preventDefault();
+                return false;
+            }
         }
     };
 
-    simply.route = {
+    var options = {
+        root: '/'
+    };
+
+    var getPath = function(path) {
+        if (!path || path[0]!='/') {
+            path = '/'+path;
+        }
+        if (path.substring(0,options.root.length)==options.root
+            ||
+            ( options.root[options.root.length-1]=='/' 
+                && path.length==(options.root.length-1)
+                && path == options.root.substring(0,path.length)
+            )
+        ) {
+            path = path.substring(options.root.length-1);
+        }
+        if (path[0]!='/') {
+            path = '/'+path;
+        }
+        return path;
+    };
+
+    var getUrl = function(path) {
+        path = getPath(path);
+        if (options.root[options.root.length-1]=='/') {
+            path = path.substring(1);
+        }
+        return options.root + path;
+    };
+
+    function runListeners(action, params) {
+        if (!Object.keys(listeners[action])) {
+            return;
+        }
+        Object.keys(listeners[action]).forEach(function(route) {
+            var routeRe = getRegexpFromRoute(route);
+            if (routeRe.exec(params.path)) {
+                var result;
+                listeners[action][route].forEach(function(callback) {
+                    result = callback.call(global, params);
+                    if (result) {
+                        params = result;
+                    }
+                });
+            }
+        });
+        return params;
+    }
+
+    var route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                simply.route.match(document.location.pathname);
+                if (!simply.route.match(getPath(document.location.pathname + document.location.hash))) {
+					simply.route.match(getPath(document.location.pathname));
+				}
             });
-            document.addEventListener('click', linkHandler);
+            global.document.addEventListener('click', linkHandler);
         },
         load: function(routes) {
             parseRoutes(routes);
         },
+        clear: function() {
+            routeInfo = [];
+            listeners = {
+                match: {},
+                call: {},
+                finish: {}
+            };
+        },
         match: function(path, options) {
+            var args = {
+                path: path,
+                options: options
+            };
+            args = runListeners('match',args);
+            path = args.path ? args.path : path;
+
             var matches;
+            if (!path) {
+				if (simply.route.match(document.location.pathname+document.location.hash)) {
+					return true;
+				} else {
+					return simply.route.match(document.location.pathname);
+				}
+            }
+            path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
                 if (path[path.length-1]!='/') {
                     matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
-                        history.replaceState({}, '', path);
+                        history.replaceState({}, '', getUrl(path));
                     }
                 }
                 matches = routeInfo[i].match.exec(path);
@@ -833,15 +954,23 @@ this.simply = (function(simply, global) {
                         params[key] = matches[i+1];
                     });
                     Object.assign(params, options);
-                    return routeInfo[i].action.call(simply.route, params);
+                    args.route = route;
+                    args.params = params;
+                    args = runListeners('call', args);
+                    params = args.params ? args.params : params;
+                    args.result = routeInfo[i].action.call(route, params);
+                    runListeners('finish', args);
+                    return args.result;
                 }
             }
+			return false;
         },
         goto: function(path) {
-            history.pushState({},'',path);
+            history.pushState({},'',getUrl(path));
             return simply.route.match(path);
         },
         has: function(path) {
+            path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
                 var matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
@@ -849,17 +978,49 @@ this.simply = (function(simply, global) {
                 }
             }
             return false;
+        },
+        addListener: function(action, route, callback) {
+            if (['match','call','finish'].indexOf(action)==-1) {
+                throw new Error('Unknown action '+action);
+            }
+            if (!listeners[action][route]) {
+                listeners[action][route] = [];
+            }
+            listeners[action][route].push(callback);
+        },
+        removeListener: function(action, route, callback) {
+            if (['match','call','finish'].indexOf(action)==-1) {
+                throw new Error('Unknown action '+action);
+            }
+            if (!listeners[action][route]) {
+                return;
+            }
+            listeners[action][route] = listeners[action][route].filter(function(listener) {
+                return listener != callback;
+            });
+		},
+        init: function(params) {
+            if (params.root) {
+                options.root = params.root;
+            }
         }
     };
 
-    return simply;
-
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = route;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.route = route;
+    }
+})(this);
+(function(global) {
+    'use strict';
 
     var listeners = {};
 
-    simply.activate = {
+     var activate = {
         addListener: function(name, callback) {
             if (!listeners[name]) {
                 listeners[name] = [];
@@ -924,13 +1085,21 @@ this.simply = (function(simply, global) {
         childList: true
     });
 
-    return simply;
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = activate;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.activate = activate;
+    }
+})(this);
+(function(global) {
+    'use strict';
 
     var knownCollections = {};
     
-    simply.collect = {
+    var collect = {
         addListener: function(name, callback) {
             if (!knownCollections[name]) {
                 knownCollections[name] = [];
@@ -963,7 +1132,7 @@ this.simply = (function(simply, global) {
         return el;
     }
     
-    document.addEventListener('change', function(evt) {
+    global.addEventListener('change', function(evt) {
         var root = null;
         var name = '';
         if (evt.target.dataset.simplyElement) {
@@ -987,10 +1156,18 @@ this.simply = (function(simply, global) {
         }
     }, true);
 
-    return simply;
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = collect;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.collect = collect;
+    }
 
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
+})(this);
+(function(global) {
+    'use strict';
 
     var defaultCommands = {
         'simply-hide': function(el, value) {
@@ -1036,6 +1213,16 @@ this.simply = (function(simply, global) {
         {
             match: 'input,select,textarea',
             get: function(el) {
+                if (el.tagName==='SELECT' && el.multiple) {
+                    var values = [], opt;
+                    for (var i=0,l=el.options.length;i<l;i++) {
+                        var opt = el.options[i];
+                        if (opt.selected) {
+                            values.push(opt.value);
+                        }
+                    }
+                    return values;
+                }
                 return el.dataset.simplyValue || el.value;
             },
             check: function(el, evt) {
@@ -1056,7 +1243,14 @@ this.simply = (function(simply, global) {
             get: function(el) {
                 var data = {};
                 [].forEach.call(el.elements, function(el) {
-                    data[el.name] = el.value;
+                    if (data[el.name] && !Array.isArray(data[el.name])) {
+                        data[el.name] = [data[el.name]];
+                    }
+                    if (Array.isArray(data[el.name])) {
+                        data[el.name].push(el.value);
+                    } else {
+                        data[el.name] = el.value;
+                    }
                 });
                 return data;//new FormData(el);
             },
@@ -1102,7 +1296,7 @@ this.simply = (function(simply, global) {
         return null;
     }
 
-    simply.command = function(app, inCommands) {
+    var command = function(app, inCommands) {
 
         var commands = Object.create(defaultCommands);
         for (var i in inCommands) {
@@ -1153,10 +1347,19 @@ this.simply = (function(simply, global) {
         return commands;
     };
 
-    return simply;
-    
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = command;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.command = command;
+    }
+ 
+})(this);
+(function(global) {
+	'use strict';
+
     var defaultActions = {
         'simply-hide': function(el) {
             el.classList.remove('simply-visible');
@@ -1244,7 +1447,7 @@ this.simply = (function(simply, global) {
         }
     };
 
-    simply.action = function(app, inActions) {
+     var action = function(app, inActions) {
         var actions = Object.create(defaultActions);
         for ( var i in inActions ) {
             actions[i] = inActions[i];
@@ -1259,24 +1462,32 @@ this.simply = (function(simply, global) {
         return actions;
     };
 
-    return simply;
-    
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = action;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.action = action;
+    }
 
-	simply.resize = function(app, config) {
-		if (!config) {
-			config = {};
-		}
-		if (!config.sizes) {
-        	config.sizes     = {
-	            'simply-tiny'   : 0,
-	            'simply-xsmall' : 480,
-	            'simply-small'  : 768,
-	            'simply-medium' : 992,
-	            'simply-large'  : 1200
-	        };
-		}
+})(this);
+(function(global) {
+	'use strict';
+
+    var resize = function(app, config) {
+        if (!config) {
+            config = {};
+        }
+        if (!config.sizes) {
+            config.sizes     = {
+                'simply-tiny'   : 0,
+                'simply-xsmall' : 480,
+                'simply-small'  : 768,
+                'simply-medium' : 992,
+                'simply-large'  : 1200
+            };
+        }
 
         var lastSize = 0;
         function resizeSniffer() {
@@ -1328,12 +1539,19 @@ this.simply = (function(simply, global) {
             });
         }
 
-		return resizeSniffer;
-	};
+        return resizeSniffer;
+    };
 
-	return simply;
-
-})(this.simply || {}, this);this.simply = (function (simply, global) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = resize;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.resize = resize;
+    }
+})(this);(function (global) {
+    'use strict';
 
     var throttle = function( callbackFunction, intervalTime ) {
         var eventId = 0;
@@ -1380,8 +1598,8 @@ this.simply = (function(simply, global) {
     };
 
     var observer, loaded = {};
-    var head = document.documentElement.querySelector('head');
-    var currentScript = document.currentScript;
+    var head = global.document.querySelector('head');
+    var currentScript = global.document.currentScript;
 
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
@@ -1389,10 +1607,10 @@ this.simply = (function(simply, global) {
         // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
-            var next = document.createElement('script');
+            var next = global.document.createElement('script');
             next.src = rebaseHref('simply.include.next.js', currentScript.src);
             next.async = false;
-            document.addEventListener('simply-include-next', function() {
+            global.document.addEventListener('simply-include-next', function() {
                 head.removeChild(next);
                 resolve();
             }, { once: true, passive: true});
@@ -1402,7 +1620,7 @@ this.simply = (function(simply, global) {
 
     var scriptLocations = [];
 
-    simply.include = {
+    var include = {
         scripts: function(scripts, base) {
             var arr = [];
             for(var i = scripts.length; i--; arr.unshift(scripts[i]));
@@ -1414,7 +1632,7 @@ this.simply = (function(simply, global) {
                 var attrs  = [].map.call(script.attributes, function(attr) {
                     return attr.name;
                 });
-                var clone  = document.createElement('script');
+                var clone  = global.document.createElement('script');
                 attrs.forEach(function(attr) {
                     clone.setAttribute(attr, script[attr]);
                 });
@@ -1446,7 +1664,7 @@ this.simply = (function(simply, global) {
             }
         },
         html: function(html, link) {
-            var fragment = document.createRange().createContextualFragment(html);
+            var fragment = global.document.createRange().createContextualFragment(html);
             var stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
             // add all stylesheets to head
             [].forEach.call(stylesheets, function(stylesheet) {
@@ -1457,12 +1675,12 @@ this.simply = (function(simply, global) {
             });
             // remove the scripts from the fragment, as they will not run in the
             // order in which they are defined
-            var scriptsFragment = document.createDocumentFragment();
+            var scriptsFragment = global.document.createDocumentFragment();
             // FIXME: this loses the original position of the script
             // should add a placeholder so we can reinsert the clone
             var scripts = fragment.querySelectorAll('script');
             [].forEach.call(scripts, function(script) {
-                var placeholder = document.createComment(script.src || 'inline script');
+                var placeholder = global.document.createComment(script.src || 'inline script');
                 script.parentNode.insertBefore(placeholder, script);
                 script.dataset.simplyLocation = scriptLocations.length;
                 scriptLocations.push(placeholder);
@@ -1473,7 +1691,7 @@ this.simply = (function(simply, global) {
             global.setTimeout(function() {
                 if (global.editor && global.editor.data && fragment.querySelector('[data-simply-field],[data-simply-list]')) {
                     //TODO: remove this dependency and let simply.bind listen for dom node insertions (and simply-edit.js use simply.bind)
-                    global.editor.data.apply(editor.currentData, document);
+                    global.editor.data.apply(global.editor.currentData, global.document);
                 }
                 simply.include.scripts(scriptsFragment.childNodes, link ? link.href : global.location.href );
             }, 10);
@@ -1518,7 +1736,7 @@ this.simply = (function(simply, global) {
 
     var handleChanges = throttle(function() {
         runWhenIdle(function() {
-            var links = document.querySelectorAll('link[rel="simply-include"],link[rel="simply-include-once"]');
+            var links = global.document.querySelectorAll('link[rel="simply-include"],link[rel="simply-include-once"]');
             if (links.length) {
                 includeLinks(links);
             }
@@ -1527,7 +1745,7 @@ this.simply = (function(simply, global) {
 
     var observe = function() {
         observer = new MutationObserver(handleChanges);
-        observer.observe(document, {
+        observer.observe(global.document, {
             subtree: true,
             childList: true,
         });
@@ -1535,28 +1753,36 @@ this.simply = (function(simply, global) {
 
     observe();
 
-    return simply;
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = include;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.include = include;
+    }
 
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
 
-    simply.view = function(app, view) {
+})(this);
+(function(global) {
+    'use strict';
+    var view = function(app, view) {
 
         app.view = view || {};
 
         var load = function() {
             var data = app.view;
-            var path = editor.data.getDataPath(app.container);
-            app.view = editor.currentData[path];
+            var path = global.editor.data.getDataPath(app.container);
+            app.view = global.editor.currentData[path];
             Object.keys(data).forEach(function(key) {
                 app.view[key] = data[key];
             });
         };
 
-        if (global.editor && editor.currentData) {
+        if (global.editor && global.editor.currentData) {
             load();
         } else {
-            document.addEventListener('simply-content-loaded', function() {
+            global.document.addEventListener('simply-content-loaded', function() {
                 load();
             });
         }
@@ -1564,10 +1790,217 @@ this.simply = (function(simply, global) {
         return app.view;
     };
 
-    return simply;
-})(this.simply || {}, this);
-this.simply = (function(simply, global) {
-    simply.app = function(options) {
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = view;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.view = view;
+    }
+})(this);
+(function(global) {
+    'use strict';
+    
+    function ViewModel(name, data, options) {
+        this.name = name;
+        this.data = data;
+        this.view = {
+            options: {},
+            data: Array.from(this.data || []).slice()
+        };
+        this.options = options || {};
+        this.plugins = {
+            start: [],
+            select: [],
+            order: [],
+            render: [],
+            finish: []
+        };
+    }
+
+    ViewModel.prototype.update = function(params) {
+        if (!params) {
+            params = {};
+        }
+        if (params.data) {
+            // this.data is a reference to the data passed, so that any changes in it will get applied
+            // to the original
+            this.data = params.data;
+        }
+        // the view is a shallow copy of the array, so that changes in sort order and filtering
+        // won't get applied to the original, but databindings on its children will still work
+        this.view.data = Array.from(this.data).slice();
+        this.view.changed = false;
+        var plugins = this.plugins.start.concat(this.plugins.select, this.plugins.order, this.plugins.render, this.plugins.finish);
+        var self = this;
+        plugins.forEach(function(plugin) {
+            plugin.call(self, params);
+        });
+
+        if (global.editor) {
+            global.editor.addDataSource(this.name,{
+                load: function(el, callback) {
+                    callback(self.view.data);
+                }
+            });
+            simply.viewmodel.updateDataSource(this.name);
+        }
+    };
+
+    ViewModel.prototype.addPlugin = function(pipe, plugin) {
+        if (typeof this.plugins[pipe] == 'undefined') {
+            throw new Error('Unknown pipeline '+pipe);
+        }
+        this.plugins[pipe].push(plugin);
+    };
+
+    ViewModel.prototype.removePlugin = function(pipe, plugin) {
+        if (typeof this.plugins[pipe] == 'undefined') {
+            throw new Error('Unknown pipeline '+pipe);
+        }
+        this.plugins[pipe] = this.plugins[pipe].filter(function(p) {
+            return p != plugin;
+        });
+    };
+
+    var updateDataSource = function(name) {
+        global.document.querySelectorAll('[data-simply-data="'+name+'"]').forEach(function(list) {
+            global.editor.list.applyDataSource(list, name);
+        });
+    };
+
+    var clone = function(data) {
+        return JSON.parse(JSON.stringify(data));
+    };
+
+    var createSort = function(options) {
+        var defaultOptions = {
+            name: 'sort',
+            getSort: function(params) {
+                return Array.prototype.sort;
+            }
+        };
+        options = Object.assign(defaultOptions, options || {});
+
+        return function(params) {
+            if (!this.options[options.name]) {
+                this.options[options.name] = options;
+            }
+            if (params[options.name]) {
+                options = Object.assign(options, params[options.name]);
+            }
+            if (this.view.changed || params[options.name]) {
+                   this.view.data.sort(options.getSort.call(this, this.options[options.name]));
+                this.view.changed = true;
+                this.options[options.name] = options;
+                this.view.options[options.name] = simply.viewmodel.clone(options);
+            }
+        };
+    };
+
+    var createPaging = function(options) {
+        var defaultOptions = {
+            name: 'paging',
+            page: 1,
+            pageSize: 100,
+            max: 1,
+            prev: 0,
+            next: 0
+        };
+        options = Object.assign(defaultOptions, options || {});
+
+        return function(params) {
+            if (!this.options[options.name]) {
+                this.options[options.name] = options;
+            }
+            if (this.view.data) {
+                options.max = Math.ceil(Array.from(this.view.data).length / options.pageSize);
+            } else {
+                options.max = 1;
+            }
+            if (this.view.changed) {
+                options.page = 1; // reset to page 1 when something in the view data has changed
+            }
+            if (params[options.name]) {
+                options = Object.assign(options, params[options.name]);
+            }
+            options.page = Math.min(options.max, options.page); // clamp page nr
+            options.prev = options.page - 1; // calculate previous page, 0 is allowed
+            if (options.page<options.max) {
+                options.next = options.page + 1;
+            } else {
+                options.next = 0; // no next page
+            }
+
+            var start = (options.page - 1) * options.pageSize;
+            var end   = start + options.pageSize;
+            this.view.data = this.view.data.slice(start, end);
+
+            this.options[options.name] = options;
+            this.view.options[options.name] = simply.viewmodel.clone(options);
+        };
+    };
+
+    var createFilter = function(options) {
+        var defaultOptions = {
+            name: 'filter',
+            label: 'A filter',
+            getMatch: function(entry) {
+                return false;
+            }
+        };
+        options = Object.assign(defaultOptions, options || {});
+        if (options.init) {
+            options.init.call(this, options);
+        }
+        return function(params) {
+            if (!this.options[options.name]) {
+                this.options[options.name] = options;
+            }
+            options = Object.assign(options, simply.viewmodel.clone(this.options[options.name]));
+            if (params[options.name]) {
+                options = Object.assign(options, params[options.name]);
+                this.options[options.name] = options;
+            }
+            var match = options.getMatch.call(this, options);
+            if (match) {
+                options.enabled = true;
+                this.view.data = this.view.data.filter(match);
+                this.view.changed = true;
+            } else if (options.enabled) {
+                options.enabled = false;
+                this.view.changed = true;
+            }
+            this.options[options.name] = options;
+            this.view.options[options.name] = simply.viewmodel.clone(options);
+        }
+    }
+
+    var viewmodel = {
+        create: function(name, data, options) {
+            return new ViewModel(name, data, options);
+        },
+        createFilter: createFilter,
+        createSort: createSort,
+        createPaging: createPaging,
+        clone: clone,
+        updateDataSource: updateDataSource
+    };
+
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = viewmodel;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.viewmodel = viewmodel;
+    }
+
+})(this);(function(global) {
+    'use strict';
+
+    var app = function(options) {
         if (!options) {
             options = {};
         }
@@ -1581,9 +2014,18 @@ this.simply = (function(simply, global) {
             }
             if ( options.routes ) {
                 simply.route.load(options.routes);
+                if (options.routeEvents) {
+                    Object.keys(options.routeEvents).forEach(function(action) {
+                        Object.keys(options.routeEvents[action]).forEach(function(route) {
+                            options.routeEvents[action][route].forEach(function(callback) {
+                                simply.route.addListener(action, route, callback);
+                            });
+                        });
+                    });
+                }
                 simply.route.handleEvents();
                 global.setTimeout(function() {
-                    simply.route.match(global.location.pathname);
+                    simply.route.match(global.location.pathname+global.location.hash);
                 });
             }
             this.container = options.container  || document.body;
@@ -1604,10 +2046,16 @@ this.simply = (function(simply, global) {
             return this.container.querySelector('[data-simply-id='+id+']') || document.getElementById(id);
         };
 
-        var app = new simplyApp(options);
-
-        return app;
+        return new simplyApp(options);
     };
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = app;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.app = app;
+    }
+
+})(this);

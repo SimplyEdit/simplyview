@@ -1,8 +1,9 @@
-this.simply = (function(simply, global) {
+(function(global) {
+    'use strict';
 
     var listeners = {};
 
-    simply.activate = {
+     var activate = {
         addListener: function(name, callback) {
             if (!listeners[name]) {
                 listeners[name] = [];
@@ -67,5 +68,12 @@ this.simply = (function(simply, global) {
         childList: true
     });
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = activate;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.activate = activate;
+    }
+})(this);

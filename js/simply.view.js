@@ -1,22 +1,22 @@
-this.simply = (function(simply, global) {
-
-    simply.view = function(app, view) {
+(function(global) {
+    'use strict';
+    var view = function(app, view) {
 
         app.view = view || {};
 
         var load = function() {
             var data = app.view;
-            var path = editor.data.getDataPath(app.container);
-            app.view = editor.currentData[path];
+            var path = global.editor.data.getDataPath(app.container);
+            app.view = global.editor.currentData[path];
             Object.keys(data).forEach(function(key) {
                 app.view[key] = data[key];
             });
         };
 
-        if (global.editor && editor.currentData) {
+        if (global.editor && global.editor.currentData) {
             load();
         } else {
-            document.addEventListener('simply-content-loaded', function() {
+            global.document.addEventListener('simply-content-loaded', function() {
                 load();
             });
         }
@@ -24,5 +24,12 @@ this.simply = (function(simply, global) {
         return app.view;
     };
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = view;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.view = view;
+    }
+})(this);

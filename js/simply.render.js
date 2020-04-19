@@ -1,8 +1,7 @@
-this.simply = (function(simply, global) {
+(function(global) {
+    'use strict';
 
-//    var templates = new WeakMap();
-
-    simply.render = function(options) {
+    var render = function(options) {
         if (!options) {
             options = {};
         }
@@ -115,5 +114,12 @@ this.simply = (function(simply, global) {
         return options;
     };
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = render;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.render = render;
+    }
+})(this);

@@ -39,7 +39,9 @@
 properties for a given parent, keep seperate index for this?
  */
 
-this.simply = (function (simply, global) {
+(function (global) {
+    'use strict';
+
     var changeListeners = new WeakMap();
     var parentListeners = new WeakMap();
     var childListeners = new WeakMap();
@@ -315,7 +317,7 @@ this.simply = (function (simply, global) {
     // model.foo = { }
     // model.foo.bar = 'zab'; // this should trigger the observer but doesn't
 
-    simply.observe = function(model, path, callback, options) {
+    var observe = function(model, path, callback, options) {
         if (!path) {
             var keys = Object.keys(model);
             keys.forEach(function(key) {
@@ -336,5 +338,12 @@ this.simply = (function (simply, global) {
         }
     };
 
-    return simply;
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = observe;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.observe = observe;
+    }
+})(this);

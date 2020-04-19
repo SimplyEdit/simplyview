@@ -1,4 +1,5 @@
-this.simply = (function (simply, global) {
+(function (global) {
+    'use strict';
 
     var throttle = function( callbackFunction, intervalTime ) {
         var eventId = 0;
@@ -45,8 +46,8 @@ this.simply = (function (simply, global) {
     };
 
     var observer, loaded = {};
-    var head = document.documentElement.querySelector('head');
-    var currentScript = document.currentScript;
+    var head = global.document.querySelector('head');
+    var currentScript = global.document.currentScript;
 
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
@@ -54,10 +55,10 @@ this.simply = (function (simply, global) {
         // simply.include.next.js only fires the simply-next-script event
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
-            var next = document.createElement('script');
+            var next = global.document.createElement('script');
             next.src = rebaseHref('simply.include.next.js', currentScript.src);
             next.async = false;
-            document.addEventListener('simply-include-next', function() {
+            global.document.addEventListener('simply-include-next', function() {
                 head.removeChild(next);
                 resolve();
             }, { once: true, passive: true});
@@ -67,7 +68,7 @@ this.simply = (function (simply, global) {
 
     var scriptLocations = [];
 
-    simply.include = {
+    var include = {
         scripts: function(scripts, base) {
             var arr = [];
             for(var i = scripts.length; i--; arr.unshift(scripts[i]));
@@ -79,7 +80,7 @@ this.simply = (function (simply, global) {
                 var attrs  = [].map.call(script.attributes, function(attr) {
                     return attr.name;
                 });
-                var clone  = document.createElement('script');
+                var clone  = global.document.createElement('script');
                 attrs.forEach(function(attr) {
                     clone.setAttribute(attr, script[attr]);
                 });
@@ -111,7 +112,7 @@ this.simply = (function (simply, global) {
             }
         },
         html: function(html, link) {
-            var fragment = document.createRange().createContextualFragment(html);
+            var fragment = global.document.createRange().createContextualFragment(html);
             var stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
             // add all stylesheets to head
             [].forEach.call(stylesheets, function(stylesheet) {
@@ -122,12 +123,12 @@ this.simply = (function (simply, global) {
             });
             // remove the scripts from the fragment, as they will not run in the
             // order in which they are defined
-            var scriptsFragment = document.createDocumentFragment();
+            var scriptsFragment = global.document.createDocumentFragment();
             // FIXME: this loses the original position of the script
             // should add a placeholder so we can reinsert the clone
             var scripts = fragment.querySelectorAll('script');
             [].forEach.call(scripts, function(script) {
-                var placeholder = document.createComment(script.src || 'inline script');
+                var placeholder = global.document.createComment(script.src || 'inline script');
                 script.parentNode.insertBefore(placeholder, script);
                 script.dataset.simplyLocation = scriptLocations.length;
                 scriptLocations.push(placeholder);
@@ -138,7 +139,7 @@ this.simply = (function (simply, global) {
             global.setTimeout(function() {
                 if (global.editor && global.editor.data && fragment.querySelector('[data-simply-field],[data-simply-list]')) {
                     //TODO: remove this dependency and let simply.bind listen for dom node insertions (and simply-edit.js use simply.bind)
-                    global.editor.data.apply(editor.currentData, document);
+                    global.editor.data.apply(global.editor.currentData, global.document);
                 }
                 simply.include.scripts(scriptsFragment.childNodes, link ? link.href : global.location.href );
             }, 10);
@@ -183,7 +184,7 @@ this.simply = (function (simply, global) {
 
     var handleChanges = throttle(function() {
         runWhenIdle(function() {
-            var links = document.querySelectorAll('link[rel="simply-include"],link[rel="simply-include-once"]');
+            var links = global.document.querySelectorAll('link[rel="simply-include"],link[rel="simply-include-once"]');
             if (links.length) {
                 includeLinks(links);
             }
@@ -192,7 +193,7 @@ this.simply = (function (simply, global) {
 
     var observe = function() {
         observer = new MutationObserver(handleChanges);
-        observer.observe(document, {
+        observer.observe(global.document, {
             subtree: true,
             childList: true,
         });
@@ -200,6 +201,14 @@ this.simply = (function (simply, global) {
 
     observe();
 
-    return simply;
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = include;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.include = include;
+    }
 
-})(this.simply || {}, this);
+
+})(this);

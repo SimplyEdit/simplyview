@@ -12,5 +12,6 @@ cat js/simply.observe.js \
     js/simply.resize.js \
     js/simply.include.js \
     js/simply.view.js \
+    js/simply.viewmodel.js \
     js/simply.app.js > dist/simply.everything.js
 cp js/simply.include.next.js dist/

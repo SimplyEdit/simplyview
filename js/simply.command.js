@@ -1,4 +1,5 @@
-this.simply = (function(simply, global) {
+(function(global) {
+    'use strict';
 
     var defaultCommands = {
         'simply-hide': function(el, value) {
@@ -44,6 +45,16 @@ this.simply = (function(simply, global) {
         {
             match: 'input,select,textarea',
             get: function(el) {
+                if (el.tagName==='SELECT' && el.multiple) {
+                    var values = [], opt;
+                    for (var i=0,l=el.options.length;i<l;i++) {
+                        var opt = el.options[i];
+                        if (opt.selected) {
+                            values.push(opt.value);
+                        }
+                    }
+                    return values;
+                }
                 return el.dataset.simplyValue || el.value;
             },
             check: function(el, evt) {
@@ -64,7 +75,14 @@ this.simply = (function(simply, global) {
             get: function(el) {
                 var data = {};
                 [].forEach.call(el.elements, function(el) {
-                    data[el.name] = el.value;
+                    if (data[el.name] && !Array.isArray(data[el.name])) {
+                        data[el.name] = [data[el.name]];
+                    }
+                    if (Array.isArray(data[el.name])) {
+                        data[el.name].push(el.value);
+                    } else {
+                        data[el.name] = el.value;
+                    }
                 });
                 return data;//new FormData(el);
             },
@@ -110,7 +128,7 @@ this.simply = (function(simply, global) {
         return null;
     }
 
-    simply.command = function(app, inCommands) {
+    var command = function(app, inCommands) {
 
         var commands = Object.create(defaultCommands);
         for (var i in inCommands) {
@@ -161,6 +179,13 @@ this.simply = (function(simply, global) {
         return commands;
     };
 
-    return simply;
-    
-})(this.simply || {}, this);
+    if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+        module.exports = command;
+    } else {
+        if (!global.simply) {
+            global.simply = {};
+        }
+        global.simply.command = command;
+    }
+ 
+})(this);

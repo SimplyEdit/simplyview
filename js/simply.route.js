@@ -50,12 +50,48 @@
             && link.hostname==global.location.hostname 
             && !link.link
             && !link.dataset.simplyCommand
-            && route.has(link.pathname+link.hash)
         ) {
-            route.goto(link.pathname+link.hash);
-            evt.preventDefault();
-            return false;
+            if ( simply.route.has(link.pathname+link.hash) ) {
+                simply.route.goto(link.pathname+link.hash);
+                evt.preventDefault();
+                return false;
+            } else if (simply.route.has(link.pathname)) {
+                simply.route.goto(link.pathname);
+                evt.preventDefault();
+                return false;
+            }
         }
+    };
+
+    var options = {
+        root: '/'
+    };
+
+    var getPath = function(path) {
+        if (!path || path[0]!='/') {
+            path = '/'+path;
+        }
+        if (path.substring(0,options.root.length)==options.root
+            ||
+            ( options.root[options.root.length-1]=='/' 
+                && path.length==(options.root.length-1)
+                && path == options.root.substring(0,path.length)
+            )
+        ) {
+            path = path.substring(options.root.length-1);
+        }
+        if (path[0]!='/') {
+            path = '/'+path;
+        }
+        return path;
+    };
+
+    var getUrl = function(path) {
+        path = getPath(path);
+        if (options.root[options.root.length-1]=='/') {
+            path = path.substring(1);
+        }
+        return options.root + path;
     };
 
     function runListeners(action, params) {
@@ -80,7 +116,9 @@
     var route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                route.match(global.location.pathname+global.location.hash);
+                if (!simply.route.match(getPath(document.location.pathname + document.location.hash))) {
+					simply.route.match(getPath(document.location.pathname));
+				}
             });
             global.document.addEventListener('click', linkHandler);
         },
@@ -104,12 +142,20 @@
             path = args.path ? args.path : path;
 
             var matches;
+            if (!path) {
+				if (simply.route.match(document.location.pathname+document.location.hash)) {
+					return true;
+				} else {
+					return simply.route.match(document.location.pathname);
+				}
+            }
+            path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
                 if (path[path.length-1]!='/') {
                     matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
-                        history.replaceState({}, '', path);
+                        history.replaceState({}, '', getUrl(path));
                     }
                 }
                 matches = routeInfo[i].match.exec(path);
@@ -131,12 +177,14 @@
                     return args.result;
                 }
             }
+			return false;
         },
         goto: function(path) {
-            history.pushState({},'',path);
-            return route.match(path);
+            history.pushState({},'',getUrl(path));
+            return simply.route.match(path);
         },
         has: function(path) {
+            path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
                 var matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
@@ -164,6 +212,11 @@
             listeners[action][route] = listeners[action][route].filter(function(listener) {
                 return listener != callback;
             });
+		},
+        init: function(params) {
+            if (params.root) {
+                options.root = params.root;
+            }
         }
     };
 
