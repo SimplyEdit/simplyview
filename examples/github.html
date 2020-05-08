@@ -1,0 +1,17 @@
+<pre id="output"></pre>
+<script src="../dist/simply.everything.js"></script>
+<script src="../js/simply.api.js"></script>
+<script>
+    var githubApi = simply.api.create({
+        baseURL: 'https://api.github.com',
+        headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'poef'
+        }
+    });
+    
+    githubApi.users.poef.get().then(function(user) {
+        document.getElementById('output').innerText = JSON.stringify(user,
+        null, 4);
+    });
+</script>
