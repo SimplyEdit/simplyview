@@ -20,8 +20,10 @@
         verbs: {
             get: function(params) {
                 return fetchApi('get',this, params);
+            },
+            post: function(params) {
+                return fetchApi('post',this,params);
             }
-
         }
     };
 
@@ -74,24 +76,22 @@
         options = Object.assign(defaultOptions, options);
         return {
             get: function(cache, prop) {
-                if (Object.keys(options.verbs).indexOf(prop)!=-1) {
+                if (Object.keys(options.verbs).indexOf(prop)!=-1) { // property matches one of the http verbs: get, post, etc.
                     return function(params) {
                         return options.verbs[prop]
-                            .apply(options, params)
+                            .apply(cache, params)
                             .then(options.resultHandler)
                             .catch(options.errorHandler);
                     }
+                } else {
+                    return api.create(Object.assign(options, {
+                        baseURL: cd(options.baseURL, prop)
+                    }));
                 }
-                return api.create(Object.assign(options, {
-                    baseURL: cd(options.baseURL, prop)
-                }));
-            },
-            set: function(cache, prop, value) {
-
             },
             apply: function(cache, thisArg, params) {
                 return options.verbs.get
-                    .apply(options, params)
+                    .apply(cache, params)
                     .then(options.resultHandler)
                     .catch(options.errorHandler);
             }
@@ -101,6 +101,7 @@
     var api = {
         create: function(options) {
             var cache = () => {};
+            cache.options = options;
             return new Proxy( cache, getApiHandler(options) );
         }
     }
