@@ -7,11 +7,25 @@
         headers: {
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': 'poef'
+        },
+        callHandler: function(verb) {
+        	// must return a function that when called will return a promise
+        	// and somewhere in there will call the callback function
+        	// the passed callback function may be relied on to return a promise
+        	// this allows you to do asynchronous preliminary stuff, like login
+        	// before running the callback function
+        	return function(params) {
+        		console.log('testing');
+        		return this.verbs[verb].apply(this, params);
+        	}
         }
     });
     
-    githubApi.users.poef.get().then(function(user) {
+    githubApi.users.poef().then(function(user) {
         document.getElementById('output').innerText = JSON.stringify(user,
         null, 4);
     });
+    
+    githubApi.test = 'test';
+    console.log(githubApi.test);
 </script>
