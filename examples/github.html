@@ -1,23 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
 <pre id="output"></pre>
 <script src="../dist/simply.everything.js"></script>
 <script src="../js/simply.api.js"></script>
 <script>
-    var githubApi = simply.api.create({
+    var githubApi = simply.api.proxy({
         baseURL: 'https://api.github.com',
         headers: {
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': 'poef'
         },
-        callHandler: function(verb) {
-        	// must return a function that when called will return a promise
-        	// and somewhere in there will call the callback function
-        	// the passed callback function may be relied on to return a promise
-        	// this allows you to do asynchronous preliminary stuff, like login
-        	// before running the callback function
-        	return function(params) {
-        		console.log('testing');
-        		return this.verbs[verb].apply(this, params);
-        	}
+        handlers: {
+        	fetch: function(verb, params, options) {
+            	console.log(verb, params, options);
+            	return simply.api.fetch(verb, params, options)
+            	.then(function(response) {
+            		console.log(response,[...response.headers.entries()].map((h) => h[0]+': '+h[1]));
+            		return response;
+            	});
+            },
+            result: function(result, options) {
+            	return simply.api.getResult(result, options)
+            	.then(function(result) {
+            		console.log(result);
+            		return result;
+            	});
+            }
         }
     });
     
