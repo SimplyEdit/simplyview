@@ -3,10 +3,10 @@
     
     function ViewModel(name, data, options) {
         this.name = name;
-        this.data = data;
+        this.data = data || [];
         this.view = {
             options: {},
-            data: Array.from(this.data || []).slice()
+            data: [] //Array.from(this.data).slice()
         };
         this.options = options || {};
         this.plugins = {
@@ -30,7 +30,6 @@
         // the view is a shallow copy of the array, so that changes in sort order and filtering
         // won't get applied to the original, but databindings on its children will still work
         this.view.data = Array.from(this.data).slice();
-        this.view.changed = false;
         var plugins = this.plugins.start.concat(this.plugins.select, this.plugins.order, this.plugins.render, this.plugins.finish);
         var self = this;
         plugins.forEach(function(plugin) {
@@ -83,10 +82,7 @@
             if (params[options.name]) {
                 options = Object.assign(options, params[options.name]);
             }
-            if (this.view.changed || params[options.name]) {
-                this.view.data.sort(options.getSort.call(this, options));
-                this.view.changed = true;
-			}
+            this.view.data.sort(options.getSort.call(this, options));
         };
     };
 
@@ -104,7 +100,7 @@
         return function(params) {
             this.options[options.name] = options;
             if (this.view.data) {
-                options.max = Math.ceil(Array.from(this.view.data).length / options.pageSize);
+                options.max = Math.max(1, Math.ceil(Array.from(this.view.data).length / options.pageSize));
             } else {
                 options.max = 1;
             }
@@ -114,7 +110,7 @@
             if (params[options.name]) {
                 options = Object.assign(options, params[options.name]);
             }
-            options.page = Math.min(options.max, options.page); // clamp page nr
+            options.page = Math.max(1, Math.min(options.max, options.page)); // clamp page nr
             options.prev = options.page - 1; // calculate previous page, 0 is allowed
             if (options.page<options.max) {
                 options.next = options.page + 1;
@@ -150,10 +146,8 @@
             if (match) {
                 options.enabled = true;
                 this.view.data = this.view.data.filter(match);
-                this.view.changed = true;
             } else if (options.enabled) {
                 options.enabled = false;
-                this.view.changed = true;
             }
         }
     }
