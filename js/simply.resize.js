@@ -1,5 +1,5 @@
 (function(global) {
-	'use strict';
+    'use strict';
 
     var resize = function(app, config) {
         if (!config) {
@@ -32,6 +32,7 @@
                 } else {
                     if ( !app.container.classList.contains(match) ) {
                         app.container.classList.add(match);
+                        match = sizes.pop(); // skip to next match to remove these
                     }
                     break;
                 }
@@ -41,7 +42,7 @@
                 if ( app.container.classList.contains(match)) {
                     app.container.classList.remove(match);
                 }
-                match=sizes.pop();
+                match = sizes.pop();
             }
             var toolbars = app.container.querySelectorAll('.simply-toolbar');
             [].forEach.call(toolbars, function(toolbar) {

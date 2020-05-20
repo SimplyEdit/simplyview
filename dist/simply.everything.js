@@ -1473,7 +1473,7 @@ properties for a given parent, keep seperate index for this?
 
 })(this);
 (function(global) {
-	'use strict';
+    'use strict';
 
     var resize = function(app, config) {
         if (!config) {
@@ -1506,6 +1506,7 @@ properties for a given parent, keep seperate index for this?
                 } else {
                     if ( !app.container.classList.contains(match) ) {
                         app.container.classList.add(match);
+                        match = sizes.pop(); // skip to next match to remove these
                     }
                     break;
                 }
@@ -1515,7 +1516,7 @@ properties for a given parent, keep seperate index for this?
                 if ( app.container.classList.contains(match)) {
                     app.container.classList.remove(match);
                 }
-                match=sizes.pop();
+                match = sizes.pop();
             }
             var toolbars = app.container.querySelectorAll('.simply-toolbar');
             [].forEach.call(toolbars, function(toolbar) {
@@ -1752,6 +1753,7 @@ properties for a given parent, keep seperate index for this?
     };
 
     observe();
+    handleChanges(); // check if there are include links in the dom already
 
     if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
         module.exports = include;

@@ -200,6 +200,7 @@
     };
 
     observe();
+    handleChanges(); // check if there are include links in the dom already
 
     if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
         module.exports = include;
