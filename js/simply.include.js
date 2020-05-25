@@ -82,7 +82,7 @@
                 });
                 var clone  = global.document.createElement('script');
                 attrs.forEach(function(attr) {
-                    clone.setAttribute(attr, script[attr]);
+                    clone.setAttribute(attr, script.getAttribute(attr));
                 });
                 clone.removeAttribute('data-simply-location');
                 if (!clone.src) {
