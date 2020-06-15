@@ -1243,6 +1243,11 @@ properties for a given parent, keep seperate index for this?
             get: function(el) {
                 var data = {};
                 [].forEach.call(el.elements, function(el) {
+                    if (el.tagName=='INPUT' && (el.type=='checkbox' || el.type=='radio')) {
+                        if (!el.checked) {
+                            return;
+                        }
+                    }
                     if (data[el.name] && !Array.isArray(data[el.name])) {
                         data[el.name] = [data[el.name]];
                     }
