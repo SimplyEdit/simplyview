@@ -1606,6 +1606,17 @@ properties for a given parent, keep seperate index for this?
     var observer, loaded = {};
     var head = global.document.querySelector('head');
     var currentScript = global.document.currentScript;
+    if (!currentScript) {
+        var getScriptURL = (function() {
+            var scripts = document.getElementsByTagName('script');
+            var index = scripts.length - 1;
+            var myScript = scripts[index];
+            return function() { return myScript.src; };
+        })();
+        var currentScriptURL = getScriptURL();
+    } else {
+        var currentScriptURL = currentScript.src;
+    }
 
     var waitForPreviousScripts = function() {
         // because of the async=false attribute, this script will run after
@@ -1614,7 +1625,7 @@ properties for a given parent, keep seperate index for this?
         // that triggers the Promise.resolve method
         return new Promise(function(resolve) {
             var next = global.document.createElement('script');
-            next.src = rebaseHref('simply.include.next.js', currentScript.src);
+            next.src = rebaseHref('simply.include.next.js', currentScriptURL);
             next.async = false;
             global.document.addEventListener('simply-include-next', function() {
                 head.removeChild(next);
