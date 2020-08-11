@@ -135,7 +135,7 @@
 
     function cd(path, name) {
         name = name.replace(/\//g,'');
-        if (!path.length || !path[path.length-1]=='/') {
+        if (!path.length || path[path.length-1]!=='/') {
             path+='/';
         }
         return path+encodeURIComponent(name);
