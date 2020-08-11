@@ -21,8 +21,8 @@
          */
         proxy: function(options) {
             var cache = () => {};
-            cache.$options = options;
-            return new Proxy( cache, getApiHandler(options) );
+            cache.$options = Object.assign({}, options);
+            return new Proxy( cache, getApiHandler(cache.$options) );
         },
 
         /**
@@ -37,7 +37,17 @@
          * @return Promise
          */
         fetch: function(method, params, options) {
-            var url = new URL(options.baseURL+options.path);
+            if (!options.url) {
+                if (!options.baseURL) {
+                    throw new Error('No url or baseURL in options object');
+                }
+                while (options.baseURL[options.baseURL.length-1]=='/') {
+                    options.baseURL = options.baseURL.substr(0, -1);
+                }
+                var url = new URL(options.baseURL+options.path);
+            } else {
+                var url = options.url;
+            }
             var fetchOptions = Object.assign({}, options);
             if (params && options.paramsFormat == 'formData') {
                 var formData = new FormData();
@@ -125,7 +135,7 @@
 
     function cd(path, name) {
         name = name.replace(/\//g,'');
-        if (!path.length || !path[path.length-1]!='/') {
+        if (!path.length || !path[path.length-1]=='/') {
             path+='/';
         }
         return path+encodeURIComponent(name);
@@ -144,8 +154,8 @@
 	}
 
     function getApiHandler(options) {
-		options.handlers = Object.assign(defaultOptions.handlers, options.handlers);
-        options = Object.assign(defaultOptions, options);
+		options.handlers = Object.assign({}, defaultOptions.handlers, options.handlers);
+        options = Object.assign({}, defaultOptions, options);
 
         return {
             get: function(cache, prop) {
@@ -156,7 +166,7 @@
                     cache[prop] = fetchChain.call(options, prop, params);
                     return cache[prop];
                 } else {
-                    cache[prop] = api.proxy(Object.assign(options, {
+                    cache[prop] = api.proxy(Object.assign({}, options, {
                         path: cd(options.path, prop)
                     }));
                     return cache[prop];
