@@ -69,14 +69,28 @@
                 fetchOptions.body = formData
             }
             if (!options.headers) {
-                fetchOptions.headers = [];
+                fetchOptions.headers = {};
             }
             if (options.user) {
-                fetchOptions.headers.push('Authorization: Basic '+btoa(options.user+':'+options.password));
+                fetchOptions.headers['Authorization'] = 'Basic '+btoa(options.user+':'+options.password);
             }
             fetchOptions.method = method.toUpperCase();
             var fetchURL = url.toString()
             return fetch(fetchURL, fetchOptions);
+        },
+        graphqlQuery: function(url, query, options) {
+            return function(params) {
+                return simply.api.fetch(
+                    'POST', 
+                    JSON.stringify({
+                        query: query,
+                        variables: params
+                    }), 
+                    Object.assign({ paramsFormat: 'json', url: url, responseFormat: 'json' }, options)
+                ).then(function(response) {
+                    return simply.api.getResult(response, options);
+                });
+            }  
         },
         /**
          * Handles the response and returns a Promise with the response data as specified
