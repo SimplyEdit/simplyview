@@ -142,7 +142,7 @@
 		verbs: ['get','post'],
 		handlers: {
 			fetch:  api.fetch,
-			result: api.jsonResult,
+			result: api.getResult,
 			error:  api.logError
 		}
     };
