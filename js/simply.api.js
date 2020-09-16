@@ -42,7 +42,7 @@
                     throw new Error('No url or baseURL in options object');
                 }
                 while (options.baseURL[options.baseURL.length-1]=='/') {
-                    options.baseURL = options.baseURL.substr(0, -1);
+                    options.baseURL = options.baseURL.substr(0, options.baseURL.length-1);
                 }
                 var url = new URL(options.baseURL+options.path);
             } else {
