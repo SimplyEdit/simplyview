@@ -2041,21 +2041,27 @@ properties for a given parent, keep seperate index for this?
                 var url = options.url;
             }
             var fetchOptions = Object.assign({}, options);
-            if (params && options.paramsFormat == 'formData') {
-                var formData = new FormData();
-                for (const name in params) {
-                    formData.append(name, params[name]);
+            if (params) {
+                switch(options.paramsFormat) {
+                    case 'formData':
+                        var formData = new FormData();
+                        for (const name in params) {
+                            formData.append(name, params[name]);
+                        }
+                        break;
+                    case 'json':
+                        var formData = params;
+                        break;
+                    case 'search':
+                        var searchParams = url.searchParams; //new URLSearchParams(url.search.slice(1));
+                        for (const name in params) {
+                            searchParams.set(name, params[name]);
+                        }
+                        url.search = searchParams.toString();
+                        break;
+                    default:
+        				throw Error('Unknown options.paramsFormat '+options.paramsFormat+'. Select one of formData, json or search.');
                 }
-            } else if (params && options.paramsFormat == 'json') {
-                var formData = params;
-            } else if (params && options.paramsFormat == 'search') {
-                var searchParams = url.searchParams; //new URLSearchParams(url.search.slice(1));
-                for (const name in params) {
-                    searchParams.set(name, params[name]);
-                }
-                url.search = searchParams.toString();
-            } else {
-				throw Error('Unknown options.paramsFormat '+options.paramsFormat+'. Select one of formData, json or search.');
 			}
             if (formData) {
                 fetchOptions.body = formData
@@ -2165,18 +2171,18 @@ properties for a given parent, keep seperate index for this?
 
         return {
             get: function(cache, prop) {
-                if (cache[prop]) {
-                    return cache[prop];
-                } else if (options.verbs.indexOf(prop)!=-1) { 
-                    // property matches one of the http verbs: get, post, etc.
-                    cache[prop] = fetchChain.call(options, prop, params);
-                    return cache[prop];
-                } else {
-                    cache[prop] = api.proxy(Object.assign({}, options, {
-                        path: cd(options.path, prop)
-                    }));
-                    return cache[prop];
+                if (!cache[prop]) {
+                    if (options.verbs.indexOf(prop)!=-1) { 
+                        cache[prop] = function(params) {
+                            return fetchChain.call(options, prop, params);
+                        }
+                    } else {
+                        cache[prop] = api.proxy(Object.assign({}, options, {
+                            path: cd(options.path, prop)
+                        }));
+                    }
                 }
+                return cache[prop];
             },
             apply: function(cache, thisArg, params) {
                 return fetchChain.call(options, 'get', params)
@@ -2194,7 +2200,8 @@ properties for a given parent, keep seperate index for this?
         global.simply.api = api;
     }
 
-})(this);(function(global) {
+})(this);
+(function(global) {
     'use strict';
 
     var app = function(options) {
