@@ -50,7 +50,12 @@
             }
             var fetchOptions = Object.assign({}, options);
             if (params) {
-                switch(options.paramsFormat) {
+                if (method=='GET') {
+                    var paramsFormat = 'search';
+                } else {
+                    var paramsFormat = options.paramsFormat;
+                }
+                switch(paramsFormat) {
                     case 'formData':
                         var formData = new FormData();
                         for (const name in params) {
@@ -58,7 +63,7 @@
                         }
                         break;
                     case 'json':
-                        var formData = params;
+                        var formData = JSON.stringify(params);
                         break;
                     case 'search':
                         var searchParams = url.searchParams; //new URLSearchParams(url.search.slice(1));
@@ -68,9 +73,10 @@
                         url.search = searchParams.toString();
                         break;
                     default:
-        				throw Error('Unknown options.paramsFormat '+options.paramsFormat+'. Select one of formData, json or search.');
+                        throw Error('Unknown options.paramsFormat '+options.paramsFormat+'. Select one of formData, json or search.');
+                        break;
                 }
-			}
+            }
             if (formData) {
                 fetchOptions.body = formData
             }
@@ -193,7 +199,7 @@
                 return cache[prop];
             },
             apply: function(cache, thisArg, params) {
-                return fetchChain.call(options, 'get', params)
+                return fetchChain.call(options, 'get', params[0] ? params[0] : null)
             }
         }
     }
