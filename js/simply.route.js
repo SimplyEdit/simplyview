@@ -116,7 +116,7 @@
     var route = {
         handleEvents: function() {
             global.addEventListener('popstate', function() {
-                if (!route.match(getPath(document.location.pathname + document.location.hash))) {
+                if (route.match(getPath(document.location.pathname + document.location.hash)) === false) {
 					route.match(getPath(document.location.pathname));
 				}
             });
