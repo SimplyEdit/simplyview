@@ -25,8 +25,3 @@ You'll get the whole repository, which includes the separate javascript files in
 
 If you use `simply.include.js`, make sure to also include `simply.include.next.js` in the same directory.
 
-## Status
-
-SimplyView is still in Beta, so use at your own risk. That said, most components are ready and have been tested in most browsers and in different applications. Only the simply.observe.js is relatively untested and simply.bind.js and simply.render.js are not finished.
-
-simply.bind.js will probably be combined with simply.render and renamed simply.field.js. This component, in combination with a new simply.list.js, will implement the rendering part of SimplyEdit. For now just use SimplyEdit in combination with SimplyView.
