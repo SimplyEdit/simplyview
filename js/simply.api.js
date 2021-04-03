@@ -49,6 +49,9 @@
                 var url = options.url;
             }
             var fetchOptions = Object.assign({}, options);
+            if (!fetchOptions.headers) {
+                fetchOptions.headers = {};
+            }
             if (params) {
                 if (method=='GET') {
                     var paramsFormat = 'search';
@@ -61,9 +64,15 @@
                         for (const name in params) {
                             formData.append(name, params[name]);
                         }
+                        if (!fetchOptions.headers['Content-Type']) {
+                            fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                        }
                         break;
                     case 'json':
                         var formData = JSON.stringify(params);
+                        if (!fetchOptions.headers['Content-Type']) {
+                            fetchOptions.headers['Content-Type'] = 'application/json';
+                        }
                         break;
                     case 'search':
                         var searchParams = url.searchParams; //new URLSearchParams(url.search.slice(1));
@@ -80,9 +89,6 @@
             if (formData) {
                 fetchOptions.body = formData
             }
-            if (!options.headers) {
-                fetchOptions.headers = {};
-            }
             if (options.user) {
                 fetchOptions.headers['Authorization'] = 'Basic '+btoa(options.user+':'+options.password);
             }
@@ -90,16 +96,21 @@
             var fetchURL = url.toString()
             return fetch(fetchURL, fetchOptions);
         },
+        /**
+         * Creates a function to call one or more graphql queries
+         */
         graphqlQuery: function(url, query, options) {
-            return function(params) {
-                return simply.api.fetch(
-                    'POST', 
-                    JSON.stringify({
-                        query: query,
-                        variables: params
-                    }), 
-                    Object.assign({ paramsFormat: 'json', url: url, responseFormat: 'json' }, options)
-                ).then(function(response) {
+            options = Object.assign({ paramsFormat: 'json', url: url, responseFormat: 'json' }, options);
+            return function(params, operationName) {
+                let postParams = {
+                    query: query
+                };
+                if (operationName) {
+                    postParams.operationName = operationName;
+                }
+                postParams.variables = params || {};
+                return simply.api.fetch('POST', postParams, options )
+                .then(function(response) {
                     return simply.api.getResult(response, options);
                 });
             }  
@@ -111,7 +122,7 @@
          * - responseFormat: one of 'text', 'formData', 'blob', 'arrayBuffer', 'unbuffered' or 'json'.
          * The default is json.
          */
-		getResult: function(response, options) {
+        getResult: function(response, options) {
             if (response.ok) {
 				switch(options.responseFormat) {
 					case 'text':
@@ -142,6 +153,7 @@
                 }
             }
 		},
+
 		logError: function(error, options) {
             console.error(error.status, error.message);
 		}
