@@ -524,6 +524,7 @@ properties for a given parent, keep seperate index for this?
 
     var routeInfo = [];
     var listeners = {
+        goto: {},
         match: {},
         call: {},
         finish: {}
@@ -572,12 +573,15 @@ properties for a given parent, keep seperate index for this?
             && !link.link
             && !link.dataset.simplyCommand
         ) {
-            if ( route.has(link.pathname+link.hash) ) {
-                route.goto(link.pathname+link.hash);
-                evt.preventDefault();
-                return false;
-            } else if (route.has(link.pathname)) {
-                route.goto(link.pathname);
+            let path = getPath(link.pathname+link.hash);
+            if ( !route.has(path) ) {
+                path = getPath(link.pathname);
+            }
+            if ( route.has(path) ) {
+                let params = runListeners('goto', { path: path});
+                if (params.path) {
+                    route.goto(params.path);
+                }
                 evt.preventDefault();
                 return false;
             }
@@ -589,9 +593,6 @@ properties for a given parent, keep seperate index for this?
     };
 
     var getPath = function(path) {
-        if (!path || path[0]!='/') {
-            path = '/'+path;
-        }
         if (path.substring(0,options.root.length)==options.root
             ||
             ( options.root[options.root.length-1]=='/' 
@@ -599,9 +600,9 @@ properties for a given parent, keep seperate index for this?
                 && path == options.root.substring(0,path.length)
             )
         ) {
-            path = path.substring(options.root.length-1);
+            path = path.substring(options.root.length);
         }
-        if (path[0]!='/') {
+        if (path[0]!='/' && path[0]!='#') {
             path = '/'+path;
         }
         return path;
@@ -609,7 +610,7 @@ properties for a given parent, keep seperate index for this?
 
     var getUrl = function(path) {
         path = getPath(path);
-        if (options.root[options.root.length-1]=='/') {
+        if (options.root[options.root.length-1]==='/' && path[0]==='/') {
             path = path.substring(1);
         }
         return options.root + path;
@@ -672,7 +673,7 @@ properties for a given parent, keep seperate index for this?
             }
             path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
-                if (path[path.length-1]!='/') {
+                if (path && path[path.length-1]!='/') {
                     matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
@@ -715,7 +716,7 @@ properties for a given parent, keep seperate index for this?
             return false;
         },
         addListener: function(action, route, callback) {
-            if (['match','call','finish'].indexOf(action)==-1) {
+            if (['goto','match','call','finish'].indexOf(action)==-1) {
                 throw new Error('Unknown action '+action);
             }
             if (!listeners[action][route]) {
@@ -1776,6 +1777,9 @@ properties for a given parent, keep seperate index for this?
                 var url = options.url;
             }
             var fetchOptions = Object.assign({}, options);
+            if (!fetchOptions.headers) {
+                fetchOptions.headers = {};
+            }
             if (params) {
                 if (method=='GET') {
                     var paramsFormat = 'search';
@@ -1788,9 +1792,15 @@ properties for a given parent, keep seperate index for this?
                         for (const name in params) {
                             formData.append(name, params[name]);
                         }
+                        if (!fetchOptions.headers['Content-Type']) {
+                            fetchOptions.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+                        }
                         break;
                     case 'json':
                         var formData = JSON.stringify(params);
+                        if (!fetchOptions.headers['Content-Type']) {
+                            fetchOptions.headers['Content-Type'] = 'application/json';
+                        }
                         break;
                     case 'search':
                         var searchParams = url.searchParams; //new URLSearchParams(url.search.slice(1));
@@ -1807,9 +1817,6 @@ properties for a given parent, keep seperate index for this?
             if (formData) {
                 fetchOptions.body = formData
             }
-            if (!options.headers) {
-                fetchOptions.headers = {};
-            }
             if (options.user) {
                 fetchOptions.headers['Authorization'] = 'Basic '+btoa(options.user+':'+options.password);
             }
@@ -1817,16 +1824,21 @@ properties for a given parent, keep seperate index for this?
             var fetchURL = url.toString()
             return fetch(fetchURL, fetchOptions);
         },
+        /**
+         * Creates a function to call one or more graphql queries
+         */
         graphqlQuery: function(url, query, options) {
-            return function(params) {
-                return simply.api.fetch(
-                    'POST', 
-                    JSON.stringify({
-                        query: query,
-                        variables: params
-                    }), 
-                    Object.assign({ paramsFormat: 'json', url: url, responseFormat: 'json' }, options)
-                ).then(function(response) {
+            options = Object.assign({ paramsFormat: 'json', url: url, responseFormat: 'json' }, options);
+            return function(params, operationName) {
+                let postParams = {
+                    query: query
+                };
+                if (operationName) {
+                    postParams.operationName = operationName;
+                }
+                postParams.variables = params || {};
+                return simply.api.fetch('POST', postParams, options )
+                .then(function(response) {
                     return simply.api.getResult(response, options);
                 });
             }  
@@ -1838,7 +1850,7 @@ properties for a given parent, keep seperate index for this?
          * - responseFormat: one of 'text', 'formData', 'blob', 'arrayBuffer', 'unbuffered' or 'json'.
          * The default is json.
          */
-		getResult: function(response, options) {
+        getResult: function(response, options) {
             if (response.ok) {
 				switch(options.responseFormat) {
 					case 'text':
@@ -1869,6 +1881,7 @@ properties for a given parent, keep seperate index for this?
                 }
             }
 		},
+
 		logError: function(error, options) {
             console.error(error.status, error.message);
 		}
