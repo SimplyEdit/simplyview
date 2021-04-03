@@ -3,6 +3,7 @@
 
     var routeInfo = [];
     var listeners = {
+        goto: {},
         match: {},
         call: {},
         finish: {}
@@ -51,12 +52,15 @@
             && !link.link
             && !link.dataset.simplyCommand
         ) {
-            if ( route.has(link.pathname+link.hash) ) {
-                route.goto(link.pathname+link.hash);
-                evt.preventDefault();
-                return false;
-            } else if (route.has(link.pathname)) {
-                route.goto(link.pathname);
+            let path = getPath(link.pathname+link.hash);
+            if ( !route.has(path) ) {
+                path = getPath(link.pathname);
+            }
+            if ( route.has(path) ) {
+                let params = runListeners('goto', { path: path});
+                if (params.path) {
+                    route.goto(params.path);
+                }
                 evt.preventDefault();
                 return false;
             }
@@ -68,9 +72,6 @@
     };
 
     var getPath = function(path) {
-        if (!path || path[0]!='/') {
-            path = '/'+path;
-        }
         if (path.substring(0,options.root.length)==options.root
             ||
             ( options.root[options.root.length-1]=='/' 
@@ -78,9 +79,9 @@
                 && path == options.root.substring(0,path.length)
             )
         ) {
-            path = path.substring(options.root.length-1);
+            path = path.substring(options.root.length);
         }
-        if (path[0]!='/') {
+        if (path[0]!='/' && path[0]!='#') {
             path = '/'+path;
         }
         return path;
@@ -88,7 +89,7 @@
 
     var getUrl = function(path) {
         path = getPath(path);
-        if (options.root[options.root.length-1]=='/') {
+        if (options.root[options.root.length-1]==='/' && path[0]==='/') {
             path = path.substring(1);
         }
         return options.root + path;
@@ -151,7 +152,7 @@
             }
             path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
-                if (path[path.length-1]!='/') {
+                if (path && path[path.length-1]!='/') {
                     matches = routeInfo[i].match.exec(path+'/');
                     if (matches) {
                         path+='/';
@@ -194,7 +195,7 @@
             return false;
         },
         addListener: function(action, route, callback) {
-            if (['match','call','finish'].indexOf(action)==-1) {
+            if (['goto','match','call','finish'].indexOf(action)==-1) {
                 throw new Error('Unknown action '+action);
             }
             if (!listeners[action][route]) {
