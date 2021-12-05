@@ -29,7 +29,8 @@
                     simply.route.match(global.location.pathname+global.location.hash);
                 });
             }
-            this.container = options.container  || document.body;
+            this.container = options.container || document.body;
+            this.keyboard  = simply.keyboard ? simply.keyboard(this, options.keyboard || {}) : false;
             this.actions   = simply.action ? simply.action(this, options.actions) : false;
             this.commands  = simply.command ? simply.command(this, options.commands) : false;
             this.resize    = simply.resize ? simply.resize(this, options.resize) : false;

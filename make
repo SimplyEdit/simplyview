@@ -7,6 +7,7 @@ cat js/simply.observe.js \
     js/simply.activate.js \
     js/simply.collect.js \
     js/simply.command.js \
+    js/simply.keyboard.js \
     js/simply.action.js \
     js/simply.resize.js \
     js/simply.include.js \
