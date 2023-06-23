@@ -144,22 +144,24 @@
 
             var matches;
             if (!path) {
-				if (route.match(document.location.pathname+document.location.hash)) {
-					return true;
-				} else {
-					return route.match(document.location.pathname);
-				}
+                if (route.match(document.location.pathname+document.location.hash)) {
+                    return true;
+                } else {
+                    return route.match(document.location.pathname);
+                }
             }
             path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
-                if (path && path[path.length-1]!='/') {
-                    matches = routeInfo[i].match.exec(path+'/');
-                    if (matches) {
-                        path+='/';
-                        history.replaceState({}, '', getUrl(path));
+                matches = routeInfo[i].match.exec(path);
+                if (!matches || !matches.length) {
+                    if (path && path[path.length-1]!='/') {
+                        matches = routeInfo[i].match.exec(path+'/');
+                        if (matches) {
+                            path+='/';
+                            history.replaceState({}, '', getUrl(path));
+                        }
                     }
                 }
-                matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
                     var params = {};
                     routeInfo[i].params.forEach(function(key, i) {
@@ -176,7 +178,7 @@
                     args.result = routeInfo[i].action.call(route, params);
                     runListeners('finish', args);
                     return args.result;
-				}
+                }
             }
 			return false;
         },

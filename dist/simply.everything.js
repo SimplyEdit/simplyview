@@ -665,22 +665,24 @@ properties for a given parent, keep seperate index for this?
 
             var matches;
             if (!path) {
-				if (route.match(document.location.pathname+document.location.hash)) {
-					return true;
-				} else {
-					return route.match(document.location.pathname);
-				}
+                if (route.match(document.location.pathname+document.location.hash)) {
+                    return true;
+                } else {
+                    return route.match(document.location.pathname);
+                }
             }
             path = getPath(path);
             for ( var i=0; i<routeInfo.length; i++) {
-                if (path && path[path.length-1]!='/') {
-                    matches = routeInfo[i].match.exec(path+'/');
-                    if (matches) {
-                        path+='/';
-                        history.replaceState({}, '', getUrl(path));
+                matches = routeInfo[i].match.exec(path);
+                if (!matches || !matches.length) {
+                    if (path && path[path.length-1]!='/') {
+                        matches = routeInfo[i].match.exec(path+'/');
+                        if (matches) {
+                            path+='/';
+                            history.replaceState({}, '', getUrl(path));
+                        }
                     }
                 }
-                matches = routeInfo[i].match.exec(path);
                 if (matches && matches.length) {
                     var params = {};
                     routeInfo[i].params.forEach(function(key, i) {
@@ -697,7 +699,7 @@ properties for a given parent, keep seperate index for this?
                     args.result = routeInfo[i].action.call(route, params);
                     runListeners('finish', args);
                     return args.result;
-				}
+                }
             }
 			return false;
         },
@@ -1125,8 +1127,25 @@ properties for a given parent, keep seperate index for this?
             if (e.target.closest('[data-simply-keyboard]')) {
                 selectedKeyboard = e.target.closest('[data-simply-keyboard]').dataset.simplyKeyboard;
             }
-            if (keys[selectedKeyboard] && keys[selectedKeyboard][e.code]) {
-                keys[selectedKeyboard][e.code].call(app,e);
+            let key = '';
+            if (e.ctrlKey && e.keyCode!=17) {
+                key+='Control+';
+            }
+            if (e.metaKey && e.keyCode!=224) {
+                key+='Meta+';
+            }
+            if (e.altKey && e.keyCode!=18) {
+                key+='Alt+';
+            }
+            if (e.shiftKey && e.keyCode!=16) {
+                key+='Shift+';
+            }
+            key+=e.key;
+
+            if (keys[selectedKeyboard] && keys[selectedKeyboard][key]) {
+                let keyboard = keys[selectedKeyboard]
+                keyboard.app = app;
+                keyboard[key].call(keyboard,e);
             }
         });
 
@@ -1775,7 +1794,7 @@ properties for a given parent, keep seperate index for this?
     'use strict';
 
     var api = {
-		/**
+        /**
          * Returns a Proxy object that translates property access to a URL in the api
          * and method calls to a fetch on that URL.
          * @param options: a list of options for fetch(), 
@@ -1897,27 +1916,27 @@ properties for a given parent, keep seperate index for this?
          */
         getResult: function(response, options) {
             if (response.ok) {
-				switch(options.responseFormat) {
-					case 'text':
-						return response.text();
-					break;
-					case 'formData':
-						return response.formData();
-					break;
-					case 'blob':
-						return response.blob();
-					break;
-					case 'arrayBuffer':
-						return response.arrayBuffer();
-					break;
-					case 'unbuffered':
-						return response.body;
-					break;
-					case 'json':
-					default:
-		                return response.json();
-					break;
-				}
+                switch(options.responseFormat) {
+                    case 'text':
+                        return response.text();
+                    break;
+                    case 'formData':
+                        return response.formData();
+                    break;
+                    case 'blob':
+                        return response.blob();
+                    break;
+                    case 'arrayBuffer':
+                        return response.arrayBuffer();
+                    break;
+                    case 'unbuffered':
+                        return response.body;
+                    break;
+                    case 'json':
+                    default:
+                        return response.json();
+                    break;
+                }
             } else {
                 throw {
                     status: response.status,
@@ -1925,23 +1944,22 @@ properties for a given parent, keep seperate index for this?
                     response: response
                 }
             }
-		},
-
-		logError: function(error, options) {
+        },
+        logError: function(error, options) {
             console.error(error.status, error.message);
-		}
+        }
     }
 
     var defaultOptions = {
-		path: '',
-		responseFormat: 'json',
-		paramsFormat: 'search',
-		verbs: ['get','post'],
-		handlers: {
-			fetch:  api.fetch,
-			result: api.getResult,
-			error:  api.logError
-		}
+        path: '',
+        responseFormat: 'json',
+        paramsFormat: 'search',
+        verbs: ['get','post'],
+        handlers: {
+            fetch:  api.fetch,
+            result: api.getResult,
+            error:  api.logError
+        }
     };
 
     function cd(path, name) {
@@ -1952,20 +1970,20 @@ properties for a given parent, keep seperate index for this?
         return path+encodeURIComponent(name);
     }
 
-	function fetchChain(prop, params) {
-		var options = this;
-		return this.handlers.fetch
-			.call(this, prop, params, options)
-			.then(function(res) {
-				return options.handlers.result.call(options, res, options);
-			})
-			.catch(function(error) {
-				return options.handlers.error.call(options, error, options);
-			});
-	}
+    function fetchChain(prop, params) {
+        var options = this;
+        return this.handlers.fetch
+            .call(this, prop, params, options)
+            .then(function(res) {
+                return options.handlers.result.call(options, res, options);
+            })
+            .catch(function(error) {
+                return options.handlers.error.call(options, error, options);
+            });
+    }
 
     function getApiHandler(options) {
-		options.handlers = Object.assign({}, defaultOptions.handlers, options.handlers);
+        options.handlers = Object.assign({}, defaultOptions.handlers, options.handlers);
         options = Object.assign({}, defaultOptions, options);
 
         return {
