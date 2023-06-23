@@ -25,8 +25,25 @@
             if (e.target.closest('[data-simply-keyboard]')) {
                 selectedKeyboard = e.target.closest('[data-simply-keyboard]').dataset.simplyKeyboard;
             }
-            if (keys[selectedKeyboard] && keys[selectedKeyboard][e.code]) {
-                keys[selectedKeyboard][e.code].call(app,e);
+            let key = '';
+            if (e.ctrlKey && e.keyCode!=17) {
+                key+='Control+';
+            }
+            if (e.metaKey && e.keyCode!=224) {
+                key+='Meta+';
+            }
+            if (e.altKey && e.keyCode!=18) {
+                key+='Alt+';
+            }
+            if (e.shiftKey && e.keyCode!=16) {
+                key+='Shift+';
+            }
+            key+=e.key;
+
+            if (keys[selectedKeyboard] && keys[selectedKeyboard][key]) {
+                let keyboard = keys[selectedKeyboard]
+                keyboard.app = app;
+                keyboard[key].call(keyboard,e);
             }
         });
 
