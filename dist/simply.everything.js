@@ -639,8 +639,8 @@ properties for a given parent, keep seperate index for this?
         handleEvents: function() {
             global.addEventListener('popstate', function() {
                 if (route.match(getPath(document.location.pathname + document.location.hash)) === false) {
-					route.match(getPath(document.location.pathname));
-				}
+                    route.match(getPath(document.location.pathname));
+                }
             });
             global.document.addEventListener('click', linkHandler);
         },
@@ -701,7 +701,7 @@ properties for a given parent, keep seperate index for this?
                     return args.result;
                 }
             }
-			return false;
+            return false;
         },
         goto: function(path) {
             history.pushState({},'',getUrl(path));
@@ -736,7 +736,7 @@ properties for a given parent, keep seperate index for this?
             listeners[action][route] = listeners[action][route].filter(function(listener) {
                 return listener != callback;
             });
-		},
+        },
         init: function(params) {
             if (params.root) {
                 options.root = params.root;
