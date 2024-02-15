@@ -41,6 +41,54 @@ Once that is done, you should call an internal function that doesn't know
 anything about the exact HTML structure. [simply.action](simply.action.md) 
 is purpose build to be used in that way. The Todo example shows how you can use this.
 
+## immediate mode
+
+By default commands on form inputs are only triggered on the change event. However, you can make them trigger on the input event, which means that every keystroke will immediately run the associated command. To do this, specify your command like this:
+
+```html
+<input type="text" 
+    data-simply-command="someCommand" data-simply-immediate="true">
+```
+
+## FORM submit
+
+If you add a command on a FORM element, it will be called on the submit event. The normal submit will be blocked, so you must handle the form yourself. A command on the FORM element is passed an object with all form entries as its value parameter. If you have multiple inputs with the same name, the values entry will automatically turn into an array. The values object is a plain object, not a FormData object, because it is usually overly complex to use. If you need it, you can simply create your own FormData object, e.g.:
+
+```javascript
+simply.command(app, {
+  myFormHandler: async function(form, values) {
+    let data = new FormData(form)
+    ...
+  }
+)
+```
+It is preferable to add a `data-simply-command` to the FORM element, instead of to a submit button. If you have `required` fields in a FORM, the browser checks will trigger automatically, because the pre-submit checks will fire. But a command on a button does not trigger this behaviour and it is very difficult to work around.
+
+You must still handle the form data and send any HTTP request by hand using the Fetch API. The command will always prevent the default action.
+
+## Commands and Data-Simply-Field
+
+Commands cancel the event that triggered them. This means that if you define a command on a `data-simply-field` element, like this:
+
+```html
+<input type="text" data-simply-field="input" data-simply-command="doSomething">
+```
+
+Then the command may trigger before SimplyEdit has a chance to update the field. This means that the data binding is broken. Changes made in the input won't be reflected in `editor.pageData`.
+
+To make this work, you can fire an event to let SimplyEdit know a value has changed:
+
+```javascript
+const app = simply.app({
+  commands: {
+    doSomething: function(el, value) {
+      editor.fireEvent("databinding:valuechanged", el);
+      // and do your own stuff here
+    }
+  }
+});
+```
+
 ## commands.action
 
 Each command function runs with the commands object returned from 
