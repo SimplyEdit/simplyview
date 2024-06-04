@@ -1601,6 +1601,7 @@ properties for a given parent, keep seperate index for this?
             load();
         } else {
             global.document.addEventListener('simply-content-loaded', function() {
+                console.log('switching...')
                 load();
             });
         }
@@ -1619,10 +1620,18 @@ properties for a given parent, keep seperate index for this?
 })(this);
 (function(global) {
     'use strict';
+
+    function etag() {
+        let d = '';
+        while (d.length < 32) d += Math.random().toString(16).substr(2);
+        const vr = ((parseInt(d.substr(16, 1), 16) & 0x3) | 0x8).toString(16);
+        return `${d.substr(0, 8)}-${d.substr(8, 4)}-4${d.substr(13, 3)}-${vr}${d.substr(17, 3)}-${d.substr(20, 12)}`;
+    }
     
     function ViewModel(name, data, options) {
         this.name = name;
         this.data = data || [];
+        this.data.etag = etag();
         this.view = {
             options: {},
             data: [] //Array.from(this.data).slice()
@@ -1645,15 +1654,22 @@ properties for a given parent, keep seperate index for this?
             // this.data is a reference to the data passed, so that any changes in it will get applied
             // to the original
             this.data = params.data;
+            this.data.etag = etag()
         }
         // the view is a shallow copy of the array, so that changes in sort order and filtering
         // won't get applied to the original, but databindings on its children will still work
         this.view.data = Array.from(this.data).slice();
-        var plugins = this.plugins.start.concat(this.plugins.select, this.plugins.order, this.plugins.render, this.plugins.finish);
-        var self = this;
-        plugins.forEach(function(plugin) {
-            plugin.call(self, params);
+        this.view.data.etag = this.data.etag;
+        let data = this.view.data;
+        let plugins = this.plugins.start.concat(this.plugins.select, this.plugins.order, this.plugins.render, this.plugins.finish);
+        plugins.forEach(plugin => {
+            data = plugin.call(this, params, data);
+            if (!data) {
+                data = this.view.data;
+            }
+            this.view.data = data
         });
+        this.view.data = data;
 
         if (global.editor) {
             global.editor.addDataSource(this.name,{
@@ -1778,7 +1794,8 @@ properties for a given parent, keep seperate index for this?
         createFilter: createFilter,
         createSort: createSort,
         createPaging: createPaging,
-        updateDataSource: updateDataSource
+        updateDataSource: updateDataSource,
+        etag
     };
 
     if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {

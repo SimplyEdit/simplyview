@@ -27,5 +27,10 @@
   "homepage": "https://github.com/simplyedit/simplyview#readme",
   "devDependencies": {
     "jest": "^24.9.0"
-  }
+  },
+  "files": [
+    "README.md",
+    "dist/",
+    "js/"
+  ]
 }
