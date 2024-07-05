@@ -1385,22 +1385,11 @@ properties for a given parent, keep seperate index for this?
     })();
 
     var rebaseHref = function(relative, base) {
-        if (/^[a-z-]*:?\//.test(relative)) {
-            return relative; // absolute href, no need to rebase
+        let url = new URL(relative, base)
+        if (include.cacheBuster) {
+            url.searchParams.set('cb',include.cacheBuster)
         }
-
-        var stack = base.split('/'),
-            parts = relative.split('/');
-        stack.pop(); // remove current file name (or empty string)
-        for (var i=0; i<parts.length; i++) {
-            if (parts[i] == '.')
-                continue;
-            if (parts[i] == '..')
-                stack.pop();
-            else
-                stack.push(parts[i]);
-        }
-        return stack.join('/');
+        return url.href
     };
 
     var observer, loaded = {};
@@ -1438,6 +1427,7 @@ properties for a given parent, keep seperate index for this?
     var scriptLocations = [];
 
     var include = {
+        cacheBuster: null,
         scripts: function(scripts, base) {
             var arr = [];
             for(var i = scripts.length; i--; arr.unshift(scripts[i]));
@@ -1601,7 +1591,6 @@ properties for a given parent, keep seperate index for this?
             load();
         } else {
             global.document.addEventListener('simply-content-loaded', function() {
-                console.log('switching...')
                 load();
             });
         }
@@ -1669,7 +1658,6 @@ properties for a given parent, keep seperate index for this?
             }
             this.view.data = data
         });
-        this.view.data = data;
 
         if (global.editor) {
             global.editor.addDataSource(this.name,{
