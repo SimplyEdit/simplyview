@@ -6,16 +6,16 @@ class SimplyCommands {
 		if (!options.app.container) {
 			options.app.container = document.body
 		}
-		this.app = app
-		this.handlers = handlers || defaultHandlers
-		this.commands = commands || {}
+		this.app = options.app
+		this.handlers = options.handlers || defaultHandlers
+		this.commands = options.commands || {}
 
 		const commandHandler = (evt) => {
 			const command = getCommand(evt, this.handlers)
 			if (!command) {
 				return
 			}
-			if (!commands[command.name]) {
+			if (!this.commands[command.name]) {
                 console.error('simply.command: undefined command '+command.name, command.source);
                 return
 			}
@@ -43,27 +43,18 @@ export function command(options={}) {
 }
 
 function getCommand(evt, handlers) {
-    var el = evt.target.closest('[data-simply-command]');
+    var el = evt.target.closest('[data-simply-command]')
     if (el) {
-        var matched = false;
         for (var i=handlers.length-1; i>=0; i--) {
             if (el.matches(handlers[i].match)) {
-                matched = true;
                 if (handlers[i].check(el, evt)) {
                     return {
                         name:   el.dataset.simplyCommand,
                         source: el,
                         value:  handlers[i].get(el)
-                    };
+                    }
                 }
             }
-        }
-        if (!matched && fallbackHandler.check(el,evt)) {
-            return {
-                name:   el.dataset.simplyCommand,
-                source: el,
-                value: fallbackHandler.get(el)
-            };
         }
     }
     return null;
@@ -74,62 +65,63 @@ const defaultHandlers = [
         match: 'input,select,textarea',
         get: function(el) {
             if (el.tagName==='SELECT' && el.multiple) {
-                var values = [], opt;
-                for (var i=0,l=el.options.length;i<l;i++) {
-                    var opt = el.options[i];
-                    if (opt.selected) {
-                        values.push(opt.value);
+                let values = []
+                for (let option of el.options) {
+                    if (option.selected) {
+                        values.push(option.value)
                     }
                 }
-                return values;
+                return values
             }
-            return el.dataset.simplyValue || el.value;
+            return el.dataset.simplyValue || el.value
         },
         check: function(el, evt) {
-            return evt.type=='change' || (el.dataset.simplyImmediate && evt.type=='input');
+            return evt.type=='change' || (el.dataset.simplyImmediate && evt.type=='input')
         }
     },
     {
         match: 'a,button',
         get: function(el) {
-            return el.dataset.simplyValue || el.href || el.value;
+            return el.dataset.simplyValue || el.href || el.value
         },
         check: function(el,evt) {
-            return evt.type=='click' && evt.ctrlKey==false && evt.button==0;
+            return evt.type=='click' && evt.ctrlKey==false && evt.button==0
         }
     },
     {
         match: 'form',
         get: function(el) {
-            var data = {};
-            [].forEach.call(el.elements, function(el) {
-                if (el.tagName=='INPUT' && (el.type=='checkbox' || el.type=='radio')) {
-                    if (!el.checked) {
+            let data = {}
+            for (let input of Array.from(el.elements)) {
+                if (input.tagName=='INPUT' 
+                    && (input.type=='checkbox' || input.type=='radio')
+                ) {
+                    if (!input.checked) {
                         return;
                     }
                 }
-                if (data[el.name] && !Array.isArray(data[el.name])) {
-                    data[el.name] = [data[el.name]];
+                if (data[input.name] && !Array.isArray(data[input.name])) {
+                    data[input.name] = [data[input.name]]
                 }
-                if (Array.isArray(data[el.name])) {
-                    data[el.name].push(el.value);
+                if (Array.isArray(data[input.name])) {
+                    data[input.name].push(input.value)
                 } else {
-                    data[el.name] = el.value;
+                    data[input.name] = input.value
                 }
-            });
-            return data;//new FormData(el);
+            }
+            return data
         },
         check: function(el,evt) {
-            return evt.type=='submit';
+            return evt.type=='submit'
         }
     },
     {
     	match: '*',
         get: function(el) {
-            return el.dataset.simplyValue;
+            return el.dataset.simplyValue
         },
         check: function(el, evt) {
-            return evt.type=='click' && evt.ctrlKey==false && evt.button==0;
+            return evt.type=='click' && evt.ctrlKey==false && evt.button==0
         }
     }
 ]

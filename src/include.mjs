@@ -30,19 +30,20 @@ function rebaseHref(relative, base) {
     return url.href
 }
 
-var observer, loaded = {}
-var head = globalThis.document.querySelector('head')
-var currentScript = globalThis.document.currentScript
+let observer, loaded = {}
+let head = globalThis.document.querySelector('head')
+let currentScript = globalThis.document.currentScript
+let getScriptURL, currentScriptURL
 if (!currentScript) {
-    var getScriptURL = (() => {
+    getScriptURL = (() => {
         var scripts = document.getElementsByTagName('script')
         var index = scripts.length - 1
         var myScript = scripts[index]
         return () => myScript.src
     })()
-    var currentScriptURL = getScriptURL()
+    currentScriptURL = getScriptURL()
 } else {
-    var currentScriptURL = currentScript.src
+    currentScriptURL = currentScript.src
 }
 
 const waitForPreviousScripts = async () => {
@@ -62,13 +63,12 @@ const waitForPreviousScripts = async () => {
     })
 }
 
-var scriptLocations = []
+let scriptLocations = []
 
 export const include = {
     cacheBuster: null,
     scripts: (scripts, base) => {
-        let arr = []
-        for(let i = scripts.length; i--; arr.unshift(scripts[i]))
+        let arr = scripts.slice()
         const importScript = () => {
             const script = arr.shift()
             if (!script) {
@@ -132,7 +132,7 @@ export const include = {
         // add the remainder before the include link
         link.parentNode.insertBefore(fragment, link ? link : null)
         globalThis.setTimeout(function() {
-            simply.include.scripts(scriptsFragment.childNodes, link ? link.href : globalThis.location.href )
+            include.scripts(scriptsFragment.childNodes, link ? link.href : globalThis.location.href )
         }, 10)
     }
 }
@@ -164,7 +164,7 @@ const includeLinks = async (links) => {
         console.log('simply-include: loaded '+link.href);
         const html = await response.text()
         // if succesfull import the html
-        simply.include.html(html, link)
+        include.html(html, link)
         // remove the include link
         link.parentNode.removeChild(link)
     }

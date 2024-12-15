@@ -1,10 +1,10 @@
-import { signal, effect, throttledEffect } from './signal.mjs'
+import { throttledEffect } from './signals.mjs'
 
 export function bind(options)
 {
     const defaultOptions = {
         container: document.body,
-        attribute: 'data-simply-bind',
+        attribute: 'data-bind',
         transformers: []
     }
     if (!options?.root) {
@@ -74,9 +74,9 @@ export function bind(options)
             const path = getBindingPath(el)
             const value = getValueByPath(root, path) || ''
             if (!el.dataset.transform || !options.transformers[el.dataset.transform]) {
-                return defaultTransformer.apply(el, {template, path, value})
+                return defaultTransformer.call(el, {template, path, value}, applyTemplate)
             }
-            return options.transformers[el.dataset.transform].apply(el, {template, path, value})
+            return options.transformers[el.dataset.transform].call(el, {template, path, value}, applyTemplate)
         }, 100)
     }
     
@@ -90,18 +90,20 @@ export function bind(options)
     }
 }
 
-export function defaultTransformer(options) {
-    const {template, path, value} = options
+export function defaultTransformer(options, applyTemplate) {
+    const template = options.template
+    const path = options.path
+    const value = options.value
     // TODO: support multiple templates and a way to select the correct one per entry
     if (Array.isArray(value) && template) {
-        let items = el.querySelectorAll(':scope > [data-bind-key]')
+        let items = this.querySelectorAll(':scope > [data-bind-key]')
         // do single merge strategy for now, in future calculate optimal merge strategy from a number
         // now just do a delete if a key <= last key, insert if a key >= last key
         let lastKey = 0
         for (let item of items) {
             if (item.dataset.bindKey>lastKey) {
                 // insert before
-                el.insertBefore(applyTemplate(path, template, value, lastKey), item)
+                this.insertBefore(applyTemplate(path, template, value, lastKey), item)
             } else if (item.dataset.bindKey<lastKey) {
                 // remove this
                 item.remove()
@@ -112,10 +114,11 @@ export function defaultTransformer(options) {
                     bindings.unshift(item)
                 }
                 let needsReplacement = bindings.find(b => {
-                    return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, path.length)!==path)
+                    return (b.dataset.bind.substr(0,5)!=='#root' 
+                        && b.dataset.bind.substr(0, path.length)!==path)
                 })
                 if (needsReplacement) {
-                    el.replaceChild(applyTemplate(path, template, value, lastKey), item)
+                    this.replaceChild(applyTemplate(path, template, value, lastKey), item)
                 }
             }
             lastKey++
@@ -123,23 +126,23 @@ export function defaultTransformer(options) {
                 break
             }
         }
-        items = el.querySelectorAll(':scope > [data-bind-key]')
+        items = this.querySelectorAll(':scope > [data-bind-key]')
         let length = items.length
         if (length > value.length) {
             while (length > value.length) {
-                let child = el.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
+                let child = this.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
                 child?.remove()
                 length--
             }
         } else if (length < value.length ) {
             while (length < value.length) {
-                el.appendChild(applyTemplate(path, template, value, length))
+                this.appendChild(applyTemplate(path, template, value, length))
                 length++
             }
         }
     } else if (value && typeof value == 'object' && template) {
         let list    = Object.entries(value)
-        let items   = el.querySelectorAll(':scope > [data-bind-key]')
+        let items   = this.querySelectorAll(':scope > [data-bind-key]')
         let current = 0
         for (let item of items) {
             if (current>=list.length) {
@@ -159,42 +162,42 @@ export function defaultTransformer(options) {
                 })
             }
             if (needsReplacement) {
-                el.replaceChild(applyTemplate(path, template, value, key), item)
+                this.replaceChild(applyTemplate(path, template, value, key), item)
             }
         }
-        items  = el.querySelectorAll(':scope > [data-bind-key]')
+        items  = this.querySelectorAll(':scope > [data-bind-key]')
         let length = items.length
         if (length>list.length) {
             while (length>list.length) {
-                let child = el.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
+                let child = this.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
                 child?.remove()
                 length--
             }
         } else if (length < list.length) {
             while (length < list.length) {
                 let key = list[length][0]
-                el.appendChild(applyTemplate(path, template, value, key))
+                this.appendChild(applyTemplate(path, template, value, key))
                 length++
             }
         }
-    } else if (el.tagName=='INPUT') {
-        if (el.type=='checkbox' || el.type=='radio') {
-            if (el.value == ''+value) {
-                el.checked = true
+    } else if (this.tagName=='INPUT') {
+        if (this.type=='checkbox' || this.type=='radio') {
+            if (this.value == ''+value) {
+                this.checked = true
             } else {
-                el.checked = false
+                this.checked = false
             }
-        } else if (el.value != ''+value) {
-            el.value = ''+value
+        } else if (this.value != ''+value) {
+            this.value = ''+value
         }
-    } else if (el.tagName=='BUTTON') {
-        if (el.value!=''+value) {
-            el.value = ''+value
+    } else if (this.tagName=='BUTTON') {
+        if (this.value!=''+value) {
+            this.value = ''+value
         }
-    } else if (el.tagName=='SELECT') {
-        if (el.multiple) {
+    } else if (this.tagName=='SELECT') {
+        if (this.multiple) {
             if (Array.isArray(value)) {
-                for (let option of el.options) {
+                for (let option of this.options) {
                     if (value.indexOf(option.value)===false) {
                         option.selected = false
                     } else {
@@ -203,21 +206,21 @@ export function defaultTransformer(options) {
                 }
             }
         } else {
-            let option = el.options.find(o => o.value==value)
+            let option = this.options.find(o => o.value==value)
             if (option) {
                 option.selected = true
             }
         }
-    } else if (el.tagName=='A') {
-        if (value?.innerHTML && el.innerHTML!=''+value.innerHTML) {
-            el.innerHTML = ''+value.innerHTML
+    } else if (this.tagName=='A') {
+        if (value?.innerHTML && this.innerHTML!=''+value.innerHTML) {
+            this.innerHTML = ''+value.innerHTML
         }
-        if (value?.href && el.href != ''+value.href) {
-            el.href = ''+value.href
+        if (value?.href && this.href != ''+value.href) {
+            this.href = ''+value.href
         }
     } else {
-        if (el.innerHTML != ''+value) {
-            el.innerHTML = ''+value
+        if (this.innerHTML != ''+value) {
+            this.innerHTML = ''+value
         }
     }
 }

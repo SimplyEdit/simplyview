@@ -57,7 +57,7 @@ class SimplyRoute {
                 args.params = params
                 args = this.runListeners('call', args)
                 params = args.params ? args.params : params
-                args.result = routeInfo[i].action.call(route, params)
+                args.result = route.action.call(route, params)
                 this.runListeners('finish', args)
                 return args.result
             }
@@ -88,12 +88,12 @@ class SimplyRoute {
     }
 
     handleEvents() {
-        global.addEventListener('popstate', () => {
+        globalThis.addEventListener('popstate', () => {
             if (this.match(getPath(document.location.pathname + document.location.hash, this.root)) === false) {
                 this.match(getPath(document.location.pathname, this.root))
             }
         })
-        global.document.addEventListener('click', (evt) => {
+        globalThis.document.addEventListener('click', (evt) => {
 	        if (evt.ctrlKey) {
 	            return;
 	        }
@@ -106,7 +106,7 @@ class SimplyRoute {
 	        }
 	        if (link 
 	            && link.pathname 
-	            && link.hostname==global.location.hostname 
+	            && link.hostname==globalThis.location.hostname 
 	            && !link.link
 	            && !link.dataset.simplyCommand
 	        ) {
@@ -199,3 +199,24 @@ function getRegexpFromRoute(route) {
     return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'));
 }
 
+function parseRoutes(routes) {
+    let routeInfo = []
+    const paths = Object.keys(routes)
+    const matchParams = /:(\w+|\*)/g
+    for (let path of paths) {
+        let matches = []
+        let params  = []
+        do {
+            matches = matchParams.exec(path)
+            if (matches) {
+                params.push(matches[1])
+            }
+        } while(matches)
+        routeInfo.push({
+            match:  getRegexpFromRoute(path),
+            params: params,
+            action: routes[path]
+        })
+    }
+    return routeInfo
+}

@@ -3,7 +3,7 @@ class SimplyActions {
         this.app = options.app
         
 		const actionHandler = {
-			get: (target, property, receiver) => {
+			get: (target, property) => {
 				return target[property].bind(this.app)
 			}
 		}

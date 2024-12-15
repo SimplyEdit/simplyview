@@ -5,6 +5,7 @@ import * as key from './key.mjs'
 import * as state from './state.mjs'
 import { include } from './include.mjs'
 import { bind } from './bind.mjs'
+import { activate } from './activate.mjs'
 
 export const simply = {
 	route,
@@ -12,6 +13,8 @@ export const simply = {
 	action,
 	key,
 	state,
-	bind
+	bind,
+	include,
+	activate
 }
 

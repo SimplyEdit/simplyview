@@ -139,7 +139,7 @@ function notifySet(self, context={}) {
             const currentEffect = computeStack[computeStack.length-1]
             for (let listener of Array.from(listeners)) {
                 if (listener!=currentEffect && listener?.needsUpdate) {
-                    listener(listener.context)
+                    listener()
                 }
                 clearContext(listener)
             }
@@ -256,8 +256,7 @@ function clearListeners(compute) {
  * The top most entry is the currently running update function, used
  * to automatically record signals used in an update function.
  */
-const computeStack = []
-
+let computeStack = []
 
 /**
  * Used for cycle detection: effectStack contains all running effect
@@ -266,6 +265,7 @@ const computeStack = []
  */
 const effectStack = []
 
+const effectMap = new WeakMap()
 /**
  * Used for cycle detection: signalStack contains all used signals. 
  * If the same signal appears more than once, there is a cyclical 
@@ -293,7 +293,7 @@ export function effect(fn) {
 
     // this is the function that is called automatically
     // whenever a signal dependency changes
-    const computeEffect = function computeEffect(context) {
+    const computeEffect = function computeEffect() {
         if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
             throw new Error('Cyclical dependency in update() call', { cause: fn})
         }
@@ -306,7 +306,7 @@ export function effect(fn) {
         // call the actual update function
         let result
         try {
-            result = fn(context, computeStack, signalStack)
+            result = fn(computeEffect, computeStack, signalStack)
         } finally {
             // stop recording dependencies
             computeStack.pop()
@@ -321,16 +321,31 @@ export function effect(fn) {
             }
         }
     }
+    computeEffect.fn = fn
+    effectMap.set(connectedSignal, computeEffect)
+
     // run the computEffect immediately upon creation
-    computeEffect({})
+    computeEffect()
     return connectedSignal
 }
 
 
 export function destroy(connectedSignal) {
     // find the computeEffect associated with this signal
+    const computeEffect = effectMap.get(connectedSignal)?.deref()
+    if (!computeEffect) {
+        return
+    }
+
     // remove all listeners for this effect
+    clearListeners(computeEffect)
+
     // remove all references to connectedSignal
+    let fn = computeEffect.fn
+    signals.remove(fn)
+
+    effectMap.delete(connectedSignal)
+    
     // if no other references to connectedSignal exist, it will be garbage collected
 }
 
@@ -371,7 +386,7 @@ function runBatchedListeners() {
     const currentEffect = computeStack[computeStack.length-1]
     for (let listener of copyBatchedListeners) {
         if (listener!=currentEffect && listener?.needsUpdate) {
-            listener(listener.context)
+            listener()
         }
         clearContext(listener)
     }
@@ -419,7 +434,7 @@ export function throttledEffect(fn, throttleTime) {
         // call the actual update function
         let result
         try {
-            result = fn()
+            result = fn(computeEffect, computeStack, signalStack)
         } finally {
             hasChange = false
             // stop recording dependencies
@@ -476,7 +491,7 @@ export function clockEffect(fn, clock) {
                 // call the actual update function
                 let result 
                 try {
-                    result = fn()
+                    result = fn(computeEffect, computeStack)
                 } finally {
                     // stop recording dependencies
                     computeStack.pop()
