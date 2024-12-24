@@ -7,6 +7,8 @@
     "example": "examples"
   },
   "scripts": {
+    "build": "esbuild src/everything.mjs --bundle --outfile=dist/simply.everything.js --minify --sourcemap; esbuild src/app.mjs --bundle --outfile=dist/simply.app.js --minify --sourcemap",
+    "build-dev": "esbuild src/everything.mjs --bundle --outfile=dist/simply.everything.js; esbuild src/app.mjs --bundle --outfile=dist/simply.app.js",
     "test": "jest"
   },
   "repository": {
@@ -27,12 +29,13 @@
   "homepage": "https://github.com/simplyedit/simplyview#readme",
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "esbuild": "^0.24.2",
     "globals": "^15.13.0",
     "jest": "^24.9.0"
   },
   "files": [
     "README.md",
     "dist/",
-    "js/"
+    "src/"
   ]
 }
