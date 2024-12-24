@@ -45,19 +45,20 @@ export function commands(options={}) {
 function getCommand(evt, handlers) {
     var el = evt.target.closest('[data-simply-command]')
     if (el) {
-        for (var i=handlers.length-1; i>=0; i--) {
-            if (el.matches(handlers[i].match)) {
-                if (handlers[i].check(el, evt)) {
+        for (let handler of handlers) {
+            if (el.matches(handler.match)) {
+                if (handler.check(el, evt)) {
                     return {
                         name:   el.dataset.simplyCommand,
                         source: el,
-                        value:  handlers[i].get(el)
+                        value:  handler.get(el)
                     }
                 }
+                return null
             }
         }
     }
-    return null;
+    return null
 }
 
 const defaultHandlers = [
