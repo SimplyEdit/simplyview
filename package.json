@@ -1,6 +1,6 @@
 {
   "name": "simplyview",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "description": "Library to rapidly build UI components, using declarative tools",
   "main": "dist/simply.everything.js",
   "directories": {
@@ -26,6 +26,8 @@
   },
   "homepage": "https://github.com/simplyedit/simplyview#readme",
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "globals": "^15.13.0",
     "jest": "^24.9.0"
   },
   "files": [

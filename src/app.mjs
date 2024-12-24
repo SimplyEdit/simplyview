@@ -11,9 +11,6 @@ class SimplyApp {
 		if (options.state) {
 			this.state = signal(options.state)
 		}
-		if (options.actions) {
-			this.actions = actions({app: this, actions: options.actions})
-		}
 		if (options.commands) {
 			this.commands = commands({ app: this, container: this.container, commands: options.commands})
 		}
@@ -22,6 +19,9 @@ class SimplyApp {
 		}
 		if (options.routes) {
 			this.routes = routes({ app: this, routes: options.routes})
+		}
+		if (options.actions) {
+			this.actions = actions({app: this, actions: options.actions})
 		}
 		bind({ container: this.container, state: this.state })
 	}

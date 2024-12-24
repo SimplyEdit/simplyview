@@ -345,7 +345,7 @@ export function destroy(connectedSignal) {
     signals.remove(fn)
 
     effectMap.delete(connectedSignal)
-    
+
     // if no other references to connectedSignal exist, it will be garbage collected
 }
 

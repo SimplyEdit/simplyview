@@ -38,7 +38,7 @@ class SimplyCommands {
 	}
 }
 
-export function command(options={}) {
+export function commands(options={}) {
 	return new SimplyCommands(options)
 }
 
