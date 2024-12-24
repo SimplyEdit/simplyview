@@ -1,2 +1,1064 @@
-(()=>{function R(t){return new M(t)}var M=class{constructor(e={}){this.root=e.root||"/",this.app=e.app,this.clear(),e.routes&&this.load(e.routes)}load(e){X(e,this.routeInfo)}clear(){this.routeInfo=[],this.listeners={match:{},call:{},finish:{}}}match(e,n){let r={path:e,options:n};r=this.runListeners("match",r),e=r.path?r.path:e;let i;if(!e)return this.match(document.location.pathname+document.location.hash)?!0:this.match(document.location.pathname);e=w(e);for(let l of this.routeInfo)if(i=l.match.exec(e),i&&i.length){var s={};return l.params.forEach((f,c)=>{f=="*"&&(f="remainder"),s[f]=i[c+1]}),Object.assign(s,n),r.route=l,r.params=s,r=this.runListeners("call",r),s=r.params?r.params:s,r.result=l.action.call(l,s),this.runListeners("finish",r),r.result}return e&&e[e.length-1]!="/"?this.match(e+"/",n):!1}runListeners(e,n){if(Object.keys(this.listeners[e]))return Object.keys(this.listeners[e]).forEach(r=>{var i=U(r);if(i.exec(n.path)){var s;for(let l of this.listeners[e][r])s=l.call(this.app,n),s&&(n=s)}}),n}handleEvents(){globalThis.addEventListener("popstate",()=>{this.match(w(document.location.pathname+document.location.hash,this.root))===!1&&this.match(w(document.location.pathname,this.root))}),globalThis.document.addEventListener("click",e=>{if(!e.ctrlKey&&e.which==1){for(var n=e.target;n&&n.tagName!="A";)n=n.parentElement;if(n&&n.pathname&&n.hostname==globalThis.location.hostname&&!n.link&&!n.dataset.simplyCommand){let r=w(n.pathname+n.hash,this.root);if(this.has(r)||(r=w(n.pathname,this.root)),this.has(r)){let i=this.runListeners("goto",{path:r});return i.path&&this.goto(i.path),e.preventDefault(),!1}}}})}goto(e){return history.pushState({},"",Q(e)),this.match(e)}has(e){e=w(e,this.root);for(let r of this.routeInfo){var n=r.match.exec(e);if(n&&n.length)return!0}return!1}addListener(e,n,r){if(["goto","match","call","finish"].indexOf(e)==-1)throw new Error("Unknown action "+e);this.listeners[e][n]||(this.listeners[e][n]=[]),this.listeners[e][n].push(r)}removeListener(e,n,r){if(["match","call","finish"].indexOf(e)==-1)throw new Error("Unknown action "+e);this.listeners[e][n]&&(this.listeners[e][n]=this.listeners[e][n].filter(i=>i!=r))}init(e){e.root&&(this.root=e.root)}};function w(t,e="/"){return(t.substring(0,e.length)==e||e[e.length-1]=="/"&&t.length==e.length-1&&t==e.substring(0,t.length))&&(t=t.substring(e.length)),t[0]!="/"&&t[0]!="#"&&(t="/"+t),t}function Q(t,e){return t=w(t,e),e[e.length-1]==="/"&&t[0]==="/"&&(t=t.substring(1)),e+t}function U(t){return new RegExp("^"+t.replace(/:\w+/g,"([^/]+)").replace(/:\*/,"(.*)"))}function X(t){let e=[],n=Object.keys(t),r=/:(\w+|\*)/g;for(let i of n){let s=[],l=[];do s=r.exec(i),s&&l.push(s[1]);while(s);e.push({match:U(i),params:l,action:t[i]})}return e}var x=class{constructor(e={}){e.app||(e.app={}),e.app.container||(e.app.container=document.body),this.app=e.app,this.handlers=e.handlers||Z,this.commands=e.commands||{};let n=i=>{let s=Y(i,this.handlers);if(s){if(!this.commands[s.name]){console.error("simply.command: undefined command "+s.name,s.source);return}this.commands[s.name].call(this.app,s.source,s.value)}};function r(i){return s=>(i(s),s.preventDefault(),s.stopPropagation(),!1)}this.app.container.addEventListener("click",r(n)),this.app.container.addEventListener("submit",r(n)),this.app.container.addEventListener("change",n),this.app.container.addEventListener("input",n)}};function $(t={}){return new x(t)}function Y(t,e){var n=t.target.closest("[data-simply-command]");if(n){for(var r=e.length-1;r>=0;r--)if(n.matches(e[r].match)&&e[r].check(n,t))return{name:n.dataset.simplyCommand,source:n,value:e[r].get(n)}}return null}var Z=[{match:"input,select,textarea",get:function(t){if(t.tagName==="SELECT"&&t.multiple){let e=[];for(let n of t.options)n.selected&&e.push(n.value);return e}return t.dataset.simplyValue||t.value},check:function(t,e){return e.type=="change"||t.dataset.simplyImmediate&&e.type=="input"}},{match:"a,button",get:function(t){return t.dataset.simplyValue||t.href||t.value},check:function(t,e){return e.type=="click"&&e.ctrlKey==!1&&e.button==0}},{match:"form",get:function(t){let e={};for(let n of Array.from(t.elements)){if(n.tagName=="INPUT"&&(n.type=="checkbox"||n.type=="radio")&&!n.checked)return;e[n.name]&&!Array.isArray(e[n.name])&&(e[n.name]=[e[n.name]]),Array.isArray(e[n.name])?e[n.name].push(n.value):e[n.name]=n.value}return e},check:function(t,e){return e.type=="submit"}},{match:"*",get:function(t){return t.dataset.simplyValue},check:function(t,e){return e.type=="click"&&e.ctrlKey==!1&&e.button==0}}];var P=class{constructor(e){this.app=e.app;let n={get:(r,i)=>r[i].bind(this.app)};this.actions=new Proxy({},n),Object.assign(this.actions,e.actions)}};function D(t){return new P(t)}var I=class{constructor(e={}){e.app||(e.app={}),e.app.container||(e.app.container=document.body),this.app=e.app,this.app.container.addEventListener("keydown",_(this.keys))}};function V(t={}){return new I(t)}function _(t){return e=>{if(e.isComposing||e.keyCode===229||e.defaultPrevented||!e.target)return;let n="default";e.target.closest("[data-simply-keyboard]")&&(n=e.target.closest("[data-simply-keyboard]").dataset.simplyKeyboard);let r="";if(e.ctrlKey&&e.keyCode!=17&&(r+="Control+"),e.metaKey&&e.keyCode!=224&&(r+="Meta+"),e.altKey&&e.keyCode!=18&&(r+="Alt+"),e.shiftKey&&e.keyCode!=16&&(r+="Shift+"),r+=e.key,t[n]&&t[n][r]){let i=t[n];i.app=t.app,i[r].call(t.app,e)}}}var z=Symbol("source"),O=Symbol("iterate"),ee={get:(t,e,n)=>{if(e===z)return t;let r=t?.[e];return B(n,e),typeof r=="function"?Array.isArray(t)?(...i)=>{let s=t.length,l=r.apply(n,i);return s!=t.length&&k(n,y("length",{was:s,now:t.length})),l}:t instanceof Set||t instanceof Map?(...i)=>{let s=t.size,l=r.apply(t,i);return s!=t.size&&k(n,y("size",{was:s,now:t.size})),["set","add","clear","delete"].includes(e)&&k(n,y({entries:{},forEach:{},has:{},keys:{},values:{},[Symbol.iterator]:{}})),l}:r.bind(n):r&&typeof r=="object"?C(r):r},set:(t,e,n,r)=>{n=n?.[z]||n;let i=t[e];return i!==n&&(t[e]=n,k(r,y(e,{was:i,now:n}))),typeof i>"u"&&k(r,y(O,{})),!0},has:(t,e)=>{let n=g.get(t);return n&&B(n,e),Object.hasOwn(t,e)},deleteProperty:(t,e)=>{if(typeof t[e]<"u"){let n=t[e];delete t[e];let r=g.get(t);k(r,y(e,{delete:!0,was:n}))}return!0},defineProperty:(t,e,n)=>{if(typeof t[e]>"u"){let r=g.get(t);k(r,y(O,{}))}return Object.defineProperty(t,e,n)},ownKeys:t=>{let e=g.get(t);return B(e,O),Reflect.ownKeys(t)}},g=new WeakMap;function C(t){return g.has(t)||g.set(t,new Proxy(t,ee)),g.get(t)}var W=new Set,te=0;function k(t,e={}){let n=[];if(e.forEach((r,i)=>{let s=ie(t,i);if(s?.length){for(let l of s)ne(l,y(i,r));n=n.concat(s)}}),n=new Set(n.filter(Boolean)),n)if(te)W=W.union(n);else{let r=E[E.length-1];for(let i of Array.from(n))i!=r&&i?.needsUpdate&&i(),re(i)}}function y(t,e){let n=new Map;if(typeof t=="object")for(let r in t)n.set(r,t[r]);else n.set(t,e);return n}function ne(t,e){t.context?e.forEach((n,r)=>{t.context.set(r,n)}):t.context=e,t.needsUpdate=!0}function re(t){delete t.context,delete t.needsUpdate}function B(t,e){let n=E[E.length-1];n&&se(t,e,n)}var A=new WeakMap,S=new WeakMap;function ie(t,e){let n=A.get(t);return n?Array.from(n.get(e)||[]):[]}function se(t,e,n){A.has(t)||A.set(t,new Map);let r=A.get(t);r.has(e)||r.set(e,new Set),r.get(e).add(n),S.has(n)||S.set(n,new Map);let i=S.get(n);i.has(e)||i.set(e,new Set),i.get(e).add(t)}function le(t){let e=S.get(t);e&&e.forEach(n=>{n.forEach(r=>{let i=A.get(r);i.has(n)&&i.get(n).delete(t)})})}var E=[],F=[];var L=[];function G(t,e){if(F.findIndex(l=>t==l)!==-1)throw new Error("Recursive update() call",{cause:t});F.push(t);let n=g.get(t);n||(n=C({current:null}),g.set(t,n));let r=!1,i=!0;return function l(){if(L.findIndex(c=>c==n)!==-1)throw new Error("Cyclical dependency in update() call",{cause:t});if(r&&r>Date.now()){i=!0;return}le(l),E.push(l),L.push(n);let f;try{f=t(l,E,L)}finally{i=!1,E.pop(),L.pop(),f instanceof Promise?f.then(c=>{n.current=c}):n.current=f}r=Date.now()+e,globalThis.setTimeout(()=>{i&&l()},e)}(),n}var N=class{constructor(e){let n={container:document.body,attribute:"data-bind",transformers:[],defaultTransformers:[ae]};if(!e?.root)throw new Error("bind needs at least options.root set");this.options=Object.assign({},n,e);let r=this.options.attribute,i=a=>{G(()=>{let o={templates:a.querySelectorAll(":scope > template"),path:this.getBindingPath(a)};o.value=H(this.options.root,o.path),o.element=a,s(o)},100)},s=a=>{let o=this.options.defaultTransformers||[];a.element.dataset.transform&&a.element.dataset.transform.split(" ").filter(Boolean).forEach(m=>{this.options.transformers[m]?o.push(this.options.transformers[m]):console.warn("No transformer with name "+m+" configured",{cause:a.element})});let u;for(let m of o)u=((p,d)=>b=>d.call(this,b,p))(u,m);u(a)},l=a=>{for(let o of a)i(o)},f=a=>{for(let o of a)if(o.type=="childList"&&o.addedNodes){for(let u of o.addedNodes)if(u instanceof HTMLElement){let m=Array.from(u.querySelectorAll(`[${r}]`));u.matches(`[${r}]`)&&m.unshift(u),m.length&&l(m)}}};new MutationObserver(a=>{f(a)}).observe(e.container,{subtree:!0,childList:!0});let h=this.options.container.querySelectorAll("["+this.options.attribute+"]:not(template)");h.length&&l(h)}applyTemplate(e,n,r,i){let s=this.findTemplate(n,r[i]);if(!s){let h=new DocumentFragment;return h.innerHTML="<!-- no matching template -->",h}let l=s.content.cloneNode(!0);if(!l.children?.length)throw new Error("template must contain a single html element",{cause:s});if(l.children.length>1)throw new Error("template must contain a single root node",{cause:s});let f=l.querySelectorAll("["+this.options.attribute+"]"),c=this.options.attribute;for(let h of f){let a=h.getAttribute(c);a.substring(0,6)=="#root."?h.setAttribute(c,a.substring(6)):a=="#value"?h.setAttribute(c,e+"."+i):h.setAttribute(c,e+"."+i+"."+a)}return l.children[0].setAttribute(c+"-key",i),l.children[0].$bindTemplate=s,l}getBindingPath(e){return e.getAttribute(this.options.attribute)}findTemplate(e,n){let r=l=>{let f=this.getBindingPath(l);if(!f)return l;let c;f.substr(0,6)=="#root."?c=H(this.options.root,f):c=H(n,f);let h=""+c,a=l.getAttribute(this.options.attribute+"-matches");if(a){if(a==="#empty"&&!c)return l;if(a==="#notempty"&&c||h.match(a))return l}if(!a&&c)return l},i=Array.from(e).find(r),s=i?.getAttribute("rel");if(s){let l=document.querySelector("template#"+s);if(!l)throw new Error("Could not find template with id "+s);i=l}return i}};function J(t){return new N(t)}function v(t,e){return t=="#empty"&&!e||e=="#empty"&&!t||""+t==""+e}function H(t,e){let n=e.split("."),r=t,i,s;for(;n.length&&r;){if(i=n.shift(),i=="#key")return s;if(i=="#value")return r;i=="#root"?r=t:(i=decodeURIComponent(i),r=r[i],s=i)}return r}function ae(t){let e=t.element,n=t.templates,r=n.length,i=t.path,s=t.value,l=this.options.attribute;return Array.isArray(s)&&n?.length?oe.call(this,t):s&&typeof s=="object"&&n?.length?ce.call(this,t):e.tagName=="INPUT"?fe.call(this,t):e.tagName=="BUTTON"?ue.call(this,t):e.tagName=="SELECT"?he.call(this,t):e.tagName=="A"?me.call(this,t):de.call(this,t),t}function oe(t){let e=t.element,n=t.templates,r=n.length,i=t.path,s=t.value,l=this.options.attribute,f=e.querySelectorAll(":scope > ["+l+"-key]"),c=0,h=0;for(let o of f){let u=parseInt(o.getAttribute(l+"-key"));if(u>c)e.insertBefore(this.applyTemplate(i,n,s,c),o);else if(u<c)o.remove();else{let m=Array.from(o.querySelectorAll(`[${l}]`));o.matches(`[${l}]`)&&m.unshift(o);let p=m.find(d=>{let b=d.getAttribute(l);return b.substr(0,5)!=="#root"&&b.substr(0,i.length)!==i});if(!p&&o.$bindTemplate){let d=this.findTemplate(n,s[c]);d!=o.$bindTemplate&&(p=!0,d||h++)}p&&e.replaceChild(this.applyTemplate(i,n,s,c),o)}if(c++,c>=s.length)break}f=e.querySelectorAll(":scope > ["+l+"-key]");let a=f.length+h;if(a>s.length)for(;a>s.length;)e.querySelectorAll(":scope > :not(template)")?.[a-1]?.remove(),a--;else if(a<s.length)for(;a<s.length;)e.appendChild(this.applyTemplate(i,n,s,a)),a++}function ce(t){let e=t.element,n=t.templates,r=n.length,i=t.path,s=t.value,l=this.options.attribute,f=Object.entries(s),c=e.querySelectorAll(":scope > ["+l+"-key]"),h=0,a=0;for(let u of c){if(h>=f.length)break;let m=f[h][0];h++;let p=i+"."+m,d,b=u.getAttribute(l);if(b&&b.substr(0,p.length)!=p)d=!0;else if(d=Array.from(u.querySelectorAll(`[${l}]`)).find(T=>{let K=T.getAttribute(l);return K.substr(0,5)!=="#root"&&K.substr(0,p.length)!==p}),!d&&u.$bindTemplate){let T=this.findTemplate(n,s[m]);T!=u.$bindTemplate&&(d=!0,T||a++)}if(d){let q=this.applyTemplate(i,n,s,m);e.replaceChild(q,u)}}c=e.querySelectorAll(":scope > ["+l+"-key]");let o=c.length+a;if(o>f.length)for(;o>f.length;)e.querySelectorAll(":scope > :not(template)")?.[o-1]?.remove(),o--;else if(o<f.length)for(;o<f.length;){let u=f[o][0];e.appendChild(this.applyTemplate(i,n,s,u)),o++}}function fe(t){let e=t.element,n=t.value;e.type=="checkbox"||e.type=="radio"?v(e.value,n)?e.checked=!0:e.checked=!1:v(e.value,n)||(e.value=""+n)}function ue(t){let e=t.element,n=t.value;v(e.value,n)||(e.value=""+n)}function he(t){let e=t.element,n=t.value;if(e.multiple){if(Array.isArray(n))for(let r of e.options)n.indexOf(r.value)===!1?r.selected=!1:r.selected=!0}else{let r=e.options.find(i=>v(i.value,n));r&&(r.selected=!0)}}function me(t){let e=t.element,n=t.value;n?.innerHTML&&!v(e.innerHTML,n.innerHTML)&&(e.innerHTML=""+n.innerHTML),n?.href&&!v(e.href,n.href)&&(e.href=""+n.href)}function de(t){let e=t.element,n=t.value;v(e.innerHTML,n)||(e.innerHTML=""+n)}var j=class{constructor(e={}){this.container=e.container||document.body,e.state&&(this.state=C(e.state)),e.commands&&(this.commands=$({app:this,container:this.container,commands:e.commands})),e.keys&&(this.keys=V({app:this,keys:e.keys})),e.routes&&(this.routes=R({app:this,routes:e.routes})),e.actions&&(this.actions=D({app:this,actions:e.actions})),J({container:this.container,state:this.state})}};function Me(t={}){return new j(t)}})();
-//# sourceMappingURL=simply.app.js.map
+(() => {
+  // src/route.mjs
+  function routes(options) {
+    return new SimplyRoute(options);
+  }
+  var SimplyRoute = class {
+    constructor(options = {}) {
+      this.root = options.root || "/";
+      this.app = options.app;
+      this.clear();
+      if (options.routes) {
+        this.load(options.routes);
+      }
+    }
+    load(routes2) {
+      parseRoutes(routes2, this.routeInfo);
+    }
+    clear() {
+      this.routeInfo = [];
+      this.listeners = {
+        match: {},
+        call: {},
+        finish: {}
+      };
+    }
+    match(path, options) {
+      let args = {
+        path,
+        options
+      };
+      args = this.runListeners("match", args);
+      path = args.path ? args.path : path;
+      let matches;
+      if (!path) {
+        if (this.match(document.location.pathname + document.location.hash)) {
+          return true;
+        } else {
+          return this.match(document.location.pathname);
+        }
+      }
+      path = getPath(path);
+      for (let route of this.routeInfo) {
+        matches = route.match.exec(path);
+        if (matches && matches.length) {
+          var params = {};
+          route.params.forEach((key, i) => {
+            if (key == "*") {
+              key = "remainder";
+            }
+            params[key] = matches[i + 1];
+          });
+          Object.assign(params, options);
+          args.route = route;
+          args.params = params;
+          args = this.runListeners("call", args);
+          params = args.params ? args.params : params;
+          args.result = route.action.call(route, params);
+          this.runListeners("finish", args);
+          return args.result;
+        }
+      }
+      if (path && path[path.length - 1] != "/") {
+        return this.match(path + "/", options);
+      }
+      return false;
+    }
+    runListeners(action, params) {
+      if (!Object.keys(this.listeners[action])) {
+        return;
+      }
+      Object.keys(this.listeners[action]).forEach((route) => {
+        var routeRe = getRegexpFromRoute(route);
+        if (routeRe.exec(params.path)) {
+          var result;
+          for (let callback of this.listeners[action][route]) {
+            result = callback.call(this.app, params);
+            if (result) {
+              params = result;
+            }
+          }
+        }
+      });
+      return params;
+    }
+    handleEvents() {
+      globalThis.addEventListener("popstate", () => {
+        if (this.match(getPath(document.location.pathname + document.location.hash, this.root)) === false) {
+          this.match(getPath(document.location.pathname, this.root));
+        }
+      });
+      globalThis.document.addEventListener("click", (evt) => {
+        if (evt.ctrlKey) {
+          return;
+        }
+        if (evt.which != 1) {
+          return;
+        }
+        var link = evt.target;
+        while (link && link.tagName != "A") {
+          link = link.parentElement;
+        }
+        if (link && link.pathname && link.hostname == globalThis.location.hostname && !link.link && !link.dataset.simplyCommand) {
+          let path = getPath(link.pathname + link.hash, this.root);
+          if (!this.has(path)) {
+            path = getPath(link.pathname, this.root);
+          }
+          if (this.has(path)) {
+            let params = this.runListeners("goto", { path });
+            if (params.path) {
+              this.goto(params.path);
+            }
+            evt.preventDefault();
+            return false;
+          }
+        }
+      });
+    }
+    goto(path) {
+      history.pushState({}, "", getURL(path));
+      return this.match(path);
+    }
+    has(path) {
+      path = getPath(path, this.root);
+      for (let route of this.routeInfo) {
+        var matches = route.match.exec(path);
+        if (matches && matches.length) {
+          return true;
+        }
+      }
+      return false;
+    }
+    addListener(action, route, callback) {
+      if (["goto", "match", "call", "finish"].indexOf(action) == -1) {
+        throw new Error("Unknown action " + action);
+      }
+      if (!this.listeners[action][route]) {
+        this.listeners[action][route] = [];
+      }
+      this.listeners[action][route].push(callback);
+    }
+    removeListener(action, route, callback) {
+      if (["match", "call", "finish"].indexOf(action) == -1) {
+        throw new Error("Unknown action " + action);
+      }
+      if (!this.listeners[action][route]) {
+        return;
+      }
+      this.listeners[action][route] = this.listeners[action][route].filter((listener) => {
+        return listener != callback;
+      });
+    }
+    init(options) {
+      if (options.root) {
+        this.root = options.root;
+      }
+    }
+  };
+  function getPath(path, root = "/") {
+    if (path.substring(0, root.length) == root || root[root.length - 1] == "/" && path.length == root.length - 1 && path == root.substring(0, path.length)) {
+      path = path.substring(root.length);
+    }
+    if (path[0] != "/" && path[0] != "#") {
+      path = "/" + path;
+    }
+    return path;
+  }
+  function getURL(path, root) {
+    path = getPath(path, root);
+    if (root[root.length - 1] === "/" && path[0] === "/") {
+      path = path.substring(1);
+    }
+    return root + path;
+  }
+  function getRegexpFromRoute(route) {
+    return new RegExp("^" + route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)"));
+  }
+  function parseRoutes(routes2) {
+    let routeInfo = [];
+    const paths = Object.keys(routes2);
+    const matchParams = /:(\w+|\*)/g;
+    for (let path of paths) {
+      let matches = [];
+      let params = [];
+      do {
+        matches = matchParams.exec(path);
+        if (matches) {
+          params.push(matches[1]);
+        }
+      } while (matches);
+      routeInfo.push({
+        match: getRegexpFromRoute(path),
+        params,
+        action: routes2[path]
+      });
+    }
+    return routeInfo;
+  }
+
+  // src/command.mjs
+  var SimplyCommands = class {
+    constructor(options = {}) {
+      if (!options.app) {
+        options.app = {};
+      }
+      if (!options.app.container) {
+        options.app.container = document.body;
+      }
+      this.app = options.app;
+      this.handlers = options.handlers || defaultHandlers;
+      this.commands = options.commands || {};
+      const commandHandler = (evt) => {
+        const command = getCommand(evt, this.handlers);
+        if (!command) {
+          return;
+        }
+        if (!this.commands[command.name]) {
+          console.error("simply.command: undefined command " + command.name, command.source);
+          return;
+        }
+        this.commands[command.name].call(this.app, command.source, command.value);
+      };
+      function stop(fn) {
+        return (evt) => {
+          fn(evt);
+          evt.preventDefault();
+          evt.stopPropagation();
+          return false;
+        };
+      }
+      this.app.container.addEventListener("click", stop(commandHandler));
+      this.app.container.addEventListener("submit", stop(commandHandler));
+      this.app.container.addEventListener("change", commandHandler);
+      this.app.container.addEventListener("input", commandHandler);
+    }
+  };
+  function commands(options = {}) {
+    return new SimplyCommands(options);
+  }
+  function getCommand(evt, handlers) {
+    var el = evt.target.closest("[data-simply-command]");
+    if (el) {
+      for (let handler of handlers) {
+        if (el.matches(handler.match)) {
+          if (handler.check(el, evt)) {
+            return {
+              name: el.dataset.simplyCommand,
+              source: el,
+              value: handler.get(el)
+            };
+          }
+          return null;
+        }
+      }
+    }
+    return null;
+  }
+  var defaultHandlers = [
+    {
+      match: "input,select,textarea",
+      get: function(el) {
+        if (el.tagName === "SELECT" && el.multiple) {
+          let values = [];
+          for (let option of el.options) {
+            if (option.selected) {
+              values.push(option.value);
+            }
+          }
+          return values;
+        }
+        return el.dataset.simplyValue || el.value;
+      },
+      check: function(el, evt) {
+        return evt.type == "change" || el.dataset.simplyImmediate && evt.type == "input";
+      }
+    },
+    {
+      match: "a,button",
+      get: function(el) {
+        return el.dataset.simplyValue || el.href || el.value;
+      },
+      check: function(el, evt) {
+        return evt.type == "click" && evt.ctrlKey == false && evt.button == 0;
+      }
+    },
+    {
+      match: "form",
+      get: function(el) {
+        let data = {};
+        for (let input of Array.from(el.elements)) {
+          if (input.tagName == "INPUT" && (input.type == "checkbox" || input.type == "radio")) {
+            if (!input.checked) {
+              return;
+            }
+          }
+          if (data[input.name] && !Array.isArray(data[input.name])) {
+            data[input.name] = [data[input.name]];
+          }
+          if (Array.isArray(data[input.name])) {
+            data[input.name].push(input.value);
+          } else {
+            data[input.name] = input.value;
+          }
+        }
+        return data;
+      },
+      check: function(el, evt) {
+        return evt.type == "submit";
+      }
+    },
+    {
+      match: "*",
+      get: function(el) {
+        return el.dataset.simplyValue;
+      },
+      check: function(el, evt) {
+        return evt.type == "click" && evt.ctrlKey == false && evt.button == 0;
+      }
+    }
+  ];
+
+  // src/action.mjs
+  var SimplyActions = class {
+    constructor(options) {
+      this.app = options.app;
+      const actionHandler = {
+        get: (target, property) => {
+          return target[property].bind(this.app);
+        }
+      };
+      this.actions = new Proxy({}, actionHandler);
+      Object.assign(this.actions, options.actions);
+    }
+  };
+  function actions(options) {
+    return new SimplyActions(options);
+  }
+
+  // src/key.mjs
+  var SimplyKeys = class {
+    constructor(options = {}) {
+      if (!options.app) {
+        options.app = {};
+      }
+      if (!options.app.container) {
+        options.app.container = document.body;
+      }
+      this.keys = options.keys || {};
+      this.app = options.app;
+      this.app.container.addEventListener("keydown", this.keyHandler());
+    }
+    keyHandler() {
+      return (e) => {
+        if (e.isComposing || e.keyCode === 229) {
+          return;
+        }
+        if (e.defaultPrevented) {
+          return;
+        }
+        if (!e.target) {
+          return;
+        }
+        let selectedKeyboard = "default";
+        if (e.target.closest("[data-simply-keyboard]")) {
+          selectedKeyboard = e.target.closest("[data-simply-keyboard]").dataset.simplyKeyboard;
+        }
+        let key = "";
+        if (e.ctrlKey && e.keyCode != 17) {
+          key += "Control+";
+        }
+        if (e.metaKey && e.keyCode != 224) {
+          key += "Meta+";
+        }
+        if (e.altKey && e.keyCode != 18) {
+          key += "Alt+";
+        }
+        if (e.shiftKey && e.keyCode != 16) {
+          key += "Shift+";
+        }
+        key += e.key;
+        if (this.keys[selectedKeyboard] && this.keys[selectedKeyboard][key]) {
+          let keyboard = this.keys[selectedKeyboard];
+          keyboard[key].call(this.app, e);
+        }
+      };
+    }
+  };
+  function keys(options = {}) {
+    return new SimplyKeys(options);
+  }
+
+  // src/state.mjs
+  var source = Symbol("source");
+  var iterate = Symbol("iterate");
+  var signalHandler = {
+    get: (target, property, receiver) => {
+      if (property === source) {
+        return target;
+      }
+      const value = target?.[property];
+      notifyGet(receiver, property);
+      if (typeof value === "function") {
+        if (Array.isArray(target)) {
+          return (...args) => {
+            let l = target.length;
+            let result = value.apply(receiver, args);
+            if (l != target.length) {
+              notifySet(receiver, makeContext("length", { was: l, now: target.length }));
+            }
+            return result;
+          };
+        } else if (target instanceof Set || target instanceof Map) {
+          return (...args) => {
+            let s = target.size;
+            let result = value.apply(target, args);
+            if (s != target.size) {
+              notifySet(receiver, makeContext("size", { was: s, now: target.size }));
+            }
+            if (["set", "add", "clear", "delete"].includes(property)) {
+              notifySet(receiver, makeContext({ entries: {}, forEach: {}, has: {}, keys: {}, values: {}, [Symbol.iterator]: {} }));
+            }
+            return result;
+          };
+        } else {
+          return value.bind(receiver);
+        }
+      }
+      if (value && typeof value == "object") {
+        return signal(value);
+      }
+      return value;
+    },
+    set: (target, property, value, receiver) => {
+      value = value?.[source] || value;
+      let current = target[property];
+      if (current !== value) {
+        target[property] = value;
+        notifySet(receiver, makeContext(property, { was: current, now: value }));
+      }
+      if (typeof current === "undefined") {
+        notifySet(receiver, makeContext(iterate, {}));
+      }
+      return true;
+    },
+    has: (target, property) => {
+      let receiver = signals.get(target);
+      if (receiver) {
+        notifyGet(receiver, property);
+      }
+      return Object.hasOwn(target, property);
+    },
+    deleteProperty: (target, property) => {
+      if (typeof target[property] !== "undefined") {
+        let current = target[property];
+        delete target[property];
+        let receiver = signals.get(target);
+        notifySet(receiver, makeContext(property, { delete: true, was: current }));
+      }
+      return true;
+    },
+    defineProperty: (target, property, descriptor) => {
+      if (typeof target[property] === "undefined") {
+        let receiver = signals.get(target);
+        notifySet(receiver, makeContext(iterate, {}));
+      }
+      return Object.defineProperty(target, property, descriptor);
+    },
+    ownKeys: (target) => {
+      let receiver = signals.get(target);
+      notifyGet(receiver, iterate);
+      return Reflect.ownKeys(target);
+    }
+  };
+  var signals = /* @__PURE__ */ new WeakMap();
+  function signal(v) {
+    if (!signals.has(v)) {
+      signals.set(v, new Proxy(v, signalHandler));
+    }
+    return signals.get(v);
+  }
+  var batchedListeners = /* @__PURE__ */ new Set();
+  var batchMode = 0;
+  function notifySet(self, context = {}) {
+    let listeners = [];
+    context.forEach((change, property) => {
+      let propListeners = getListeners(self, property);
+      if (propListeners?.length) {
+        for (let listener of propListeners) {
+          addContext(listener, makeContext(property, change));
+        }
+        listeners = listeners.concat(propListeners);
+      }
+    });
+    listeners = new Set(listeners.filter(Boolean));
+    if (listeners) {
+      if (batchMode) {
+        batchedListeners = batchedListeners.union(listeners);
+      } else {
+        const currentEffect = computeStack[computeStack.length - 1];
+        for (let listener of Array.from(listeners)) {
+          if (listener != currentEffect && listener?.needsUpdate) {
+            listener();
+          }
+          clearContext(listener);
+        }
+      }
+    }
+  }
+  function makeContext(property, change) {
+    let context = /* @__PURE__ */ new Map();
+    if (typeof property === "object") {
+      for (let prop in property) {
+        context.set(prop, property[prop]);
+      }
+    } else {
+      context.set(property, change);
+    }
+    return context;
+  }
+  function addContext(listener, context) {
+    if (!listener.context) {
+      listener.context = context;
+    } else {
+      context.forEach((change, property) => {
+        listener.context.set(property, change);
+      });
+    }
+    listener.needsUpdate = true;
+  }
+  function clearContext(listener) {
+    delete listener.context;
+    delete listener.needsUpdate;
+  }
+  function notifyGet(self, property) {
+    let currentCompute = computeStack[computeStack.length - 1];
+    if (currentCompute) {
+      setListeners(self, property, currentCompute);
+    }
+  }
+  var listenersMap = /* @__PURE__ */ new WeakMap();
+  var computeMap = /* @__PURE__ */ new WeakMap();
+  function getListeners(self, property) {
+    let listeners = listenersMap.get(self);
+    return listeners ? Array.from(listeners.get(property) || []) : [];
+  }
+  function setListeners(self, property, compute) {
+    if (!listenersMap.has(self)) {
+      listenersMap.set(self, /* @__PURE__ */ new Map());
+    }
+    let listeners = listenersMap.get(self);
+    if (!listeners.has(property)) {
+      listeners.set(property, /* @__PURE__ */ new Set());
+    }
+    listeners.get(property).add(compute);
+    if (!computeMap.has(compute)) {
+      computeMap.set(compute, /* @__PURE__ */ new Map());
+    }
+    let connectedSignals = computeMap.get(compute);
+    if (!connectedSignals.has(property)) {
+      connectedSignals.set(property, /* @__PURE__ */ new Set());
+    }
+    connectedSignals.get(property).add(self);
+  }
+  function clearListeners(compute) {
+    let connectedSignals = computeMap.get(compute);
+    if (connectedSignals) {
+      connectedSignals.forEach((property) => {
+        property.forEach((s) => {
+          let listeners = listenersMap.get(s);
+          if (listeners.has(property)) {
+            listeners.get(property).delete(compute);
+          }
+        });
+      });
+    }
+  }
+  var computeStack = [];
+  var effectStack = [];
+  var signalStack = [];
+  function throttledEffect(fn, throttleTime) {
+    if (effectStack.findIndex((f) => fn == f) !== -1) {
+      throw new Error("Recursive update() call", { cause: fn });
+    }
+    effectStack.push(fn);
+    let connectedSignal = signals.get(fn);
+    if (!connectedSignal) {
+      connectedSignal = signal({
+        current: null
+      });
+      signals.set(fn, connectedSignal);
+    }
+    let throttled = false;
+    let hasChange = true;
+    const computeEffect = function computeEffect2() {
+      if (signalStack.findIndex((s) => s == connectedSignal) !== -1) {
+        throw new Error("Cyclical dependency in update() call", { cause: fn });
+      }
+      if (throttled && throttled > Date.now()) {
+        hasChange = true;
+        return;
+      }
+      clearListeners(computeEffect2);
+      computeStack.push(computeEffect2);
+      signalStack.push(connectedSignal);
+      let result;
+      try {
+        result = fn(computeEffect2, computeStack, signalStack);
+      } finally {
+        hasChange = false;
+        computeStack.pop();
+        signalStack.pop();
+        if (result instanceof Promise) {
+          result.then((result2) => {
+            connectedSignal.current = result2;
+          });
+        } else {
+          connectedSignal.current = result;
+        }
+      }
+      throttled = Date.now() + throttleTime;
+      globalThis.setTimeout(() => {
+        if (hasChange) {
+          computeEffect2();
+        }
+      }, throttleTime);
+    };
+    computeEffect();
+    return connectedSignal;
+  }
+
+  // src/bind.mjs
+  var SimplyBind = class {
+    constructor(options) {
+      const defaultOptions = {
+        container: document.body,
+        attribute: "data-bind",
+        transformers: [],
+        defaultTransformers: [defaultTransformer]
+      };
+      if (!options?.root) {
+        throw new Error("bind needs at least options.root set");
+      }
+      this.options = Object.assign({}, defaultOptions, options);
+      const attribute = this.options.attribute;
+      const render = (el) => {
+        throttledEffect(() => {
+          const context = {
+            templates: el.querySelectorAll(":scope > template"),
+            path: this.getBindingPath(el)
+          };
+          context.value = getValueByPath(this.options.root, context.path);
+          context.element = el;
+          runTransformers(context);
+        }, 100);
+      };
+      const runTransformers = (context) => {
+        let transformers = this.options.defaultTransformers || [];
+        if (context.element.dataset.transform) {
+          context.element.dataset.transform.split(" ").filter(Boolean).forEach((t) => {
+            if (this.options.transformers[t]) {
+              transformers.push(this.options.transformers[t]);
+            } else {
+              console.warn("No transformer with name " + t + " configured", { cause: context.element });
+            }
+          });
+        }
+        let next;
+        for (let transformer of transformers) {
+          next = /* @__PURE__ */ ((next2, transformer2) => {
+            return (context2) => {
+              return transformer2.call(this, context2, next2);
+            };
+          })(next, transformer);
+        }
+        next(context);
+      };
+      const applyBindings = (bindings2) => {
+        for (let bindingEl of bindings2) {
+          render(bindingEl);
+        }
+      };
+      const updateBindings = (changes) => {
+        for (const change of changes) {
+          if (change.type == "childList" && change.addedNodes) {
+            for (let node of change.addedNodes) {
+              if (node instanceof HTMLElement) {
+                let bindings2 = Array.from(node.querySelectorAll(`[${attribute}]`));
+                if (node.matches(`[${attribute}]`)) {
+                  bindings2.unshift(node);
+                }
+                if (bindings2.length) {
+                  applyBindings(bindings2);
+                }
+              }
+            }
+          }
+        }
+      };
+      const observer = new MutationObserver((changes) => {
+        updateBindings(changes);
+      });
+      observer.observe(options.container, {
+        subtree: true,
+        childList: true
+      });
+      const bindings = this.options.container.querySelectorAll("[" + this.options.attribute + "]:not(template)");
+      if (bindings.length) {
+        applyBindings(bindings);
+      }
+    }
+    /**
+     * Finds the first matching template and creates a new DocumentFragment
+     * with the correct data bind attributes in it (prepends the current path)
+     */
+    applyTemplate(path, templates, list, index) {
+      let template = this.findTemplate(templates, list[index]);
+      if (!template) {
+        let result = new DocumentFragment();
+        result.innerHTML = "<!-- no matching template -->";
+        return result;
+      }
+      let clone = template.content.cloneNode(true);
+      if (!clone.children?.length) {
+        throw new Error("template must contain a single html element", { cause: template });
+      }
+      if (clone.children.length > 1) {
+        throw new Error("template must contain a single root node", { cause: template });
+      }
+      const bindings = clone.querySelectorAll("[" + this.options.attribute + "]");
+      const attribute = this.options.attribute;
+      for (let binding of bindings) {
+        const bind2 = binding.getAttribute(attribute);
+        if (bind2.substring(0, "#root.".length) == "#root.") {
+          binding.setAttribute(attribute, bind2.substring("#root.".length));
+        } else if (bind2 == "#value") {
+          binding.setAttribute(attribute, path + "." + index);
+        } else {
+          binding.setAttribute(attribute, path + "." + index + "." + bind2);
+        }
+      }
+      clone.children[0].setAttribute(attribute + "-key", index);
+      clone.children[0].$bindTemplate = template;
+      return clone;
+    }
+    getBindingPath(el) {
+      return el.getAttribute(this.options.attribute);
+    }
+    /**
+     * Finds the first template from an array of templates that
+     * matches the given value. 
+     */
+    findTemplate(templates, value) {
+      const templateMatches = (t) => {
+        let path = this.getBindingPath(t);
+        if (!path) {
+          return t;
+        }
+        let currentItem;
+        if (path.substr(0, 6) == "#root.") {
+          currentItem = getValueByPath(this.options.root, path);
+        } else {
+          currentItem = getValueByPath(value, path);
+        }
+        const strItem = "" + currentItem;
+        let matches = t.getAttribute(this.options.attribute + "-matches");
+        if (matches) {
+          if (matches === "#empty" && !currentItem) {
+            return t;
+          } else if (matches === "#notempty" && currentItem) {
+            return t;
+          }
+          if (strItem.match(matches)) {
+            return t;
+          }
+        }
+        if (!matches) {
+          if (currentItem) {
+            return t;
+          }
+        }
+      };
+      let template = Array.from(templates).find(templateMatches);
+      let rel = template?.getAttribute("rel");
+      if (rel) {
+        let replacement = document.querySelector("template#" + rel);
+        if (!replacement) {
+          throw new Error("Could not find template with id " + rel);
+        }
+        template = replacement;
+      }
+      return template;
+    }
+  };
+  function bind(options) {
+    return new SimplyBind(options);
+  }
+  function matchValue(a, b) {
+    if (a == "#empty" && !b) {
+      return true;
+    }
+    if (b == "#empty" && !a) {
+      return true;
+    }
+    if ("" + a == "" + b) {
+      return true;
+    }
+    return false;
+  }
+  function getValueByPath(root, path) {
+    let parts = path.split(".");
+    let curr = root;
+    let part, prevPart;
+    while (parts.length && curr) {
+      part = parts.shift();
+      if (part == "#key") {
+        return prevPart;
+      } else if (part == "#value") {
+        return curr;
+      } else if (part == "#root") {
+        curr = root;
+      } else {
+        part = decodeURIComponent(part);
+        curr = curr[part];
+        prevPart = part;
+      }
+    }
+    return curr;
+  }
+  function defaultTransformer(context) {
+    const el = context.element;
+    const templates = context.templates;
+    const templatesCount = templates.length;
+    const path = context.path;
+    const value = context.value;
+    const attribute = this.options.attribute;
+    if (Array.isArray(value) && templates?.length) {
+      transformArrayByTemplates.call(this, context);
+    } else if (value && typeof value == "object" && templates?.length) {
+      transformObjectByTemplates.call(this, context);
+    } else if (el.tagName == "INPUT") {
+      transformInput.call(this, context);
+    } else if (el.tagName == "BUTTON") {
+      transformButton.call(this, context);
+    } else if (el.tagName == "SELECT") {
+      transformSelect.call(this, context);
+    } else if (el.tagName == "A") {
+      transformAnchor.call(this, context);
+    } else {
+      transformElement.call(this, context);
+    }
+    return context;
+  }
+  function transformArrayByTemplates(context) {
+    const el = context.element;
+    const templates = context.templates;
+    const templatesCount = templates.length;
+    const path = context.path;
+    const value = context.value;
+    const attribute = this.options.attribute;
+    let items = el.querySelectorAll(":scope > [" + attribute + "-key]");
+    let lastKey = 0;
+    let skipped = 0;
+    for (let item of items) {
+      let currentKey = parseInt(item.getAttribute(attribute + "-key"));
+      if (currentKey > lastKey) {
+        el.insertBefore(this.applyTemplate(path, templates, value, lastKey), item);
+      } else if (currentKey < lastKey) {
+        item.remove();
+      } else {
+        let bindings = Array.from(item.querySelectorAll(`[${attribute}]`));
+        if (item.matches(`[${attribute}]`)) {
+          bindings.unshift(item);
+        }
+        let needsReplacement = bindings.find((b) => {
+          let databind = b.getAttribute(attribute);
+          return databind.substr(0, 5) !== "#root" && databind.substr(0, path.length) !== path;
+        });
+        if (!needsReplacement) {
+          if (item.$bindTemplate) {
+            let newTemplate = this.findTemplate(templates, value[lastKey]);
+            if (newTemplate != item.$bindTemplate) {
+              needsReplacement = true;
+              if (!newTemplate) {
+                skipped++;
+              }
+            }
+          }
+        }
+        if (needsReplacement) {
+          el.replaceChild(this.applyTemplate(path, templates, value, lastKey), item);
+        }
+      }
+      lastKey++;
+      if (lastKey >= value.length) {
+        break;
+      }
+    }
+    items = el.querySelectorAll(":scope > [" + attribute + "-key]");
+    let length = items.length + skipped;
+    if (length > value.length) {
+      while (length > value.length) {
+        let child = el.querySelectorAll(":scope > :not(template)")?.[length - 1];
+        child?.remove();
+        length--;
+      }
+    } else if (length < value.length) {
+      while (length < value.length) {
+        el.appendChild(this.applyTemplate(path, templates, value, length));
+        length++;
+      }
+    }
+  }
+  function transformObjectByTemplates(context) {
+    const el = context.element;
+    const templates = context.templates;
+    const templatesCount = templates.length;
+    const path = context.path;
+    const value = context.value;
+    const attribute = this.options.attribute;
+    let list = Object.entries(value);
+    let items = el.querySelectorAll(":scope > [" + attribute + "-key]");
+    let current = 0;
+    let skipped = 0;
+    for (let item of items) {
+      if (current >= list.length) {
+        break;
+      }
+      let key = list[current][0];
+      current++;
+      let keypath = path + "." + key;
+      let needsReplacement;
+      const databind = item.getAttribute(attribute);
+      if (databind && databind.substr(0, keypath.length) != keypath) {
+        needsReplacement = true;
+      } else {
+        let bindings = Array.from(item.querySelectorAll(`[${attribute}]`));
+        needsReplacement = bindings.find((b) => {
+          const db = b.getAttribute(attribute);
+          return db.substr(0, 5) !== "#root" && db.substr(0, keypath.length) !== keypath;
+        });
+        if (!needsReplacement) {
+          if (item.$bindTemplate) {
+            let newTemplate = this.findTemplate(templates, value[key]);
+            if (newTemplate != item.$bindTemplate) {
+              needsReplacement = true;
+              if (!newTemplate) {
+                skipped++;
+              }
+            }
+          }
+        }
+      }
+      if (needsReplacement) {
+        let clone = this.applyTemplate(path, templates, value, key);
+        el.replaceChild(clone, item);
+      }
+    }
+    items = el.querySelectorAll(":scope > [" + attribute + "-key]");
+    let length = items.length + skipped;
+    if (length > list.length) {
+      while (length > list.length) {
+        let child = el.querySelectorAll(":scope > :not(template)")?.[length - 1];
+        child?.remove();
+        length--;
+      }
+    } else if (length < list.length) {
+      while (length < list.length) {
+        let key = list[length][0];
+        el.appendChild(this.applyTemplate(path, templates, value, key));
+        length++;
+      }
+    }
+  }
+  function transformInput(context) {
+    const el = context.element;
+    const value = context.value;
+    if (el.type == "checkbox" || el.type == "radio") {
+      if (matchValue(el.value, value)) {
+        el.checked = true;
+      } else {
+        el.checked = false;
+      }
+    } else if (!matchValue(el.value, value)) {
+      el.value = "" + value;
+    }
+  }
+  function transformButton(context) {
+    const el = context.element;
+    const value = context.value;
+    if (!matchValue(el.value, value)) {
+      el.value = "" + value;
+    }
+  }
+  function transformSelect(context) {
+    const el = context.element;
+    const value = context.value;
+    if (el.multiple) {
+      if (Array.isArray(value)) {
+        for (let option of el.options) {
+          if (value.indexOf(option.value) === false) {
+            option.selected = false;
+          } else {
+            option.selected = true;
+          }
+        }
+      }
+    } else {
+      let option = el.options.find((o) => matchValue(o.value, value));
+      if (option) {
+        option.selected = true;
+      }
+    }
+  }
+  function transformAnchor(context) {
+    const el = context.element;
+    const value = context.value;
+    if (value?.innerHTML && !matchValue(el.innerHTML, value.innerHTML)) {
+      el.innerHTML = "" + value.innerHTML;
+    }
+    if (value?.href && !matchValue(el.href, value.href)) {
+      el.href = "" + value.href;
+    }
+  }
+  function transformElement(context) {
+    const el = context.element;
+    const value = context.value;
+    if (!matchValue(el.innerHTML, value)) {
+      el.innerHTML = "" + value;
+    }
+  }
+
+  // src/app.mjs
+  var SimplyApp = class {
+    constructor(options = {}) {
+      this.container = options.container || document.body;
+      if (!options.state) {
+        options.state = {};
+      }
+      this.state = signal(options.state);
+      if (options.commands) {
+        this.commands = commands({ app: this, container: this.container, commands: options.commands });
+      }
+      if (options.keys) {
+        this.keys = keys({ app: this, keys: options.keys });
+      }
+      if (options.routes) {
+        this.routes = routes({ app: this, routes: options.routes });
+      }
+      if (options.actions) {
+        this.actions = actions({ app: this, actions: options.actions });
+      }
+      let bindOptions = { container: this.container, root: this.state };
+      if (options.defaultTransformers) {
+        bindOptions.defaultTransformers = options.defaultTransformers;
+      }
+      if (options.transformers) {
+        bindOptions.transformers = options.transformers;
+      }
+      this.bind = bind(bindOptions);
+    }
+  };
+  function app(options = {}) {
+    return new SimplyApp(options);
+  }
+})();
