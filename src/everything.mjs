@@ -1,6 +1,6 @@
 import { activate } from './activate.mjs'
 import * as action from './action.mjs'
-import * as app from './app.mjs'
+import { app } from './app.mjs'
 import { bind } from './bind.mjs'
 import * as command from './command.mjs'
 import { include } from './include.mjs'
@@ -22,3 +22,4 @@ export const simply = {
 	state
 }
 
+window.simply = simply
