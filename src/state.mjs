@@ -42,6 +42,13 @@ const signalHandler = {
                     }
                     return result
                 }
+            } else if (
+                target instanceof HTMLElement
+                || target instanceof Number
+                || target instanceof String
+                || target instanceof Boolean
+            ) {
+                return value.bind(target)
             } else {
                 // support custom classes, hopefully
                 return value.bind(receiver)
