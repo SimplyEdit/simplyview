@@ -205,29 +205,30 @@
       if (!options.app.container) {
         options.app.container = document.body;
       }
-      this.app = options.app;
-      this.handlers = options.handlers || defaultHandlers;
-      this.commands = options.commands || {};
+      this.$handlers = options.handlers || defaultHandlers;
+      if (options.commands) {
+        Object.assign(this, options.commands);
+      }
       const commandHandler = (evt) => {
-        const command = getCommand(evt, this.handlers);
+        const command = getCommand(evt, this.$handlers);
         if (!command) {
           return;
         }
-        if (!this.commands[command.name]) {
+        if (!this[command.name]) {
           console.error("simply.command: undefined command " + command.name, command.source);
           return;
         }
-        const shouldContinue = this.commands[command.name].call(this.app, command.source, command.value);
+        const shouldContinue = this[command.name].call(options.app, command.source, command.value);
         if (shouldContinue === false) {
           evt.preventDefault();
           evt.stopPropagation();
           return false;
         }
       };
-      this.app.container.addEventListener("click", commandHandler);
-      this.app.container.addEventListener("submit", commandHandler);
-      this.app.container.addEventListener("change", commandHandler);
-      this.app.container.addEventListener("input", commandHandler);
+      options.app.container.addEventListener("click", commandHandler);
+      options.app.container.addEventListener("submit", commandHandler);
+      options.app.container.addEventListener("change", commandHandler);
+      options.app.container.addEventListener("input", commandHandler);
     }
   };
   function commands(options = {}) {
@@ -338,12 +339,8 @@
       if (!options.app.container) {
         options.app.container = document.body;
       }
-      this.keys = options.keys || {};
-      this.app = options.app;
-      this.app.container.addEventListener("keydown", this.keyHandler());
-    }
-    keyHandler() {
-      return (e) => {
+      Object.assign(this, options.keys);
+      const keyHandler = (e) => {
         if (e.isComposing || e.keyCode === 229) {
           return;
         }
@@ -371,11 +368,12 @@
           key += "Shift+";
         }
         key += e.key;
-        if (this.keys[selectedKeyboard] && this.keys[selectedKeyboard][key]) {
-          let keyboard = this.keys[selectedKeyboard];
-          keyboard[key].call(this.app, e);
+        if (this[selectedKeyboard] && this[selectedKeyboard][key]) {
+          let keyboard = this[selectedKeyboard];
+          keyboard[key].call(options.app, e);
         }
       };
+      options.app.container.addEventListener("keydown", keyHandler);
     }
   };
   function keys(options = {}) {
@@ -416,6 +414,8 @@
             }
             return result;
           };
+        } else if (target instanceof HTMLElement || target instanceof Number || target instanceof String || target instanceof Boolean) {
+          return value.bind(target);
         } else {
           return value.bind(receiver);
         }
