@@ -6,20 +6,21 @@ class SimplyCommands {
 		if (!options.app.container) {
 			options.app.container = document.body
 		}
-		this.app = options.app
-		this.handlers = options.handlers || defaultHandlers
-		this.commands = options.commands || {}
+		this.$handlers = options.handlers || defaultHandlers
+        if (options.commands) {
+    		Object.assign(this, options.commands)
+        }
 
 		const commandHandler = (evt) => {
-			const command = getCommand(evt, this.handlers)
+			const command = getCommand(evt, this.$handlers)
 			if (!command) {
 				return
 			}
-			if (!this.commands[command.name]) {
+			if (!this[command.name]) {
                 console.error('simply.command: undefined command '+command.name, command.source);
                 return
 			}
-            const shouldContinue = this.commands[command.name].call(this.app, command.source, command.value)
+            const shouldContinue = this[command.name].call(options.app, command.source, command.value)
             if (shouldContinue===false) {
                 evt.preventDefault()
                 evt.stopPropagation()
@@ -27,10 +28,10 @@ class SimplyCommands {
             }
 		}
 
-        this.app.container.addEventListener('click', commandHandler)
-        this.app.container.addEventListener('submit', commandHandler)
-        this.app.container.addEventListener('change', commandHandler)
-        this.app.container.addEventListener('input', commandHandler)
+        options.app.container.addEventListener('click', commandHandler)
+        options.app.container.addEventListener('submit', commandHandler)
+        options.app.container.addEventListener('change', commandHandler)
+        options.app.container.addEventListener('input', commandHandler)
 	}
 }
 
