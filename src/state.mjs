@@ -1,9 +1,11 @@
-const source = Symbol('source')
 const iterate = Symbol('iterate')
+if (!Symbol.xRay) {
+    Symbol.xRay = Symbol('xRay')
+}
 
 const signalHandler = {
     get: (target, property, receiver) => {
-        if (property===source) {
+        if (property===Symbol.xRay) {
             return target // don't notifyGet here, this is only called by set
         }
         const value = target?.[property] // Reflect.get fails on a Set.
@@ -52,7 +54,7 @@ const signalHandler = {
         return value
     },
     set: (target, property, value, receiver) => {
-        value = value?.[source] || value // unwraps signal
+        value = value?.[Symbol.xRay] || value // unwraps signal
         let current = target[property]
         if (current!==value) {
             target[property] = value
