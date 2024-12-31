@@ -1,7 +1,8 @@
-import { throttledEffect } from './state.mjs'
+import { throttledEffect, destroy } from './state.mjs'
 
 class SimplyBind {
     constructor(options) {
+        this.bindings = new Map()
         const defaultOptions = {
             container: document.body,
             attribute: 'data-bind',
@@ -17,8 +18,9 @@ class SimplyBind {
 
         // sets up the effect that updates the element if its
         // data binding value changes
+
         const render = (el) => {
-            throttledEffect(() => {
+            this.bindings.set(el, throttledEffect(() => {
                 const context = {
                     templates: el.querySelectorAll(':scope > template'),
                     path: this.getBindingPath(el)
@@ -26,7 +28,7 @@ class SimplyBind {
                 context.value = getValueByPath(this.options.root, context.path)
                 context.element = el
                 runTransformers(context)
-            }, 100)
+            }, 100))
         }
 
         // finds and runs applicable transformers
@@ -86,11 +88,11 @@ class SimplyBind {
 
         // this responds to elements getting added to the dom
         // and if any have data bind attributes, it applies those bindings
-        const observer = new MutationObserver((changes) => {
+        this.observer = new MutationObserver((changes) => {
             updateBindings(changes)
         })
 
-        observer.observe(options.container, {
+        this.observer.observe(options.container, {
             subtree: true,
             childList: true
         })
@@ -109,8 +111,15 @@ class SimplyBind {
      * Finds the first matching template and creates a new DocumentFragment
      * with the correct data bind attributes in it (prepends the current path)
      */
-    applyTemplate(path, templates, list, index) {
-        let template = this.findTemplate(templates, list[index])
+    applyTemplate(context) {
+        const path      = context.path
+        const templates = context.templates
+        const list      = context.list
+        const index     = context.index
+        const parent    = context.parent
+        const value     = list ? list[index] : context.value
+
+        let template = this.findTemplate(templates, value)
         if (!template) {
             let result = new DocumentFragment()
             result.innerHTML = '<!-- no matching template -->'
@@ -129,13 +138,17 @@ class SimplyBind {
             const bind = binding.getAttribute(attribute)
             if (bind.substring(0, '#root.'.length)=='#root.') {
                 binding.setAttribute(attribute, bind.substring('#root.'.length))
-            } else if (bind=='#value') {
+            } else if (bind=='#value' && index!=null) {
                 binding.setAttribute(attribute, path+'.'+index)
-            } else {
+            } else if (index!=null) {
                 binding.setAttribute(attribute, path+'.'+index+'.'+bind)
+            } else {
+                binding.setAttribute(attribute, parent+'.'+bind)
             }
         }
-        clone.children[0].setAttribute(attribute+'-key',index)
+        if (typeof index !== 'undefined') {
+            clone.children[0].setAttribute(attribute+'-key',index)
+        }
         // keep track of the used template, so if that changes, the 
         // item can be updated
         clone.children[0].$bindTemplate = template
@@ -152,18 +165,22 @@ class SimplyBind {
      */
     findTemplate(templates, value) {
         const templateMatches = t => {
+            // find the value to match against (e.g. data-bind="foo")
             let path = this.getBindingPath(t)
-            if (!path) {
-                return t
-            }
             let currentItem
-            if (path.substr(0,6)=='#root.') {
-                currentItem = getValueByPath(this.options.root, path)
+            if (path) {
+                if (path.substr(0,6)=='#root.') {
+                    currentItem = getValueByPath(this.options.root, path)
+                } else {
+                    currentItem = getValueByPath(value, path)
+                }
             } else {
-                currentItem = getValueByPath(value, path)
+                currentItem = value
             }
+
+            // then check the value against pattern, if set (e.g. data-bind-match="bar")
             const strItem = ''+currentItem
-            let matches = t.getAttribute(this.options.attribute+'-matches')
+            let matches = t.getAttribute(this.options.attribute+'-match')
             if (matches) {
                 if (matches==='#empty' && !currentItem) {
                     return t
@@ -175,11 +192,12 @@ class SimplyBind {
                 }
             }
             if (!matches) {
+                // no data-bind-match is set, so return this template is currentItem is truthy
                 if (currentItem) {
                     return t
                 }
             }
-        };
+        }
         let template = Array.from(templates).find(templateMatches)
         let rel = template?.getAttribute('rel')
         if (rel) {
@@ -190,6 +208,14 @@ class SimplyBind {
             template = replacement
         }
         return template
+    }
+
+    destroy() {
+        this.bindings.forEach(binding => {
+            destroy(binding)
+        })
+        this.bindings = new Map()
+        this.observer.disconnect()
     }
 
 }
@@ -253,16 +279,19 @@ export function getValueByPath(root, path)
  * Will be used unless overriden in the SimplyBind options parameter
  */
 export function defaultTransformer(context) {
-    const el = context.element
-    const templates = context.templates
+    const el             = context.element
+    const templates      = context.templates
     const templatesCount = templates.length 
-    const path = context.path
-    const value = context.value
-    const attribute = this.options.attribute
+    const path           = context.path
+    const value          = context.value
+    const attribute      = this.options.attribute
+
     if (Array.isArray(value) && templates?.length) {
         transformArrayByTemplates.call(this, context)
-    } else if (value && typeof value == 'object' && templates?.length) {
+    } else if (typeof value == 'object' && templates?.length) {
         transformObjectByTemplates.call(this, context)
+    } else if (templates?.length) {
+        transformLiteralByTemplates.call(this, context)
     } else if (el.tagName=='INPUT') {
         transformInput.call(this, context)
     } else if (el.tagName=='BUTTON') {
@@ -295,11 +324,13 @@ export function transformArrayByTemplates(context) {
     // now just do a delete if a key <= last key, insert if a key >= last key
     let lastKey = 0
     let skipped = 0
+    context.list  = value
     for (let item of items) {
         let currentKey = parseInt(item.getAttribute(attribute+'-key'))
         if (currentKey>lastKey) {
             // insert before
-            el.insertBefore(this.applyTemplate(path, templates, value, lastKey), item)
+            context.index = lastKey
+            el.insertBefore(this.applyTemplate(context), item)
         } else if (currentKey<lastKey) {
             // remove this
             item.remove()
@@ -326,7 +357,8 @@ export function transformArrayByTemplates(context) {
                 }
             }
             if (needsReplacement) {
-                el.replaceChild(this.applyTemplate(path, templates, value, lastKey), item)
+                context.index = lastKey
+                el.replaceChild(this.applyTemplate(context), item)
             }
         }
         lastKey++
@@ -344,7 +376,8 @@ export function transformArrayByTemplates(context) {
         }
     } else if (length < value.length ) {
         while (length < value.length) {
-            el.appendChild(this.applyTemplate(path, templates, value, length))
+            context.index = length
+            el.appendChild(this.applyTemplate(context))
             length++
         }
     }
@@ -362,7 +395,8 @@ export function transformObjectByTemplates(context) {
     const path           = context.path
     const value          = context.value
     const attribute      = this.options.attribute
-    
+    context.list = value
+
     let list    = Object.entries(value)
     let items   = el.querySelectorAll(':scope > ['+attribute+'-key]')
     let current = 0
@@ -398,7 +432,8 @@ export function transformObjectByTemplates(context) {
             }
         }
         if (needsReplacement) {
-            let clone = this.applyTemplate(path, templates, value, key)
+            context.index = key
+            let clone = this.applyTemplate(context)
             el.replaceChild(clone, item)
         }
     }
@@ -412,11 +447,41 @@ export function transformObjectByTemplates(context) {
         }
     } else if (length < list.length) {
         while (length < list.length) {
-            let key = list[length][0]
-            el.appendChild(this.applyTemplate(path, templates, value, key))
+            context.index = list[length][0]
+            el.appendChild(this.applyTemplate(context))
             length++
         }
     } 
+}
+
+/**
+ * transforms the contents of an html element by rendering
+ * a matching template, once.
+ * data-bind attributes inside the template use the same
+ * parent path as this html element uses
+ */
+export function transformLiteralByTemplates(context) {
+    const el             = context.element
+    const templates      = context.templates
+    const value          = context.value
+    const attribute      = this.options.attribute
+
+    const rendered = el.querySelector(':scope > :not(template)')
+    const template = this.findTemplate(templates, value)
+    context.parent = el.parentElement?.closest(`[${attribute}]`)?.getAttribute(attribute) || '#root'
+    if (rendered) {
+        if (template) {
+            if (rendered?.$bindTemplate != template) {
+                const clone = this.applyTemplate(context)
+                el.replaceChild(clone, rendered)
+            }
+        } else {
+            el.removeChild(rendered)
+        }
+    } else if (template) {
+        const clone = this.applyTemplate(context)
+        el.appendChild(clone)
+    }
 }
 
 /**
