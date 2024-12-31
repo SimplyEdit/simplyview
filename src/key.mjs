@@ -6,13 +6,9 @@ class SimplyKeys {
 		if (!options.app.container) {
 			options.app.container = document.body
 		}
-		this.keys = options.keys || {}
-		this.app = options.app
-		this.app.container.addEventListener('keydown', this.keyHandler())
-	}
+		Object.assign(this, options.keys)
 
-	keyHandler() {
-		return (e) => {
+		const keyHandler = (e) => {
 			if (e.isComposing || e.keyCode === 229) {
 			    return;
 			}
@@ -42,12 +38,15 @@ class SimplyKeys {
 			}
 			key+=e.key;
 
-			if (this.keys[selectedKeyboard] && this.keys[selectedKeyboard][key]) {
-			    let keyboard = this.keys[selectedKeyboard]
-			    keyboard[key].call(this.app,e);
+			if (this[selectedKeyboard] && this[selectedKeyboard][key]) {
+			    let keyboard = this[selectedKeyboard]
+			    keyboard[key].call(options.app,e);
 			}
 		}
+
+		options.app.container.addEventListener('keydown', keyHandler)
 	}
+
 }
 
 export function keys(options={}) {
