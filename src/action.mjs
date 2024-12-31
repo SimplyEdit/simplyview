@@ -1,18 +1,12 @@
-class SimplyActions {
-	constructor(options) {
-        this.app = options.app
-        
+export function actions(options) {
+	if (options.app) {
 		const actionHandler = {
 			get: (target, property) => {
-				return target[property].bind(this.app)
+				return target[property].bind(options.app)
 			}
 		}
-
-		this.actions = new Proxy({}, actionHandler)
-		Object.assign(this.actions, options.actions)
+		return new Proxy(options.actions, actionHandler)
+	} else {
+		return options
 	}
-}
-
-export function actions(options) {
-	return new SimplyActions(options)
 }
