@@ -217,18 +217,15 @@
           console.error("simply.command: undefined command " + command.name, command.source);
           return;
         }
-        this.commands[command.name].call(this.app, command.source, command.value);
-      };
-      function stop(fn) {
-        return (evt) => {
-          fn(evt);
+        const shouldContinue = this.commands[command.name].call(this.app, command.source, command.value);
+        if (shouldContinue === false) {
           evt.preventDefault();
           evt.stopPropagation();
           return false;
-        };
-      }
-      this.app.container.addEventListener("click", stop(commandHandler));
-      this.app.container.addEventListener("submit", stop(commandHandler));
+        }
+      };
+      this.app.container.addEventListener("click", commandHandler);
+      this.app.container.addEventListener("submit", commandHandler);
       this.app.container.addEventListener("change", commandHandler);
       this.app.container.addEventListener("input", commandHandler);
     }
@@ -319,20 +316,17 @@
   ];
 
   // src/action.mjs
-  var SimplyActions = class {
-    constructor(options) {
-      this.app = options.app;
+  function actions(options) {
+    if (options.app) {
       const actionHandler = {
         get: (target, property) => {
-          return target[property].bind(this.app);
+          return target[property].bind(options.app);
         }
       };
-      this.actions = new Proxy({}, actionHandler);
-      Object.assign(this.actions, options.actions);
+      return new Proxy(options.actions, actionHandler);
+    } else {
+      return options;
     }
-  };
-  function actions(options) {
-    return new SimplyActions(options);
   }
 
   // src/key.mjs
@@ -389,11 +383,13 @@
   }
 
   // src/state.mjs
-  var source = Symbol("source");
   var iterate = Symbol("iterate");
+  if (!Symbol.xRay) {
+    Symbol.xRay = Symbol("xRay");
+  }
   var signalHandler = {
     get: (target, property, receiver) => {
-      if (property === source) {
+      if (property === Symbol.xRay) {
         return target;
       }
       const value = target?.[property];
@@ -430,7 +426,7 @@
       return value;
     },
     set: (target, property, value, receiver) => {
-      value = value?.[source] || value;
+      value = value?.[Symbol.xRay] || value;
       let current = target[property];
       if (current !== value) {
         target[property] = value;
@@ -575,7 +571,18 @@
   }
   var computeStack = [];
   var effectStack = [];
+  var effectMap = /* @__PURE__ */ new WeakMap();
   var signalStack = [];
+  function destroy(connectedSignal) {
+    const computeEffect = effectMap.get(connectedSignal)?.deref();
+    if (!computeEffect) {
+      return;
+    }
+    clearListeners(computeEffect);
+    let fn = computeEffect.fn;
+    signals.remove(fn);
+    effectMap.delete(connectedSignal);
+  }
   function throttledEffect(fn, throttleTime) {
     if (effectStack.findIndex((f) => fn == f) !== -1) {
       throw new Error("Recursive update() call", { cause: fn });
@@ -630,6 +637,7 @@
   // src/bind.mjs
   var SimplyBind = class {
     constructor(options) {
+      this.bindings = /* @__PURE__ */ new Map();
       const defaultOptions = {
         container: document.body,
         attribute: "data-bind",
@@ -642,7 +650,7 @@
       this.options = Object.assign({}, defaultOptions, options);
       const attribute = this.options.attribute;
       const render = (el) => {
-        throttledEffect(() => {
+        this.bindings.set(el, throttledEffect(() => {
           const context = {
             templates: el.querySelectorAll(":scope > template"),
             path: this.getBindingPath(el)
@@ -650,7 +658,7 @@
           context.value = getValueByPath(this.options.root, context.path);
           context.element = el;
           runTransformers(context);
-        }, 100);
+        }, 100));
       };
       const runTransformers = (context) => {
         let transformers = this.options.defaultTransformers || [];
@@ -695,10 +703,10 @@
           }
         }
       };
-      const observer = new MutationObserver((changes) => {
+      this.observer = new MutationObserver((changes) => {
         updateBindings(changes);
       });
-      observer.observe(options.container, {
+      this.observer.observe(options.container, {
         subtree: true,
         childList: true
       });
@@ -711,8 +719,14 @@
      * Finds the first matching template and creates a new DocumentFragment
      * with the correct data bind attributes in it (prepends the current path)
      */
-    applyTemplate(path, templates, list, index) {
-      let template = this.findTemplate(templates, list[index]);
+    applyTemplate(context) {
+      const path = context.path;
+      const templates = context.templates;
+      const list = context.list;
+      const index = context.index;
+      const parent = context.parent;
+      const value = list ? list[index] : context.value;
+      let template = this.findTemplate(templates, value);
       if (!template) {
         let result = new DocumentFragment();
         result.innerHTML = "<!-- no matching template -->";
@@ -731,13 +745,17 @@
         const bind2 = binding.getAttribute(attribute);
         if (bind2.substring(0, "#root.".length) == "#root.") {
           binding.setAttribute(attribute, bind2.substring("#root.".length));
-        } else if (bind2 == "#value") {
+        } else if (bind2 == "#value" && index != null) {
           binding.setAttribute(attribute, path + "." + index);
-        } else {
+        } else if (index != null) {
           binding.setAttribute(attribute, path + "." + index + "." + bind2);
+        } else {
+          binding.setAttribute(attribute, parent + "." + bind2);
         }
       }
-      clone.children[0].setAttribute(attribute + "-key", index);
+      if (typeof index !== "undefined") {
+        clone.children[0].setAttribute(attribute + "-key", index);
+      }
       clone.children[0].$bindTemplate = template;
       return clone;
     }
@@ -751,17 +769,18 @@
     findTemplate(templates, value) {
       const templateMatches = (t) => {
         let path = this.getBindingPath(t);
-        if (!path) {
-          return t;
-        }
         let currentItem;
-        if (path.substr(0, 6) == "#root.") {
-          currentItem = getValueByPath(this.options.root, path);
+        if (path) {
+          if (path.substr(0, 6) == "#root.") {
+            currentItem = getValueByPath(this.options.root, path);
+          } else {
+            currentItem = getValueByPath(value, path);
+          }
         } else {
-          currentItem = getValueByPath(value, path);
+          currentItem = value;
         }
         const strItem = "" + currentItem;
-        let matches = t.getAttribute(this.options.attribute + "-matches");
+        let matches = t.getAttribute(this.options.attribute + "-match");
         if (matches) {
           if (matches === "#empty" && !currentItem) {
             return t;
@@ -788,6 +807,13 @@
         template = replacement;
       }
       return template;
+    }
+    destroy() {
+      this.bindings.forEach((binding) => {
+        destroy(binding);
+      });
+      this.bindings = /* @__PURE__ */ new Map();
+      this.observer.disconnect();
     }
   };
   function bind(options) {
@@ -834,8 +860,10 @@
     const attribute = this.options.attribute;
     if (Array.isArray(value) && templates?.length) {
       transformArrayByTemplates.call(this, context);
-    } else if (value && typeof value == "object" && templates?.length) {
+    } else if (typeof value == "object" && templates?.length) {
       transformObjectByTemplates.call(this, context);
+    } else if (templates?.length) {
+      transformLiteralByTemplates.call(this, context);
     } else if (el.tagName == "INPUT") {
       transformInput.call(this, context);
     } else if (el.tagName == "BUTTON") {
@@ -859,10 +887,12 @@
     let items = el.querySelectorAll(":scope > [" + attribute + "-key]");
     let lastKey = 0;
     let skipped = 0;
+    context.list = value;
     for (let item of items) {
       let currentKey = parseInt(item.getAttribute(attribute + "-key"));
       if (currentKey > lastKey) {
-        el.insertBefore(this.applyTemplate(path, templates, value, lastKey), item);
+        context.index = lastKey;
+        el.insertBefore(this.applyTemplate(context), item);
       } else if (currentKey < lastKey) {
         item.remove();
       } else {
@@ -886,7 +916,8 @@
           }
         }
         if (needsReplacement) {
-          el.replaceChild(this.applyTemplate(path, templates, value, lastKey), item);
+          context.index = lastKey;
+          el.replaceChild(this.applyTemplate(context), item);
         }
       }
       lastKey++;
@@ -904,7 +935,8 @@
       }
     } else if (length < value.length) {
       while (length < value.length) {
-        el.appendChild(this.applyTemplate(path, templates, value, length));
+        context.index = length;
+        el.appendChild(this.applyTemplate(context));
         length++;
       }
     }
@@ -916,6 +948,7 @@
     const path = context.path;
     const value = context.value;
     const attribute = this.options.attribute;
+    context.list = value;
     let list = Object.entries(value);
     let items = el.querySelectorAll(":scope > [" + attribute + "-key]");
     let current = 0;
@@ -950,7 +983,8 @@
         }
       }
       if (needsReplacement) {
-        let clone = this.applyTemplate(path, templates, value, key);
+        context.index = key;
+        let clone = this.applyTemplate(context);
         el.replaceChild(clone, item);
       }
     }
@@ -964,10 +998,32 @@
       }
     } else if (length < list.length) {
       while (length < list.length) {
-        let key = list[length][0];
-        el.appendChild(this.applyTemplate(path, templates, value, key));
+        context.index = list[length][0];
+        el.appendChild(this.applyTemplate(context));
         length++;
       }
+    }
+  }
+  function transformLiteralByTemplates(context) {
+    const el = context.element;
+    const templates = context.templates;
+    const value = context.value;
+    const attribute = this.options.attribute;
+    const rendered = el.querySelector(":scope > :not(template)");
+    const template = this.findTemplate(templates, value);
+    context.parent = el.parentElement?.closest(`[${attribute}]`)?.getAttribute(attribute) || "#root";
+    if (rendered) {
+      if (template) {
+        if (rendered?.$bindTemplate != template) {
+          const clone = this.applyTemplate(context);
+          el.replaceChild(clone, rendered);
+        }
+      } else {
+        el.removeChild(rendered);
+      }
+    } else if (template) {
+      const clone = this.applyTemplate(context);
+      el.appendChild(clone);
     }
   }
   function transformInput(context) {
