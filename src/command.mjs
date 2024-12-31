@@ -19,20 +19,16 @@ class SimplyCommands {
                 console.error('simply.command: undefined command '+command.name, command.source);
                 return
 			}
-			this.commands[command.name].call(this.app, command.source, command.value)
-		}
-
-        function stop(fn) {
-            return (evt) => {
-                fn(evt)
+            const shouldContinue = this.commands[command.name].call(this.app, command.source, command.value)
+            if (shouldContinue===false) {
                 evt.preventDefault()
                 evt.stopPropagation()
-                return false                
+                return false
             }
-        }
+		}
 
-        this.app.container.addEventListener('click', stop(commandHandler))
-        this.app.container.addEventListener('submit', stop(commandHandler))
+        this.app.container.addEventListener('click', commandHandler)
+        this.app.container.addEventListener('submit', commandHandler)
         this.app.container.addEventListener('change', commandHandler)
         this.app.container.addEventListener('input', commandHandler)
 	}
