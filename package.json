@@ -1,8 +1,9 @@
 {
   "name": "simplyview",
-  "version": "3.0.0",
-  "description": "Library to rapidly build UI components, using declarative tools",
-  "main": "dist/simply.everything.js",
+  "version": "3.0.1",
+  "description": "WIP: Library to rapidly build UI components, using declarative tools",
+  "main": "src/everything.mjs",
+  "type": "module",
   "directories": {
     "example": "examples"
   },
