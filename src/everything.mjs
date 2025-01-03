@@ -9,7 +9,7 @@ import * as model from './model.mjs'
 import * as route from './route.mjs'
 import * as state from './state.mjs'
 
-export const simply = {
+const simply = {
 	activate,
 	action,
 	app,
@@ -23,3 +23,5 @@ export const simply = {
 }
 
 window.simply = simply
+
+export default simply

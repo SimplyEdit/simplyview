@@ -1654,4 +1654,5 @@
     state: state_exports
   };
   window.simply = simply;
+  var everything_default = simply;
 })();
