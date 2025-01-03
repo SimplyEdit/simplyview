@@ -932,6 +932,7 @@
      * Finds the first matching template and creates a new DocumentFragment
      * with the correct data bind attributes in it (prepends the current path)
      */
+<<<<<<< HEAD
     applyTemplate(context) {
       const path = context.path;
       const templates = context.templates;
@@ -940,6 +941,10 @@
       const parent = context.parent;
       const value = list ? list[index] : context.value;
       let template = this.findTemplate(templates, value);
+=======
+    applyTemplate(path, templates, list, index) {
+      let template = this.findTemplate(templates, list[index]);
+>>>>>>> 9afe95a (updated build)
       if (!template) {
         let result = new DocumentFragment();
         result.innerHTML = "<!-- no matching template -->";
