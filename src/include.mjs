@@ -53,7 +53,7 @@ const waitForPreviousScripts = async () => {
     // that triggers the Promise.resolve method
     return new Promise(function(resolve) {
         var next = globalThis.document.createElement('script')
-        next.src = rebaseHref('simply.include.next.js', currentScriptURL)
+        next.src = "javascript:document.dispatchEvent(new Event('simply-include-next'))"
         next.async = false
         globalThis.document.addEventListener('simply-include-next', () => {
             head.removeChild(next)
