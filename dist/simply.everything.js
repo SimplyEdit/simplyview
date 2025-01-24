@@ -1005,9 +1005,7 @@
           }
         }
         if (!matches) {
-          if (currentItem) {
-            return t;
-          }
+          return t;
         }
       };
       let template = Array.from(templates).find(templateMatches);
@@ -1101,26 +1099,26 @@
     let lastKey = 0;
     let skipped = 0;
     context.list = value;
-    for (let item of items) {
-      let currentKey = parseInt(item.getAttribute(attribute + "-key"));
+    for (let item2 of items) {
+      let currentKey = parseInt(item2.getAttribute(attribute + "-key"));
       if (currentKey > lastKey) {
         context.index = lastKey;
-        el.insertBefore(this.applyTemplate(context), item);
+        el.insertBefore(this.applyTemplate(context), item2);
       } else if (currentKey < lastKey) {
-        item.remove();
+        item2.remove();
       } else {
-        let bindings = Array.from(item.querySelectorAll(`[${attribute}]`));
-        if (item.matches(`[${attribute}]`)) {
-          bindings.unshift(item);
+        let bindings = Array.from(item2.querySelectorAll(`[${attribute}]`));
+        if (item2.matches(`[${attribute}]`)) {
+          bindings.unshift(item2);
         }
         let needsReplacement = bindings.find((b) => {
           let databind = b.getAttribute(attribute);
           return databind.substr(0, 5) !== "#root" && databind.substr(0, path.length) !== path;
         });
         if (!needsReplacement) {
-          if (item.$bindTemplate) {
+          if (item2.$bindTemplate) {
             let newTemplate = this.findTemplate(templates, value[lastKey]);
-            if (newTemplate != item.$bindTemplate) {
+            if (newTemplate != item2.$bindTemplate) {
               needsReplacement = true;
               if (!newTemplate) {
                 skipped++;
@@ -1130,7 +1128,7 @@
         }
         if (needsReplacement) {
           context.index = lastKey;
-          el.replaceChild(this.applyTemplate(context), item);
+          el.replaceChild(this.applyTemplate(context), item2);
         }
       }
       lastKey++;
@@ -1162,59 +1160,38 @@
     const value = context.value;
     const attribute = this.options.attribute;
     context.list = value;
-    let list = Object.entries(value);
-    let items = el.querySelectorAll(":scope > [" + attribute + "-key]");
-    let current = 0;
-    let skipped = 0;
-    for (let item of items) {
-      if (current >= list.length) {
-        break;
+    let items = Array.from(el.querySelectorAll(":scope > [" + attribute + "-key]"));
+    for (let key in context.list) {
+      context.index = key;
+      let item2 = items.shift();
+      if (!item2) {
+        el.appendChild(this.applyTemplate(context));
+        continue;
       }
-      let key = list[current][0];
-      current++;
-      let keypath = path + "." + key;
-      let needsReplacement;
-      const databind = item.getAttribute(attribute);
-      if (databind && databind.substr(0, keypath.length) != keypath) {
-        needsReplacement = true;
-      } else {
-        let bindings = Array.from(item.querySelectorAll(`[${attribute}]`));
-        needsReplacement = bindings.find((b) => {
-          const db = b.getAttribute(attribute);
-          return db.substr(0, 5) !== "#root" && db.substr(0, keypath.length) !== keypath;
-        });
-        if (!needsReplacement) {
-          if (item.$bindTemplate) {
-            let newTemplate = this.findTemplate(templates, value[key]);
-            if (newTemplate != item.$bindTemplate) {
-              needsReplacement = true;
-              if (!newTemplate) {
-                skipped++;
-              }
-            }
+      if (item2.getAttribute[attribute + "-key"] != key) {
+        items.unshift(item2);
+        let outOfOrderItem = el.querySelector(":scope > [" + attribute + '-key="' + key + '"]');
+        if (!outOfOrderItem) {
+          let clone = this.applyTemplate(context);
+          if (clone.firstElementChild) {
+            el.insertBefore(clone, item2);
           }
+          continue;
+        } else {
+          el.insertBefore(outOfOrderItem, item2);
+          item2 = outOfOrderItem;
+          items = items.filter((i) => i != outOfOrderItem);
         }
       }
-      if (needsReplacement) {
-        context.index = key;
+      let newTemplate = this.findTemplate(templates, value[key]);
+      if (newTemplate != item2.$bindTemplate) {
         let clone = this.applyTemplate(context);
-        el.replaceChild(clone, item);
+        el.replaceChild(clone, item2);
       }
     }
-    items = el.querySelectorAll(":scope > [" + attribute + "-key]");
-    let length = items.length + skipped;
-    if (length > list.length) {
-      while (length > list.length) {
-        let child = el.querySelectorAll(":scope > :not(template)")?.[length - 1];
-        child?.remove();
-        length--;
-      }
-    } else if (length < list.length) {
-      while (length < list.length) {
-        context.index = list[length][0];
-        el.appendChild(this.applyTemplate(context));
-        length++;
-      }
+    while (items.length) {
+      item = items.shift();
+      item.remove();
     }
   }
   function transformLiteralByTemplates(context) {
@@ -1293,7 +1270,11 @@
     const el = context.element;
     const value = context.value;
     if (!matchValue(el.innerHTML, value)) {
-      el.innerHTML = "" + value;
+      if (typeof value == "undefined" || value == null) {
+        el.innerHTML = "";
+      } else {
+        el.innerHTML = "" + value;
+      }
     }
   }
 
@@ -1381,7 +1362,7 @@
   var waitForPreviousScripts = async () => {
     return new Promise(function(resolve) {
       var next = globalThis.document.createElement("script");
-      next.src = rebaseHref("simply.include.next.js", currentScriptURL);
+      next.src = "javascript:document.dispatchEvent(new Event('simply-include-next'))";
       next.async = false;
       globalThis.document.addEventListener("simply-include-next", () => {
         head.removeChild(next);

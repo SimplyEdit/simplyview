@@ -1,6 +1,6 @@
 {
   "name": "simplyview",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "WIP: Library to rapidly build UI components, using declarative tools",
   "main": "src/everything.mjs",
   "type": "module",
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "esbuild src/everything.mjs --bundle --outfile=dist/simply.everything.min.js --minify --sourcemap; esbuild src/app.mjs --bundle --outfile=dist/simply.app.min.js --minify --sourcemap",
     "build-dev": "esbuild src/everything.mjs --bundle --outfile=dist/simply.everything.js; esbuild src/app.mjs --bundle --outfile=dist/simply.app.js",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "repository": {
     "type": "git",
@@ -38,5 +38,10 @@
     "README.md",
     "dist/",
     "src/"
-  ]
+  ],
+  "jest": {
+    "transform": {},
+    "testEnvironment": "jsdom"
+  }
+
 }
