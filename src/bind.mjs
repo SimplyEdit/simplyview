@@ -192,10 +192,8 @@ class SimplyBind {
                 }
             }
             if (!matches) {
-                // no data-bind-match is set, so return this template is currentItem is truthy
-                if (currentItem) {
-                    return t
-                }
+                // no data-bind-match is set, so return this template
+                return t
             }
         }
         let template = Array.from(templates).find(templateMatches)
@@ -385,7 +383,7 @@ export function transformArrayByTemplates(context) {
 
 /**
  * Renders an object value by applying templates for each entry (Object.entries)
- * Replaces or removes existing DOM children if needed
+ * Replaces,moves or removes existing DOM children if needed
  * Reuses (doesn't touch) DOM children if template doesn't change
  */
 export function transformObjectByTemplates(context) {
@@ -397,61 +395,41 @@ export function transformObjectByTemplates(context) {
     const attribute      = this.options.attribute
     context.list = value
 
-    let list    = Object.entries(value)
-    let items   = el.querySelectorAll(':scope > ['+attribute+'-key]')
-    let current = 0
-    let skipped = 0
-    for (let item of items) {
-        if (current>=list.length) {
-            break
+    let items = Array.from(el.querySelectorAll(':scope > ['+attribute+'-key]'))
+    for (let key in context.list) {
+        context.index = key
+        let item = items.shift()
+        if (!item) { // more properties than rendered items
+            el.appendChild(this.applyTemplate(context))
+            continue
         }
-        let key = list[current][0]
-        current++
-        let keypath = path+'.'+key
-        // check that all data-bind params start with current json path or a '#', otherwise replaceChild
-        let needsReplacement
-        const databind = item.getAttribute(attribute)
-        if (databind && databind.substr(0, keypath.length)!=keypath) {
-            needsReplacement=true
-        } else {
-            let bindings = Array.from(item.querySelectorAll(`[${attribute}]`))
-            needsReplacement = bindings.find(b => {
-                const db = b.getAttribute(attribute)
-                return (db.substr(0,5)!=='#root' && db.substr(0, keypath.length)!==keypath)
-            })
-            if (!needsReplacement) {
-                if (item.$bindTemplate) {
-                    let newTemplate = this.findTemplate(templates, value[key])
-                    if (newTemplate != item.$bindTemplate){
-                        needsReplacement = true
-                        if (!newTemplate) {
-                            skipped++
-                        }
-                    }
+        if (item.getAttribute[attribute+'-key']!=key) { 
+            // next item doesn't match key
+            items.unshift(item) // put item back for next cycle
+            let outOfOrderItem = el.querySelector(':scope > ['+attribute+'-key="'+key+'"]') //FIXME: escape key
+            if (!outOfOrderItem) {
+                let clone = this.applyTemplate(context)
+                if (clone.firstElementChild) {
+                    el.insertBefore(clone, item)
                 }
+                continue // new template doesn't need replacement, so continue 
+            } else {
+                el.insertBefore(outOfOrderItem, item)
+                item = outOfOrderItem // check needsreplacement next
+                items = items.filter(i => i!=outOfOrderItem)
             }
         }
-        if (needsReplacement) {
-            context.index = key
+        let newTemplate = this.findTemplate(templates, value[key])
+        if (newTemplate != item.$bindTemplate){
             let clone = this.applyTemplate(context)
             el.replaceChild(clone, item)
         }
     }
-    items  = el.querySelectorAll(':scope > ['+attribute+'-key]')
-    let length = items.length + skipped
-    if (length>list.length) {
-        while (length>list.length) {
-            let child = el.querySelectorAll(':scope > :not(template)')?.[length-1]
-            child?.remove()
-            length--
-        }
-    } else if (length < list.length) {
-        while (length < list.length) {
-            context.index = list[length][0]
-            el.appendChild(this.applyTemplate(context))
-            length++
-        }
-    } 
+    // clean up remaining items
+    while (items.length) {
+        item = items.shift()
+        item.remove()
+    }
 }
 
 /**
@@ -567,6 +545,10 @@ export function transformElement(context) {
     const value = context.value
 
     if (!matchValue(el.innerHTML, value)) {
-        el.innerHTML = ''+value
+        if (typeof value=='undefined' || value==null) {
+            el.innerHTML = ''
+        } else {
+            el.innerHTML = ''+value
+        }
     }
 }
