@@ -21,7 +21,7 @@ class SimplyCommands {
                 return
 			}
             const shouldContinue = this[command.name].call(options.app, command.source, command.value)
-            if (shouldContinue===false) {
+            if (shouldContinue!==true) {
                 evt.preventDefault()
                 evt.stopPropagation()
                 return false
