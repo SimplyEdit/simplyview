@@ -169,9 +169,9 @@ class SimplyBind {
         for (let binding of bindings) {
             const attr = attributes.find(attr => binding.hasAttribute(attr))
             const bind = binding.getAttribute(attr)
-            if (bind.substring(0, '#root.'.length)=='#root.') {
-                binding.setAttribute(attr, bind.substring('#root.'.length))
-            } else if (bind=='#value' && index!=null) {
+            if (bind.substring(0, ':root.'.length)==':root.') {
+                binding.setAttribute(attr, bind.substring(':root.'.length))
+            } else if (bind==':value' && index!=null) {
                 binding.setAttribute(attr, path+'.'+index)
             } else if (index!=null) {
                 binding.setAttribute(attr, path+'.'+index+'.'+bind)
@@ -211,7 +211,7 @@ class SimplyBind {
             let path = this.getBindingPath(t)
             let currentItem
             if (path) {
-                if (path.substr(0,6)=='#root.') {
+                if (path.substr(0,6)==':root.') {
                     currentItem = getValueByPath(this.options.root, path)
                 } else {
                     currentItem = getValueByPath(value, path)
@@ -224,9 +224,9 @@ class SimplyBind {
             const strItem = ''+currentItem
             let matches = t.getAttribute(this.options.attribute+'-match')
             if (matches) {
-                if (matches==='#empty' && !currentItem) {
+                if (matches===':empty' && !currentItem) {
                     return t
-                } else if (matches==='#notempty' && currentItem) {
+                } else if (matches===':notempty' && currentItem) {
                     return t
                 }
                 if (strItem.match(matches)) {
@@ -274,13 +274,13 @@ export function bind(options)
 
 /**
  * Returns true if a matches b, either by having the
- * same string value, or matching string #empty against a falsy value
+ * same string value, or matching string :empty against a falsy value
  */
 export function matchValue(a,b) {
-    if (a=='#empty' && !b) {
+    if (a==':empty' && !b) {
         return true
     }
-    if (b=='#empty' && !a) {
+    if (b==':empty' && !a) {
         return true
     }
     if (''+a == ''+b) {
@@ -302,11 +302,11 @@ export function getValueByPath(root, path)
     let part, prevPart;
     while (parts.length && curr) {
         part = parts.shift()
-        if (part=='#key') {
+        if (part==':key') {
             return prevPart
-        } else if (part=='#value') {
+        } else if (part==':value') {
             return curr
-        } else if (part=='#root') {
+        } else if (part==':root') {
             curr = root
         } else {
             part = decodeURIComponent(part)
@@ -413,14 +413,14 @@ export function transformArrayByTemplates(context) {
             // remove this
             item.remove()
         } else {
-            // check that all data-bind params start with current json path or a '#', otherwise replaceChild
+            // check that all data-bind params start with current json path or ':root', otherwise replaceChild
             let bindings = Array.from(item.querySelectorAll(`[${attribute}]`))
             if (item.matches(`[${attribute}]`)) {
                 bindings.unshift(item)
             }
             let needsReplacement = bindings.find(b => {
                 let databind = b.getAttribute(attribute)
-                return (databind.substr(0,5)!=='#root' 
+                return (databind.substr(0,5)!==':root' 
                     && databind.substr(0, path.length)!==path)
             })
             if (!needsReplacement) {
@@ -515,7 +515,7 @@ export function transformObjectByTemplates(context) {
 function getParentPath(el, attribute) {
     const parentEl  = el.parentElement?.closest(`[${attribute}-list],[${attribute}-map]`)
     if (!parentEl) {
-        return '#root'
+        return ':root'
     }
     if (parentEl.hasAttribute(`${attribute}-list`)) {
         return parentEl.getAttribute(`${attribute}-list`)

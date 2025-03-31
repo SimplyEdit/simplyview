@@ -773,9 +773,9 @@
       for (let binding of bindings) {
         const attr = attributes.find((attr2) => binding.hasAttribute(attr2));
         const bind2 = binding.getAttribute(attr);
-        if (bind2.substring(0, "#root.".length) == "#root.") {
-          binding.setAttribute(attr, bind2.substring("#root.".length));
-        } else if (bind2 == "#value" && index != null) {
+        if (bind2.substring(0, ":root.".length) == ":root.") {
+          binding.setAttribute(attr, bind2.substring(":root.".length));
+        } else if (bind2 == ":value" && index != null) {
           binding.setAttribute(attr, path + "." + index);
         } else if (index != null) {
           binding.setAttribute(attr, path + "." + index + "." + bind2);
@@ -810,7 +810,7 @@
         let path = this.getBindingPath(t);
         let currentItem;
         if (path) {
-          if (path.substr(0, 6) == "#root.") {
+          if (path.substr(0, 6) == ":root.") {
             currentItem = getValueByPath(this.options.root, path);
           } else {
             currentItem = getValueByPath(value, path);
@@ -821,9 +821,9 @@
         const strItem = "" + currentItem;
         let matches = t.getAttribute(this.options.attribute + "-match");
         if (matches) {
-          if (matches === "#empty" && !currentItem) {
+          if (matches === ":empty" && !currentItem) {
             return t;
-          } else if (matches === "#notempty" && currentItem) {
+          } else if (matches === ":notempty" && currentItem) {
             return t;
           }
           if (strItem.match(matches)) {
@@ -857,10 +857,10 @@
     return new SimplyBind(options);
   }
   function matchValue(a, b) {
-    if (a == "#empty" && !b) {
+    if (a == ":empty" && !b) {
       return true;
     }
-    if (b == "#empty" && !a) {
+    if (b == ":empty" && !a) {
       return true;
     }
     if ("" + a == "" + b) {
@@ -874,11 +874,11 @@
     let part, prevPart;
     while (parts.length && curr) {
       part = parts.shift();
-      if (part == "#key") {
+      if (part == ":key") {
         return prevPart;
-      } else if (part == "#value") {
+      } else if (part == ":value") {
         return curr;
-      } else if (part == "#root") {
+      } else if (part == ":root") {
         curr = root;
       } else {
         part = decodeURIComponent(part);
@@ -967,7 +967,7 @@
         }
         let needsReplacement = bindings.find((b) => {
           let databind = b.getAttribute(attribute);
-          return databind.substr(0, 5) !== "#root" && databind.substr(0, path.length) !== path;
+          return databind.substr(0, 5) !== ":root" && databind.substr(0, path.length) !== path;
         });
         if (!needsReplacement) {
           if (item2.$bindTemplate) {
@@ -1051,7 +1051,7 @@
   function getParentPath(el, attribute) {
     const parentEl = el.parentElement?.closest(`[${attribute}-list],[${attribute}-map]`);
     if (!parentEl) {
-      return "#root";
+      return ":root";
     }
     if (parentEl.hasAttribute(`${attribute}-list`)) {
       return parentEl.getAttribute(`${attribute}-list`);
