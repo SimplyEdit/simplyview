@@ -158,7 +158,7 @@ class SimplyBind {
         }
         let clone = template.content.cloneNode(true)
         if (!clone.children?.length) {
-            throw new Error('template must contain a single html element', { cause: template })
+            return clone
         }
         if (clone.children.length>1) {
             throw new Error('template must contain a single root node', { cause: template })
@@ -480,7 +480,10 @@ export function transformObjectByTemplates(context) {
         context.index = key
         let item = items.shift()
         if (!item) { // more properties than rendered items
-            el.appendChild(this.applyTemplate(context))
+            let clone = this.applyTemplate(context)
+            if (clone.firstElementChild) {
+                el.appendChild(clone)
+            }
             continue
         }
         if (item.getAttribute[attribute+'-key']!=key) { 

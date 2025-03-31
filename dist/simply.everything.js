@@ -975,7 +975,7 @@
       }
       let clone = template.content.cloneNode(true);
       if (!clone.children?.length) {
-        throw new Error("template must contain a single html element", { cause: template });
+        return clone;
       }
       if (clone.children.length > 1) {
         throw new Error("template must contain a single root node", { cause: template });
@@ -1232,7 +1232,10 @@
       context.index = key;
       let item2 = items.shift();
       if (!item2) {
-        el.appendChild(this.applyTemplate(context));
+        let clone = this.applyTemplate(context);
+        if (clone.firstElementChild) {
+          el.appendChild(clone);
+        }
         continue;
       }
       if (item2.getAttribute[attribute + "-key"] != key) {
