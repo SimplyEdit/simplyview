@@ -219,7 +219,7 @@
           return;
         }
         const shouldContinue = this[command.name].call(options.app, command.source, command.value);
-        if (shouldContinue === false) {
+        if (shouldContinue !== true) {
           evt.preventDefault();
           evt.stopPropagation();
           return false;
@@ -642,26 +642,51 @@
         container: document.body,
         attribute: "data-bind",
         transformers: [],
-        defaultTransformers: [defaultTransformer]
+        defaultTransformers: {
+          field: [defaultFieldTransformer],
+          list: [defaultListTransformer],
+          map: [defaultMapTransformer]
+        }
       };
       if (!options?.root) {
         throw new Error("bind needs at least options.root set");
       }
       this.options = Object.assign({}, defaultOptions, options);
       const attribute = this.options.attribute;
+      const bindAttributes = [attribute + "-field", attribute + "-list", attribute + "-map"];
+      const bindSelector = `[${attribute}-field],[${attribute}-list],[${attribute}-map]`;
+      const getBindingAttribute = (el) => {
+        const foundAttribute = bindAttributes.find((attr) => el.hasAttribute(attr));
+        if (!foundAttribute) {
+          console.error("No matching attribute found", el);
+        }
+        return foundAttribute;
+      };
       const render = (el) => {
         this.bindings.set(el, throttledEffect(() => {
           const context = {
             templates: el.querySelectorAll(":scope > template"),
-            path: this.getBindingPath(el)
+            attribute: getBindingAttribute(el)
           };
+          context.path = this.getBindingPath(el);
           context.value = getValueByPath(this.options.root, context.path);
           context.element = el;
           runTransformers(context);
         }, 100));
       };
       const runTransformers = (context) => {
-        let transformers = this.options.defaultTransformers || [];
+        let transformers;
+        switch (context.attribute) {
+          case this.options.attribute + "-field":
+            transformers = this.options.defaultTransformers.field || [];
+            break;
+          case this.options.attribute + "-list":
+            transformers = this.options.defaultTransformers.list || [];
+            break;
+          case this.options.attribute + "-map":
+            transformers = this.options.defaultTransformers.map || [];
+            break;
+        }
         if (context.element.dataset.transform) {
           context.element.dataset.transform.split(" ").filter(Boolean).forEach((t) => {
             if (this.options.transformers[t]) {
@@ -687,12 +712,13 @@
         }
       };
       const updateBindings = (changes) => {
+        const selector = `[${attribute}-field],[${attribute}-list],[${attribute}-map]`;
         for (const change of changes) {
           if (change.type == "childList" && change.addedNodes) {
             for (let node of change.addedNodes) {
               if (node instanceof HTMLElement) {
-                let bindings2 = Array.from(node.querySelectorAll(`[${attribute}]`));
-                if (node.matches(`[${attribute}]`)) {
+                let bindings2 = Array.from(node.querySelectorAll(selector));
+                if (node.matches(selector)) {
                   bindings2.unshift(node);
                 }
                 if (bindings2.length) {
@@ -710,7 +736,9 @@
         subtree: true,
         childList: true
       });
-      const bindings = this.options.container.querySelectorAll("[" + this.options.attribute + "]:not(template)");
+      const bindings = this.options.container.querySelectorAll(
+        "[" + this.options.attribute + "-field],[" + this.options.attribute + "-list],[" + this.options.attribute + "-map]"
+      );
       if (bindings.length) {
         applyBindings(bindings);
       }
@@ -739,18 +767,20 @@
       if (clone.children.length > 1) {
         throw new Error("template must contain a single root node", { cause: template });
       }
-      const bindings = clone.querySelectorAll("[" + this.options.attribute + "]");
       const attribute = this.options.attribute;
+      const attributes = [attribute + "-field", attribute + "-list", attribute + "-map"];
+      const bindings = clone.querySelectorAll(`[${attribute}-field],[${attribute}-list],[${attribute}-map]`);
       for (let binding of bindings) {
-        const bind2 = binding.getAttribute(attribute);
+        const attr = attributes.find((attr2) => binding.hasAttribute(attr2));
+        const bind2 = binding.getAttribute(attr);
         if (bind2.substring(0, "#root.".length) == "#root.") {
-          binding.setAttribute(attribute, bind2.substring("#root.".length));
+          binding.setAttribute(attr, bind2.substring("#root.".length));
         } else if (bind2 == "#value" && index != null) {
-          binding.setAttribute(attribute, path + "." + index);
+          binding.setAttribute(attr, path + "." + index);
         } else if (index != null) {
-          binding.setAttribute(attribute, path + "." + index + "." + bind2);
+          binding.setAttribute(attr, path + "." + index + "." + bind2);
         } else {
-          binding.setAttribute(attribute, parent + "." + bind2);
+          binding.setAttribute(attr, parent + "." + bind2);
         }
       }
       if (typeof index !== "undefined") {
@@ -760,7 +790,16 @@
       return clone;
     }
     getBindingPath(el) {
-      return el.getAttribute(this.options.attribute);
+      const attributes = [
+        this.options.attribute + "-field",
+        this.options.attribute + "-list",
+        this.options.attribute + "-map"
+      ];
+      for (let attr of attributes) {
+        if (el.hasAttribute(attr)) {
+          return el.getAttribute(attr);
+        }
+      }
     }
     /**
      * Finds the first template from an array of templates that
@@ -791,7 +830,7 @@
             return t;
           }
         }
-        if (!matches) {
+        if (!matches && currentItem !== null && currentItem !== void 0) {
           return t;
         }
       };
@@ -849,18 +888,14 @@
     }
     return curr;
   }
-  function defaultTransformer(context) {
+  function defaultFieldTransformer(context) {
     const el = context.element;
     const templates = context.templates;
     const templatesCount = templates.length;
     const path = context.path;
     const value = context.value;
     const attribute = this.options.attribute;
-    if (Array.isArray(value) && templates?.length) {
-      transformArrayByTemplates.call(this, context);
-    } else if (typeof value == "object" && templates?.length) {
-      transformObjectByTemplates.call(this, context);
-    } else if (templates?.length) {
+    if (templates?.length) {
       transformLiteralByTemplates.call(this, context);
     } else if (el.tagName == "INPUT") {
       transformInput.call(this, context);
@@ -872,6 +907,38 @@
       transformAnchor.call(this, context);
     } else {
       transformElement.call(this, context);
+    }
+    return context;
+  }
+  function defaultListTransformer(context) {
+    const el = context.element;
+    const templates = context.templates;
+    const templatesCount = templates.length;
+    const path = context.path;
+    const value = context.value;
+    const attribute = this.options.attribute;
+    if (!Array.isArray(value)) {
+      console.error("Value is not an array.", el, value);
+    } else if (!templates?.length) {
+      console.error("No templates found in", el);
+    } else {
+      transformArrayByTemplates.call(this, context);
+    }
+    return context;
+  }
+  function defaultMapTransformer(context) {
+    const el = context.element;
+    const templates = context.templates;
+    const templatesCount = templates.length;
+    const path = context.path;
+    const value = context.value;
+    const attribute = this.options.attribute;
+    if (typeof value != "object") {
+      console.error("Value is not an object.", el, value);
+    } else if (!templates?.length) {
+      console.error("No templates found in", el);
+    } else {
+      transformObjectByTemplates.call(this, context);
     }
     return context;
   }
@@ -981,6 +1048,16 @@
       item.remove();
     }
   }
+  function getParentPath(el, attribute) {
+    const parentEl = el.parentElement?.closest(`[${attribute}-list],[${attribute}-map]`);
+    if (!parentEl) {
+      return "#root";
+    }
+    if (parentEl.hasAttribute(`${attribute}-list`)) {
+      return parentEl.getAttribute(`${attribute}-list`);
+    }
+    return parentEl.getAttribute(`${attribute}-map`);
+  }
   function transformLiteralByTemplates(context) {
     const el = context.element;
     const templates = context.templates;
@@ -988,7 +1065,7 @@
     const attribute = this.options.attribute;
     const rendered = el.querySelector(":scope > :not(template)");
     const template = this.findTemplate(templates, value);
-    context.parent = el.parentElement?.closest(`[${attribute}]`)?.getAttribute(attribute) || "#root";
+    context.parent = getParentPath(el, attribute);
     if (rendered) {
       if (template) {
         if (rendered?.$bindTemplate != template) {
