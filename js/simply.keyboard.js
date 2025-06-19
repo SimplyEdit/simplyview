@@ -11,7 +11,7 @@
             app.container = document.body;
         }
         app.container.addEventListener('keydown', (e) => {
-            if (e.isComposing || e.keyCode === 229) {
+            if (e.isComposing || e.keyCode === 229) { /* 229 = compose key */
                 return;
             }
             if (e.defaultPrevented) {
@@ -26,16 +26,16 @@
                 selectedKeyboard = e.target.closest('[data-simply-keyboard]').dataset.simplyKeyboard;
             }
             let key = '';
-            if (e.ctrlKey && e.keyCode!=17) {
+            if (e.ctrlKey && e.keyCode!=17) { /* 17 = ctrl key */
                 key+='Control+';
             }
-            if (e.metaKey && e.keyCode!=224) {
+            if (e.metaKey && e.keyCode!=224) { /* 224 = meta key */
                 key+='Meta+';
             }
-            if (e.altKey && e.keyCode!=18) {
+            if (e.altKey && e.keyCode!=18) { /* 18 = alt key */
                 key+='Alt+';
             }
-            if (e.shiftKey && e.keyCode!=16) {
+            if (e.shiftKey && e.keyCode!=16) { /* 16 = shift key */
                 key+='Shift+';
             }
             key+=e.key;
