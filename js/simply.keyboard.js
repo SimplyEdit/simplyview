@@ -21,29 +21,57 @@
                 return;
             }
 
-            let selectedKeyboard = 'default';
-            if (e.target.closest('[data-simply-keyboard]')) {
-                selectedKeyboard = e.target.closest('[data-simply-keyboard]').dataset.simplyKeyboard;
-            }
-            let key = '';
+            let eventName = '';
             if (e.ctrlKey && e.keyCode!=17) { /* 17 = ctrl key */
-                key+='Control+';
+                eventName+='Control+';
             }
             if (e.metaKey && e.keyCode!=224) { /* 224 = meta key */
-                key+='Meta+';
+                eventName+='Meta+';
             }
             if (e.altKey && e.keyCode!=18) { /* 18 = alt key */
-                key+='Alt+';
+                eventName+='Alt+';
             }
             if (e.shiftKey && e.keyCode!=16) { /* 16 = shift key */
-                key+='Shift+';
+                eventName+='Shift+';
             }
-            key+=e.key;
+            eventName+=e.key.toLowerCase();
 
-            if (keys[selectedKeyboard] && keys[selectedKeyboard][key]) {
-                let keyboard = keys[selectedKeyboard]
-                keyboard.app = app;
-                keyboard[key].call(keyboard,e);
+            let keyboards = [];
+            let keyboardElement = event.target.closest("[data-simply-keyboard]");
+            while (keyboardElement) {
+              keyboards.push(keyboardElement.getAttribute("data-simply-keyboard"));
+              keyboardElement = keyboardElement.parentNode.closest("[data-simply-keyboard]");
+            }
+            keyboards.push("");
+
+            let keyboard;
+            let subkeyboard;
+            for (i in keyboards) {
+                keyboard = keyboards[i];
+
+                if (keyboard === "") {
+                    subkeyboard = "default";
+                } else 
+                    subkeyboard = keyboard.replace(/\.$/, "");
+                }
+                if (keys[subkeyboard] && (typeof keys[subkeyboard][key] === "function")) {
+                    keys[subkeyboard][key].call(keys[subkeyboard], e);
+                    return;
+                }
+
+                if (typeof keys[keyboard + key] === "function") {
+                    keys[keyboard + key].call(keys[keyboard], e);
+                    return;
+                }
+
+                let selector = "[data-simply-accesskey='" + keyboard + eventName + "']";
+                let targets = document.querySelectorAll("[data-simply-accesskey='" + keyboard + eventName + "']");
+                if (targets.length) {
+                    targets.forEach(function(target) {
+                        target.click();
+                    });
+                    return;
+                }
             }
         });
 
