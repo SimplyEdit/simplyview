@@ -156,10 +156,6 @@
                 if (!matches || !matches.length) {
                     if (path && path[path.length-1]!='/') {
                         matches = routeInfo[i].match.exec(path+'/');
-                        if (matches) {
-                            path+='/';
-                            history.replaceState({}, '', getUrl(path));
-                        }
                     }
                 }
                 if (matches && matches.length) {
