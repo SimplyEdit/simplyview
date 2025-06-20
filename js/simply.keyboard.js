@@ -53,7 +53,7 @@
 
                 if (keyboard === "") {
                     subkeyboard = "default";
-                } else 
+                } else {
                     subkeyboard = keyboard.replace(/\.$/, "");
                 }
                 for (var j=0; j<separators.length; j++) {
