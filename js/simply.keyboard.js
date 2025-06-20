@@ -55,8 +55,8 @@
                 if (keyboard === "") {
                     subkeyboard = "default";
                 } else {
-                    keyboard = keyboard + ".";
                     subkeyboard = keyboard;
+                    keyboard = keyboard + ".";
                 }
                 for (var j=0; j<separators.length; j++) {
                     key = eventName.join(separators[j]);
