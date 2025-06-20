@@ -47,6 +47,7 @@
             let keyboard;
             let subkeyboard;
             let separators = ["+", "-"];
+            let key;
 
             for (var i=0; i<keyboards.length; i++) {
                 keyboard = keyboards[i];
@@ -54,7 +55,8 @@
                 if (keyboard === "") {
                     subkeyboard = "default";
                 } else {
-                    subkeyboard = keyboard.replace(/\.$/, "");
+                    keyboard = keyboard + ".";
+                    subkeyboard = keyboard;
                 }
                 for (var j=0; j<separators.length; j++) {
                     key = eventName.join(separators[j]);
