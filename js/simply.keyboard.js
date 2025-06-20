@@ -57,7 +57,7 @@
                     subkeyboard = keyboard.replace(/\.$/, "");
                 }
                 for (var j=0; j<separators.length; j++) {
-                    key = eventName.join(separator[j]);
+                    key = eventName.join(separators[j]);
 
                     if (keys[subkeyboard] && (typeof keys[subkeyboard][key] === "function")) {
                         keys[subkeyboard][key].call(keys[subkeyboard], e);
