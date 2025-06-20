@@ -1,5 +1,5 @@
 (function(global) {
-    'us strict';
+    'use strict';
 
     var path = {
         get: function(model, path) {
