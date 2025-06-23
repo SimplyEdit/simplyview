@@ -63,11 +63,13 @@
 
                     if (keys[subkeyboard] && (typeof keys[subkeyboard][key] === "function")) {
                         keys[subkeyboard][key].call(keys[subkeyboard], e);
+                        event.preventDefault();
                         return;
                     }
 
                     if (typeof keys[keyboard + key] === "function") {
                         keys[keyboard + key].call(keys[keyboard], e);
+                        event.preventDefault();
                         return;
                     }
 
@@ -77,6 +79,7 @@
                         targets.forEach(function(target) {
                             target.click();
                         });
+                        event.preventDefault();
                         return;
                     }
                 }
