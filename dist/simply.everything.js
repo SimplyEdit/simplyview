@@ -472,7 +472,7 @@ properties for a given parent, keep seperate index for this?
     }
 })(this);
 (function(global) {
-    'us strict';
+    'use strict';
 
     var path = {
         get: function(model, path) {
@@ -1165,11 +1165,13 @@ properties for a given parent, keep seperate index for this?
 
                     if (keys[subkeyboard] && (typeof keys[subkeyboard][key] === "function")) {
                         keys[subkeyboard][key].call(keys[subkeyboard], e);
+                        event.preventDefault();
                         return;
                     }
 
                     if (typeof keys[keyboard + key] === "function") {
                         keys[keyboard + key].call(keys[keyboard], e);
+                        event.preventDefault();
                         return;
                     }
 
@@ -1179,6 +1181,7 @@ properties for a given parent, keep seperate index for this?
                         targets.forEach(function(target) {
                             target.click();
                         });
+                        event.preventDefault();
                         return;
                     }
                 }
