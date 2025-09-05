@@ -2,16 +2,11 @@ import { routes } from './route.mjs'
 import { commands } from './command.mjs'
 import { actions } from './action.mjs'
 import { keys } from './key.mjs'
-import { signal } from './state.mjs'
-import { bind } from './bind.mjs'
+import { view } from './view.mjs'
 
 class SimplyApp {
 	constructor(options={}) {
 		this.container = options.container || document.body
-		if (!options.state) {
-			options.state = {}
-		}
-		this.state = signal(options.state)
 		if (options.commands) {
 			this.commands = commands({ app: this, container: this.container, commands: options.commands})
 		}
@@ -24,14 +19,9 @@ class SimplyApp {
 		if (options.actions) {
 			this.actions = actions({app: this, actions: options.actions})
 		}
-		let bindOptions = { container: this.container, root: this.state }
-		if (options.defaultTransformers) {
-			bindOptions.defaultTransformers = options.defaultTransformers
+		if (options.view) {
+			this.view = view({app: this, view: options.view})
 		}
-		if (options.transformers) {
-			bindOptions.transformers = options.transformers
-		}
-		this.bind = bind(bindOptions)
 	}
 }
 

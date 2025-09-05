@@ -65,6 +65,8 @@ class SimplyRoute {
         if (path && path[path.length-1]!='/') {
         	return this.match(path+'/', options)
         }
+        console.log(path, this.routeInfo)
+        process.exit()
         return false
 	}
 
@@ -199,8 +201,7 @@ function getRegexpFromRoute(route) {
     return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'));
 }
 
-function parseRoutes(routes) {
-    let routeInfo = []
+function parseRoutes(routes, routeInfo) {
     const paths = Object.keys(routes)
     const matchParams = /:(\w+|\*)/g
     for (let path of paths) {

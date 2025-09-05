@@ -53,7 +53,7 @@ const waitForPreviousScripts = async () => {
     // that triggers the Promise.resolve method
     return new Promise(function(resolve) {
         var next = globalThis.document.createElement('script')
-        next.src = "javascript:document.dispatchEvent(new Event('simply-include-next'))"
+        next.src = "https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.include.next.js"
         next.async = false
         globalThis.document.addEventListener('simply-include-next', () => {
             head.removeChild(next)
@@ -122,18 +122,21 @@ export const include = {
         // order in which they are defined
         let scriptsFragment = globalThis.document.createDocumentFragment()
         const scripts = fragment.querySelectorAll('script')
-        for (let script of scripts) {
-            let placeholder = globalThis.document.createComment(script.src || 'inline script')
-            script.parentNode.insertBefore(placeholder, script)
-            script.dataset.simplyLocation = scriptLocations.length
-            scriptLocations.push(placeholder)
-            scriptsFragment.appendChild(script)
+        if (scripts.length) {
+            for (let script of scripts) {
+                let placeholder = globalThis.document.createComment(script.src || 'inline script')
+                script.parentNode.insertBefore(placeholder, script)
+                script.dataset.simplyLocation = scriptLocations.length
+                scriptLocations.push(placeholder)
+                scriptsFragment.appendChild(script)
+            }
+            globalThis.setTimeout(function() {
+                include.scripts(Array.from(scriptsFragment.children), link ? link.href : globalThis.location.href )
+            }, 10)
         }
         // add the remainder before the include link
         link.parentNode.insertBefore(fragment, link ? link : null)
-        globalThis.setTimeout(function() {
-            include.scripts(scriptsFragment.childNodes, link ? link.href : globalThis.location.href )
-        }, 10)
+
     }
 }
 

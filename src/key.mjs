@@ -1,4 +1,12 @@
-class SimplyKeys {
+const KEY = Object.freeze({
+	Compose: 229,
+	Control: 17,
+	Meta:    224,
+	Alt:     18,
+	Shift:   16
+})
+
+class SimplyKey {
 	constructor(options = {}) {
 		if (!options.app) {
 			options.app = {}
@@ -9,38 +17,83 @@ class SimplyKeys {
 		Object.assign(this, options.keys)
 
 		const keyHandler = (e) => {
-			if (e.isComposing || e.keyCode === 229) {
-			    return;
+			if (e.isComposing || e.keyCode === KEY.Compose) {
+			    return
 			}
 			if (e.defaultPrevented) {
-			    return;
+			    return
 			}
 			if (!e.target) {
-			    return;
+			    return
 			}
 
-			let selectedKeyboard = 'default';
+			let selectedKeyboard = 'default'
 			if (e.target.closest('[data-simply-keyboard]')) {
-			    selectedKeyboard = e.target.closest('[data-simply-keyboard]').dataset.simplyKeyboard;
+			    selectedKeyboard = e.target.closest('[data-simply-keyboard]')
+			    					.dataset.simplyKeyboard
 			}
-			let key = '';
-			if (e.ctrlKey && e.keyCode!=17) {
-			    key+='Control+';
+			let keyCombination = []
+			if (e.ctrlKey && e.keyCode!=KEY.Control) {
+			    keyCombination.push('Control')
 			}
-			if (e.metaKey && e.keyCode!=224) {
-			    key+='Meta+';
+			if (e.metaKey && e.keyCode!=KEY.Meta) {
+			    keyCombination.push('Meta')
 			}
-			if (e.altKey && e.keyCode!=18) {
-			    key+='Alt+';
+			if (e.altKey && e.keyCode!=KEY.Alt) {
+			    keyCombination.push('Alt')
 			}
-			if (e.shiftKey && e.keyCode!=16) {
-			    key+='Shift+';
+			if (e.shiftKey && e.keyCode!=KEY.Shift) {
+			    keyCombination.push('Shift')
 			}
-			key+=e.key;
+			keyCombination.push(e.key.toLowerCase())
 
-			if (this[selectedKeyboard] && this[selectedKeyboard][key]) {
-			    let keyboard = this[selectedKeyboard]
-			    keyboard[key].call(options.app,e);
+			let keyboards = []
+			let keyboardElement = event.target.closest('[data-simply-keyboard]')
+			while (keyboardElement) {
+				keyboards.push(keyboardElement.dataset.simplyKeyboard)
+				keyboardElement = keyboardElement.parentNode.closest('[data-simply-keyboard]')
+			}
+			keyboards.push('')
+
+			let keyboard, subkeyboard
+			let separators = ['+','-']
+
+			for (i in keyboards) {
+				keyboard = keyboards[i]
+				if (keyboard == '') {
+					subkeyboard = 'default'
+				} else {
+					subkeyboard = keyboard
+					keyboard += '.'
+				}
+				for (let separator of separators) {
+					let keyString = keyCombination.join(separator)
+
+					if (this[subkeyboard] && (typeof this[subkeyboard][keyString]=='function')) {
+						let _continue = this[subkeyboard][keyString].call(this[subkeyboard], e)
+						if (!_continue) {
+							e.preventDefault()
+							return
+						}
+					}
+					if (typeof this[subkeyboard + keyString] == 'function') {
+						let _continue = this[subkeyboard + keyString].call(this, e)
+						if (!_continue) {
+							e.preventDefault()
+							return
+						}					
+					}
+
+					if (this[selectedKeyboard] && this[selectedKeyboard][keyString]) {
+						let targets = options.app.container.querySelectorAll('[data-simply-accesskey="'
+							+ keyboard + keyString + '"]')
+						if (targets.length) {
+							targets.forEach(t => t.click())
+							e.preventDefault()
+						}
+					}
+
+				}
 			}
 		}
 
@@ -50,6 +103,6 @@ class SimplyKeys {
 }
 
 export function keys(options={}) {
-	return new SimplyKeys(options)
+	return new SimplyKey(options)
 }
 
