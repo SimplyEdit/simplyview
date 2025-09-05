@@ -1,4 +1,6 @@
-simplyRoute = require('../js/simply.route.js');
+import {routes} from '../src/route.mjs'
+
+const simplyRoute = routes()
 
 test('match fixed url', () => {
 	simplyRoute.load({
