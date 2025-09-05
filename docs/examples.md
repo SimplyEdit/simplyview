@@ -32,7 +32,7 @@ var counterApp = simply.app({
             counterApp.view.counter--;
         }
     },
-    view: {
+    state: {
         counter: 1
     }
 });

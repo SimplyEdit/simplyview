@@ -1,3 +1,0 @@
-# simply.path
-
-TODO

@@ -1,3 +1,0 @@
-# simply.viewmodel.md
-
-TODO

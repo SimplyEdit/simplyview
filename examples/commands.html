@@ -38,33 +38,33 @@
 
 	<pre data-simply-field="out"></pre>
 
+	<script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
 	<script src="../dist/simply.everything.js"></script>
 
 	<script>
 		var test = simply.app({
+			commands: {
+				testChange: function(el, value) {
+					test.view.out = el.name+': '+value;
+				},
+				testSubmit: function(form, values) {
+					var out = [];
+					for (var key of Object.keys(values)) {
+						out.push(key+': '+values[key]);
+					}
+					test.view.out = out.join('\n');
+				},
+				testInput: function(el, value) {
+					test.view.out = el.name + ': '+value;
+				},
+				testClick: function(el, value) {
+					test.view.out = el.tagName + ': '+value;
+				}
+			},
 			view: {
 				out: 'start'
 			}
 		});
 		
-		test.commands.testChange = function(el, value) {
-			test.view.out = el.name+': '+value;
-		};
-
-		test.commands.testSubmit = function(form, values) {
-			var out = [];
-			for (var key of Object.keys(values)) {
-				out.push(key+': '+values[key]);
-			}
-			test.view.out = out.join('\n');
-		}
-
-		test.commands.testInput = function(el, value) {
-			test.view.out = el.name + ': '+value;
-		}
-
-		test.commands.testClick = function(el, value) {
-			test.view.out = el.tagName + ': '+value;
-		}
 	</script>
 </body>

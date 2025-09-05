@@ -11,7 +11,7 @@ See the [reference](https://reference.simplyedit.io/simplyview/) for more inform
 
 ### Browser using Unpkg CDN
 
-`<script src="https://unpkg.com/simplyview@1.0.0/dist/simply.everything.js"></script>`
+`<script src="https://unpkg.com/simplyview@3.0.0/dist/simply.everything.js"></script>`
 
 ### Using NPM
 
@@ -22,6 +22,3 @@ See the [reference](https://reference.simplyedit.io/simplyview/) for more inform
 `git clone https://github.com/SimplyEdit/simplyview.git`
 
 You'll get the whole repository, which includes the separate javascript files in `simplyview/js/`, as well as the combined set in `simplyview/dist`.
-
-If you use `simply.include.js`, make sure to also include `simply.include.next.js` in the same directory.
-
