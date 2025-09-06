@@ -6,6 +6,8 @@ class SimplyRoute {
 	constructor(options={}) {
 		this.root = options.root || '/'
         this.app = options.app
+        this.addMissingSlash = !!options.addMissingSlash
+        this.matchExact = !!options.matchExact
 		this.clear()
 		if (options.routes) {
 			this.load(options.routes)
@@ -13,7 +15,7 @@ class SimplyRoute {
 	}
 
 	load(routes) {
-		parseRoutes(routes, this.routeInfo)
+		parseRoutes(routes, this.routeInfo, this.matchExact)
 	}
 
 	clear() {
@@ -44,6 +46,15 @@ class SimplyRoute {
         path = getPath(path);
         for ( let route of this.routeInfo) {
             matches = route.match.exec(path)
+            if (this.addMissingSlash && !matches?.length) {
+                if (path && path[path.length-1]!='/') {
+                    matches = route.match.exec(path+'/')
+                    if (matches) {
+                        path+='/'
+                        history.replaceState({}, '', getURL(path))
+                    }
+                }
+            }
             if (matches && matches.length) {
                 var params = {};
                 route.params.forEach((key, i) => {
@@ -62,11 +73,6 @@ class SimplyRoute {
                 return args.result
             }
         }
-        if (path && path[path.length-1]!='/') {
-        	return this.match(path+'/', options)
-        }
-        console.log(path, this.routeInfo)
-        process.exit()
         return false
 	}
 
@@ -95,7 +101,7 @@ class SimplyRoute {
                 this.match(getPath(document.location.pathname, this.root))
             }
         })
-        globalThis.document.addEventListener('click', (evt) => {
+        this.app.container.addEventListener('click', (evt) => {
 	        if (evt.ctrlKey) {
 	            return;
 	        }
@@ -119,10 +125,12 @@ class SimplyRoute {
 	            if ( this.has(path) ) {
 	                let params = this.runListeners('goto', { path: path});
 	                if (params.path) {
-	                    this.goto(params.path);
+	                    if (this.goto(params.path)) {
+                            // now cancel the browser navigation, since a route handler was found
+                            evt.preventDefault();
+                            return false;
+                        }
 	                }
-	                evt.preventDefault();
-	                return false;
 	            }
 	        }
 	    })
@@ -197,11 +205,14 @@ function getURL(path, root) {
     return root + path;
 }
 
-function getRegexpFromRoute(route) {
-    return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'));
+function getRegexpFromRoute(route, exact=false) {
+    if (exact) {
+        return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')+'(\\?|$)')
+    }
+    return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'))
 }
 
-function parseRoutes(routes, routeInfo) {
+function parseRoutes(routes, routeInfo, exact=false) {
     const paths = Object.keys(routes)
     const matchParams = /:(\w+|\*)/g
     for (let path of paths) {
@@ -214,7 +225,7 @@ function parseRoutes(routes, routeInfo) {
             }
         } while(matches)
         routeInfo.push({
-            match:  getRegexpFromRoute(path),
+            match:  getRegexpFromRoute(path, exact),
             params: params,
             action: routes[path]
         })

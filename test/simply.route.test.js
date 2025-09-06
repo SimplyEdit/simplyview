@@ -30,6 +30,7 @@ test('match parameter', () => {
 		}
 	});
 	expect(simplyRoute.match('bar/foobar')).toBe('foobar');
+	expect(simplyRoute.match('bar/foobar/baz')).toBe('foobar');
 });
 
 test('multiple parameters', () => {
@@ -102,3 +103,15 @@ test('multiple listeners', () => {
 	});
 	expect(simplyRoute.match('foo/bar')).toBe('bar12');
 });
+
+test('match exact', () => {
+	simplyRoute.clear()
+	simplyRoute.matchExact = true
+	simplyRoute.load({
+		'/foo/:bar': (params) => {
+			return params.bar
+		}
+	})
+	expect(simplyRoute.match('foo/bar')).toBe('bar');
+	expect(simplyRoute.match('foo/bar/baz')).toBe(false);
+})
