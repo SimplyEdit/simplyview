@@ -7,20 +7,28 @@ import { view } from './view.mjs'
 class SimplyApp {
 	constructor(options={}) {
 		this.container = options.container || document.body
-		if (options.commands) {
-			this.commands = commands({ app: this, container: this.container, commands: options.commands})
-		}
-		if (options.keys) {
-			this.keys = keys({ app: this, keys: options.keys })
-		}
-		if (options.routes) {
-			this.routes = routes({ app: this, routes: options.routes})
-		}
-		if (options.actions) {
-			this.actions = actions({app: this, actions: options.actions})
-		}
-		if (options.view) {
-			this.view = view({app: this, view: options.view})
+		for (let key in options) {
+			switch(key) {
+				case 'commands':
+					this.commands = commands({ app: this, container: this.container, commands: options.commands})
+					break
+				case 'keys':
+				case 'keyboard': // backwards compatible
+					this.keys = keys({ app: this, keys: options.keys })
+					break
+				case 'routes':
+					this.routes = routes({ app: this, routes: options.routes})
+					break
+				case 'actions':
+					this.actions = actions({app: this, actions: options.actions})
+					break
+				case 'view':
+					this.view = view({app: this, view: options.view})
+					break
+				default:
+					this[key] = options[key] // allows easy additions
+					break
+			}
 		}
 	}
 }
