@@ -7,13 +7,15 @@
     constructor(options = {}) {
       this.root = options.root || "/";
       this.app = options.app;
+      this.addMissingSlash = !!options.addMissingSlash;
+      this.matchExact = !!options.matchExact;
       this.clear();
       if (options.routes) {
         this.load(options.routes);
       }
     }
     load(routes2) {
-      parseRoutes(routes2, this.routeInfo);
+      parseRoutes(routes2, this.routeInfo, this.matchExact);
     }
     clear() {
       this.routeInfo = [];
@@ -41,6 +43,15 @@
       path = getPath(path);
       for (let route of this.routeInfo) {
         matches = route.match.exec(path);
+        if (this.addMissingSlash && !matches?.length) {
+          if (path && path[path.length - 1] != "/") {
+            matches = route.match.exec(path + "/");
+            if (matches) {
+              path += "/";
+              history.replaceState({}, "", getURL(path));
+            }
+          }
+        }
         if (matches && matches.length) {
           var params = {};
           route.params.forEach((key, i2) => {
@@ -59,11 +70,6 @@
           return args.result;
         }
       }
-      if (path && path[path.length - 1] != "/") {
-        return this.match(path + "/", options);
-      }
-      console.log(path, this.routeInfo);
-      process.exit();
       return false;
     }
     runListeners(action, params) {
@@ -90,7 +96,7 @@
           this.match(getPath(document.location.pathname, this.root));
         }
       });
-      globalThis.document.addEventListener("click", (evt) => {
+      this.app.container.addEventListener("click", (evt) => {
         if (evt.ctrlKey) {
           return;
         }
@@ -109,10 +115,11 @@
           if (this.has(path)) {
             let params = this.runListeners("goto", { path });
             if (params.path) {
-              this.goto(params.path);
+              if (this.goto(params.path)) {
+                evt.preventDefault();
+                return false;
+              }
             }
-            evt.preventDefault();
-            return false;
           }
         }
       });
@@ -173,10 +180,13 @@
     }
     return root + path;
   }
-  function getRegexpFromRoute(route) {
+  function getRegexpFromRoute(route, exact = false) {
+    if (exact) {
+      return new RegExp("^" + route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)") + "(\\?|$)");
+    }
     return new RegExp("^" + route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)"));
   }
-  function parseRoutes(routes2, routeInfo) {
+  function parseRoutes(routes2, routeInfo, exact = false) {
     const paths = Object.keys(routes2);
     const matchParams = /:(\w+|\*)/g;
     for (let path of paths) {
@@ -189,7 +199,7 @@
         }
       } while (matches);
       routeInfo.push({
-        match: getRegexpFromRoute(path),
+        match: getRegexpFromRoute(path, exact),
         params,
         action: routes2[path]
       });
@@ -451,20 +461,28 @@
   var SimplyApp = class {
     constructor(options = {}) {
       this.container = options.container || document.body;
-      if (options.commands) {
-        this.commands = commands({ app: this, container: this.container, commands: options.commands });
-      }
-      if (options.keys) {
-        this.keys = keys({ app: this, keys: options.keys });
-      }
-      if (options.routes) {
-        this.routes = routes({ app: this, routes: options.routes });
-      }
-      if (options.actions) {
-        this.actions = actions({ app: this, actions: options.actions });
-      }
-      if (options.view) {
-        this.view = view({ app: this, view: options.view });
+      for (let key in options) {
+        switch (key) {
+          case "commands":
+            this.commands = commands({ app: this, container: this.container, commands: options.commands });
+            break;
+          case "keys":
+          case "keyboard":
+            this.keys = keys({ app: this, keys: options.keys });
+            break;
+          case "routes":
+            this.routes = routes({ app: this, routes: options.routes });
+            break;
+          case "actions":
+            this.actions = actions({ app: this, actions: options.actions });
+            break;
+          case "view":
+            this.view = view({ app: this, view: options.view });
+            break;
+          default:
+            this[key] = options[key];
+            break;
+        }
       }
     }
   };
