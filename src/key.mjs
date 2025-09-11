@@ -102,7 +102,12 @@ class SimplyKey {
 
 }
 
-export function keys(options={}) {
+export function keys(options={}, optionsCompat) {
+	if (optionsCompat) {
+		let app = options
+		options = optionsCompat
+		options.app = options
+	}
 	return new SimplyKey(options)
 }
 

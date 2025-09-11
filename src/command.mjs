@@ -6,6 +6,7 @@ class SimplyCommands {
 		if (!options.app.container) {
 			options.app.container = document.body
 		}
+        this.app = options.app
 		this.$handlers = options.handlers || defaultHandlers
         if (options.commands) {
     		Object.assign(this, options.commands)
@@ -33,9 +34,37 @@ class SimplyCommands {
         options.app.container.addEventListener('change', commandHandler)
         options.app.container.addEventListener('input', commandHandler)
 	}
+
+    call(command, el, value) {
+        if (!this[command]) {
+            console.error('simply.command: undefined command '+command);
+            return
+        }
+        return this[command].call(this.app, el, value)
+    }
+
+    action(name) {
+        console.warn('deprecated call to `this.commands.action`')
+        let params = Array.from(arguments).slice()
+        params.shift()
+        return this.app.actions[name](...params)
+    }
+
+    appendHandler(handler) {
+        this.$handlers.push(handler)
+    }
+
+    prependHandler(handler) {
+        this.$handlers.unshift(handler)
+    }
 }
 
-export function commands(options={}) {
+export function commands(options={}, optionsCompat) {
+    if (optionsCompat) {
+        let app = options
+        options = optionsCompat
+        options.app = options
+    }
 	return new SimplyCommands(options)
 }
 

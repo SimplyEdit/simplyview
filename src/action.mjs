@@ -1,4 +1,9 @@
-export function actions(options) {
+export function actions(options, optionsCompat) {
+	if (optionsCompat) {
+		let app = options
+		options = optionsCompat
+		options.app = options
+	}
 	if (options.app) {
 		const actionHandler = {
 			get: (target, property) => {

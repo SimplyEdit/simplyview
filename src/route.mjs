@@ -1,4 +1,9 @@
-export function routes(options) {
+export function routes(options, optionsCompat) {
+    if (optionsCompat) {
+        let app = options
+        options = optionsCompat
+        options.app = options
+    }
 	return new SimplyRoute(options)
 }
 

@@ -21,6 +21,12 @@ class SimplyApp {
 					break
 				case 'actions':
 					this.actions = actions({app: this, actions: options.actions})
+					this.action = function(name) { // backwards compatible wiht SimplyView2
+						console.warn('deprecated call to `this.action`')
+						let params = Array.from(arguments).slice()
+				        params.shift()
+				        return this.actions[name](...params)
+				    }
 					break
 				case 'view':
 					this.view = view({app: this, view: options.view})
@@ -30,6 +36,9 @@ class SimplyApp {
 					break
 			}
 		}
+	}
+	get app() {
+		return this
 	}
 }
 

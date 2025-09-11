@@ -60,7 +60,12 @@
   });
 
   // src/action.mjs
-  function actions(options) {
+  function actions(options, optionsCompat) {
+    if (optionsCompat) {
+      let app2 = options;
+      options = optionsCompat;
+      options.app = options;
+    }
     if (options.app) {
       const actionHandler = {
         get: (target, property) => {
@@ -74,7 +79,12 @@
   }
 
   // src/route.mjs
-  function routes(options) {
+  function routes(options, optionsCompat) {
+    if (optionsCompat) {
+      let app2 = options;
+      options = optionsCompat;
+      options.app = options;
+    }
     return new SimplyRoute(options);
   }
   var SimplyRoute = class {
@@ -290,6 +300,7 @@
       if (!options.app.container) {
         options.app.container = document.body;
       }
+      this.app = options.app;
       this.$handlers = options.handlers || defaultHandlers;
       if (options.commands) {
         Object.assign(this, options.commands);
@@ -315,8 +326,32 @@
       options.app.container.addEventListener("change", commandHandler);
       options.app.container.addEventListener("input", commandHandler);
     }
+    call(command, el, value) {
+      if (!this[command]) {
+        console.error("simply.command: undefined command " + command);
+        return;
+      }
+      return this[command].call(this.app, el, value);
+    }
+    action(name) {
+      console.warn("deprecated call to `this.commands.action`");
+      let params = Array.from(arguments).slice();
+      params.shift();
+      return this.app.actions[name](...params);
+    }
+    appendHandler(handler) {
+      this.$handlers.push(handler);
+    }
+    prependHandler(handler) {
+      this.$handlers.unshift(handler);
+    }
   };
-  function commands(options = {}) {
+  function commands(options = {}, optionsCompat) {
+    if (optionsCompat) {
+      let app2 = options;
+      options = optionsCompat;
+      options.app = options;
+    }
     return new SimplyCommands(options);
   }
   function getCommand(evt, handlers) {
@@ -492,12 +527,22 @@
       options.app.container.addEventListener("keydown", keyHandler);
     }
   };
-  function keys(options = {}) {
+  function keys(options = {}, optionsCompat) {
+    if (optionsCompat) {
+      let app2 = options;
+      options = optionsCompat;
+      options.app = options;
+    }
     return new SimplyKey(options);
   }
 
   // src/view.mjs
-  function view(options) {
+  function view(options, optionsCompat) {
+    if (optionsCompat) {
+      let app2 = options;
+      options = optionsCompat;
+      options.app = options;
+    }
     if (options.app) {
       options.app.view = options.view || {};
       const load = () => {
@@ -535,6 +580,12 @@
             break;
           case "actions":
             this.actions = actions({ app: this, actions: options.actions });
+            this.action = function(name) {
+              console.warn("deprecated call to `this.action`");
+              let params = Array.from(arguments).slice();
+              params.shift();
+              return this.actions[name](...params);
+            };
             break;
           case "view":
             this.view = view({ app: this, view: options.view });
@@ -544,6 +595,9 @@
             break;
         }
       }
+    }
+    get app() {
+      return this;
     }
   };
   function app(options = {}) {
