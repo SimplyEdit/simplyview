@@ -1,4 +1,5 @@
-export function routes(options, optionsCompat) {
+export function routes(options, optionsCompat)
+{
     if (optionsCompat) {
         let app = options
         options = optionsCompat
@@ -7,8 +8,10 @@ export function routes(options, optionsCompat) {
     return new SimplyRoute(options)
 }
 
-class SimplyRoute {
-    constructor(options={}) {
+class SimplyRoute
+{
+    constructor(options={})
+    {
         this.root = options.root || '/'
         this.app = options.app || {}
         this.addMissingSlash = !!options.addMissingSlash
@@ -19,11 +22,13 @@ class SimplyRoute {
         }
     }
 
-    load(routes) {
+    load(routes)
+    {
         parseRoutes(routes, this.routeInfo, this.matchExact)
     }
 
-    clear() {
+    clear()
+    {
         this.routeInfo = []
         this.listeners = {
             match: {},
@@ -32,7 +37,8 @@ class SimplyRoute {
         }
     }
 
-    match(path, options) {
+    match(path, options)
+    {
         let args = {
             path,
             options
@@ -81,7 +87,8 @@ class SimplyRoute {
         return false
     }
 
-    runListeners(action, params) {
+    runListeners(action, params)
+    {
         if (!Object.keys(this.listeners[action])) {
             return
         }
@@ -100,7 +107,8 @@ class SimplyRoute {
         return params
     }
 
-    handleEvents() {
+    handleEvents()
+    {
         globalThis.addEventListener('popstate', () => {
             if (this.match(getPath(document.location.pathname + document.location.hash, this.root)) === false) {
                 this.match(getPath(document.location.pathname, this.root))
@@ -141,12 +149,14 @@ class SimplyRoute {
         })
     }
 
-    goto(path) {
+    goto(path)
+    {
         history.pushState({},'',getURL(path))
         return this.match(path)
     }
 
-    has(path) {
+    has(path)
+    {
         path = getPath(path, this.root)
         for (let route of this.routeInfo) {
             var matches = route.match.exec(path)
@@ -157,7 +167,8 @@ class SimplyRoute {
         return false
     }
 
-    addListener(action, route, callback) {
+    addListener(action, route, callback)
+    {
         if (['goto','match','call','finish'].indexOf(action)==-1) {
             throw new Error('Unknown action '+action)
         }
@@ -167,7 +178,8 @@ class SimplyRoute {
         this.listeners[action][route].push(callback)
     }
 
-    removeListener(action, route, callback) {
+    removeListener(action, route, callback)
+    {
         if (['match','call','finish'].indexOf(action)==-1) {
             throw new Error('Unknown action '+action)
         }
@@ -179,14 +191,16 @@ class SimplyRoute {
         })
     }
 
-    init(options) {
+    init(options)
+    {
         if (options.root) {
             this.root = options.root
         }
     }
 }
 
-function getPath(path, root='/') {
+function getPath(path, root='/')
+{
     if (path.substring(0,root.length)==root
         ||
         ( root[root.length-1]=='/' 
@@ -202,7 +216,8 @@ function getPath(path, root='/') {
     return path
 }
 
-function getURL(path, root) {
+function getURL(path, root)
+{
     path = getPath(path, root)
     if (root[root.length-1]==='/' && path[0]==='/') {
         path = path.substring(1)
@@ -210,14 +225,16 @@ function getURL(path, root) {
     return root + path;
 }
 
-function getRegexpFromRoute(route, exact=false) {
+function getRegexpFromRoute(route, exact=false)
+{
     if (exact) {
         return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')+'(\\?|$)')
     }
     return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'))
 }
 
-function parseRoutes(routes, routeInfo, exact=false) {
+function parseRoutes(routes, routeInfo, exact=false)
+{
     const paths = Object.keys(routes)
     const matchParams = /:(\w+|\*)/g
     for (let path of paths) {
