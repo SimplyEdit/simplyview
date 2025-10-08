@@ -115,3 +115,17 @@ test('match exact', () => {
 	expect(simplyRoute.match('foo/bar')).toBe('bar');
 	expect(simplyRoute.match('foo/bar/baz')).toBe(false);
 })
+
+test('bind to app', () => {
+	simplyRoute.clear()
+	simplyRoute.app = {
+		foo: 'bar'
+	}
+	simplyRoute.load({
+		'/foo/:bar': function(params) {
+			return this.foo
+		}
+	})
+	expect(simplyRoute.match('foo/bar')).toBe('bar');
+	expect(simplyRoute.match('foo/bar/baz')).toBe(false);
+})
