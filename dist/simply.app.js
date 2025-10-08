@@ -11,7 +11,7 @@
   var SimplyRoute = class {
     constructor(options = {}) {
       this.root = options.root || "/";
-      this.app = options.app;
+      this.app = options.app || {};
       this.addMissingSlash = !!options.addMissingSlash;
       this.matchExact = !!options.matchExact;
       this.clear();
@@ -70,7 +70,7 @@
           args.params = params;
           args = this.runListeners("call", args);
           params = args.params ? args.params : params;
-          args.result = route.action.call(route, params);
+          args.result = route.action.call(this.app, params);
           this.runListeners("finish", args);
           return args.result;
         }
@@ -441,14 +441,14 @@
           for (let separator of separators) {
             let keyString = keyCombination.join(separator);
             if (this[subkeyboard] && typeof this[subkeyboard][keyString] == "function") {
-              let _continue = this[subkeyboard][keyString].call(this[subkeyboard], e);
+              let _continue = this[subkeyboard][keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
               }
             }
             if (typeof this[subkeyboard + keyString] == "function") {
-              let _continue = this[subkeyboard + keyString].call(this, e);
+              let _continue = this[subkeyboard + keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
@@ -517,6 +517,10 @@
             break;
           case "routes":
             this.routes = routes({ app: this, routes: options.routes });
+            this.routes.handleEvents();
+            globalThis.setTimeout(() => {
+              this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+            });
             break;
           case "actions":
             this.actions = actions({ app: this, actions: options.actions });

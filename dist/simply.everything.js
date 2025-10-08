@@ -90,7 +90,7 @@
   var SimplyRoute = class {
     constructor(options = {}) {
       this.root = options.root || "/";
-      this.app = options.app;
+      this.app = options.app || {};
       this.addMissingSlash = !!options.addMissingSlash;
       this.matchExact = !!options.matchExact;
       this.clear();
@@ -149,7 +149,7 @@
           args.params = params;
           args = this.runListeners("call", args);
           params = args.params ? args.params : params;
-          args.result = route.action.call(route, params);
+          args.result = route.action.call(this.app, params);
           this.runListeners("finish", args);
           return args.result;
         }
@@ -501,14 +501,14 @@
           for (let separator of separators) {
             let keyString = keyCombination.join(separator);
             if (this[subkeyboard] && typeof this[subkeyboard][keyString] == "function") {
-              let _continue = this[subkeyboard][keyString].call(this[subkeyboard], e);
+              let _continue = this[subkeyboard][keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
               }
             }
             if (typeof this[subkeyboard + keyString] == "function") {
-              let _continue = this[subkeyboard + keyString].call(this, e);
+              let _continue = this[subkeyboard + keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
@@ -577,6 +577,10 @@
             break;
           case "routes":
             this.routes = routes({ app: this, routes: options.routes });
+            this.routes.handleEvents();
+            globalThis.setTimeout(() => {
+              this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+            });
             break;
           case "actions":
             this.actions = actions({ app: this, actions: options.actions });
@@ -776,6 +780,31 @@
   observe();
   handleChanges2();
 
+  // src/render.mjs
+  var SimplyRender = class extends HTMLElement {
+    constructor() {
+      super();
+      let templateId = this.getAttribute("rel");
+      let template = document.getElementById(templateId);
+      if (template) {
+        let content = template.content.cloneNode(true);
+        for (const node of content.childNodes) {
+          const clone = node.cloneNode(true);
+          if (clone.nodeType == document.ELEMENT_NODE) {
+            clone.querySelectorAll("template").forEach(function(t) {
+              t.setAttribute("simply-render", "");
+            });
+          }
+          this.parentNode.insertBefore(clone, this);
+        }
+        this.parentNode.removeChild(this);
+      }
+    }
+  };
+  if (!customElements.get("simply-render")) {
+    customElements.define("simply-render", SimplyRender);
+  }
+
   // src/everything.mjs
   var simply = {
     activate,
@@ -786,6 +815,7 @@
     key: keys,
     route: routes,
     view
+    //TODO: add collect back?
   };
   window.simply = simply;
   var everything_default = simply;
