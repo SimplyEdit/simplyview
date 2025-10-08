@@ -10,7 +10,7 @@ export function routes(options, optionsCompat) {
 class SimplyRoute {
 	constructor(options={}) {
 		this.root = options.root || '/'
-        this.app = options.app
+        this.app = options.app || {}
         this.addMissingSlash = !!options.addMissingSlash
         this.matchExact = !!options.matchExact
 		this.clear()
@@ -73,7 +73,7 @@ class SimplyRoute {
                 args.params = params
                 args = this.runListeners('call', args)
                 params = args.params ? args.params : params
-                args.result = route.action.call(route, params)
+                args.result = route.action.call(this.app, params)
                 this.runListeners('finish', args)
                 return args.result
             }
