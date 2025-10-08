@@ -4,36 +4,36 @@ export function routes(options, optionsCompat) {
         options = optionsCompat
         options.app = options
     }
-	return new SimplyRoute(options)
+    return new SimplyRoute(options)
 }
 
 class SimplyRoute {
-	constructor(options={}) {
-		this.root = options.root || '/'
+    constructor(options={}) {
+        this.root = options.root || '/'
         this.app = options.app || {}
         this.addMissingSlash = !!options.addMissingSlash
         this.matchExact = !!options.matchExact
-		this.clear()
-		if (options.routes) {
-			this.load(options.routes)
-		}
-	}
+        this.clear()
+        if (options.routes) {
+            this.load(options.routes)
+        }
+    }
 
-	load(routes) {
-		parseRoutes(routes, this.routeInfo, this.matchExact)
-	}
+    load(routes) {
+        parseRoutes(routes, this.routeInfo, this.matchExact)
+    }
 
-	clear() {
-		this.routeInfo = []
-		this.listeners = {
-			match: {},
-			call: {},
-			finish: {}
-		}
-	}
+    clear() {
+        this.routeInfo = []
+        this.listeners = {
+            match: {},
+            call: {},
+            finish: {}
+        }
+    }
 
-	match(path, options) {
-		let args = {
+    match(path, options) {
+        let args = {
             path,
             options
         }
@@ -79,9 +79,9 @@ class SimplyRoute {
             }
         }
         return false
-	}
+    }
 
-	runListeners(action, params) {
+    runListeners(action, params) {
         if (!Object.keys(this.listeners[action])) {
             return
         }
@@ -107,38 +107,38 @@ class SimplyRoute {
             }
         })
         this.app.container.addEventListener('click', (evt) => {
-	        if (evt.ctrlKey) {
-	            return;
-	        }
-	        if (evt.which != 1) {
-	            return; // not a 'left' mouse click
-	        }
-	        var link = evt.target;
-	        while (link && link.tagName!='A') {
-	            link = link.parentElement;
-	        }
-	        if (link 
-	            && link.pathname 
-	            && link.hostname==globalThis.location.hostname 
-	            && !link.link
-	            && !link.dataset.simplyCommand
-	        ) {
-	            let path = getPath(link.pathname+link.hash, this.root);
-	            if ( !this.has(path) ) {
-	                path = getPath(link.pathname, this.root);
-	            }
-	            if ( this.has(path) ) {
-	                let params = this.runListeners('goto', { path: path});
-	                if (params.path) {
-	                    if (this.goto(params.path)) {
+            if (evt.ctrlKey) {
+                return;
+            }
+            if (evt.which != 1) {
+                return; // not a 'left' mouse click
+            }
+            var link = evt.target;
+            while (link && link.tagName!='A') {
+                link = link.parentElement;
+            }
+            if (link 
+                && link.pathname 
+                && link.hostname==globalThis.location.hostname 
+                && !link.link
+                && !link.dataset.simplyCommand
+            ) {
+                let path = getPath(link.pathname+link.hash, this.root);
+                if ( !this.has(path) ) {
+                    path = getPath(link.pathname, this.root);
+                }
+                if ( this.has(path) ) {
+                    let params = this.runListeners('goto', { path: path});
+                    if (params.path) {
+                        if (this.goto(params.path)) {
                             // now cancel the browser navigation, since a route handler was found
                             evt.preventDefault();
                             return false;
                         }
-	                }
-	            }
-	        }
-	    })
+                    }
+                }
+            }
+        })
     }
 
     goto(path) {
@@ -147,8 +147,8 @@ class SimplyRoute {
     }
 
     has(path) {
-    	path = getPath(path, this.root)
-    	for (let route of this.routeInfo) {
+        path = getPath(path, this.root)
+        for (let route of this.routeInfo) {
             var matches = route.match.exec(path)
             if (matches && matches.length) {
                 return true
@@ -180,9 +180,9 @@ class SimplyRoute {
     }
 
     init(options) {
-    	if (options.root) {
-    		this.root = options.root
-    	}
+        if (options.root) {
+            this.root = options.root
+        }
     }
 }
 
