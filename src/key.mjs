@@ -70,14 +70,14 @@ class SimplyKey {
 					let keyString = keyCombination.join(separator)
 
 					if (this[subkeyboard] && (typeof this[subkeyboard][keyString]=='function')) {
-						let _continue = this[subkeyboard][keyString].call(this[subkeyboard], e)
+						let _continue = this[subkeyboard][keyString].call(options.app, e)
 						if (!_continue) {
 							e.preventDefault()
 							return
 						}
 					}
 					if (typeof this[subkeyboard + keyString] == 'function') {
-						let _continue = this[subkeyboard + keyString].call(this, e)
+						let _continue = this[subkeyboard + keyString].call(options.app, e)
 						if (!_continue) {
 							e.preventDefault()
 							return
