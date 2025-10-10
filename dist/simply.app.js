@@ -362,12 +362,19 @@
     if (optionsCompat) {
       let app2 = options;
       options = optionsCompat;
-      options.app = options;
+      options.app = app2;
     }
     if (options.app) {
       const actionHandler = {
-        get: (target, property) => {
-          return target[property].bind(options.app);
+        get(target, property) {
+          if (!target[property]) {
+            return void 0;
+          }
+          if (target.catch) {
+            return new Proxy(target[property].bind(options.app), functionHandler);
+          } else {
+            return target[property].bind(options.app);
+          }
         }
       };
       return new Proxy(options.actions, actionHandler);
@@ -375,6 +382,21 @@
       return options;
     }
   }
+  var functionHandler = {
+    apply(target, thisArg, argumentsList) {
+      try {
+        const result = target(...argumentsList);
+        if (result instanceof Promise) {
+          return result.catch((err) => {
+            return thisArg.catch(err);
+          });
+        }
+        return result;
+      } catch (err) {
+        return thisArg.catch(err);
+      }
+    }
+  };
 
   // src/key.mjs
   var KEY = Object.freeze({
