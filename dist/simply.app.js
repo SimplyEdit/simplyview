@@ -58,7 +58,7 @@
           }
         }
         if (matches && matches.length) {
-          var params = {};
+          let params = {};
           route.params.forEach((key, i2) => {
             if (key == "*") {
               key = "remainder";
@@ -70,7 +70,8 @@
           args.params = params;
           args = this.runListeners("call", args);
           params = args.params ? args.params : params;
-          args.result = route.action.call(this.app, params);
+          const searchParams = new URLSearchParams(document.location.search);
+          args.result = route.action.call(this.app, params, searchParams);
           this.runListeners("finish", args);
           return args.result;
         }
