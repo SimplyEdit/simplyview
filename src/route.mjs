@@ -33,6 +33,7 @@ class SimplyRoute
         this.listeners = {
             match: {},
             call: {},
+            goto: {},
             finish: {}
         }
     }
