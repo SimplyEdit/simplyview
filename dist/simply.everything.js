@@ -128,6 +128,7 @@
       this.listeners = {
         match: {},
         call: {},
+        goto: {},
         finish: {}
       };
     }
@@ -839,6 +840,6 @@
     route: routes,
     view
   };
-  window.simply = simply;
+  globalThis.simply = simply;
   var everything_default = simply;
 })();

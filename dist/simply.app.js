@@ -27,6 +27,7 @@
       this.listeners = {
         match: {},
         call: {},
+        goto: {},
         finish: {}
       };
     }
