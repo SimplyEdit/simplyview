@@ -58,7 +58,7 @@ class SimplyKey {
 			let keyboard, subkeyboard
 			let separators = ['+','-']
 
-			for (i in keyboards) {
+			for (let i in keyboards) {
 				keyboard = keyboards[i]
 				if (keyboard == '') {
 					subkeyboard = 'default'
