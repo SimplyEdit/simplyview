@@ -133,10 +133,11 @@ class SimplyRoute
                 && !link.link
                 && !link.dataset.simplyCommand
             ) {
-                let path = getPath(link.pathname+link.hash, this.root);
-                if ( !this.has(path) ) {
-                    path = getPath(link.pathname, this.root);
-                }
+                let check = [link.hash, link.pathname+link.hash, link.pathname]
+                let path
+                do {
+                    path = getPath(check.shift(), this.root);
+                } while(check.length && !this.has(path))
                 if ( this.has(path) ) {
                     let params = this.runListeners('goto', { path: path});
                     if (params.path) {
@@ -224,7 +225,10 @@ function getURL(path, root)
     if (root[root.length-1]==='/' && path[0]==='/') {
         path = path.substring(1)
     }
-    return root + path;
+    if (path[0]=='#') {
+        return path
+    }
+    return root + path
 }
 
 function getRegexpFromRoute(route, exact=false)

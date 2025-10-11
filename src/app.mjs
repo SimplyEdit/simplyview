@@ -20,7 +20,11 @@ class SimplyApp {
 					this.routes = routes({ app: this, routes: options.routes})
 					this.routes.handleEvents();
 					globalThis.setTimeout(() => {
-						this.routes.match(globalThis.location?.pathname+globalThis.location?.hash);
+						if (this.routes.has(globalThis.location?.hash)) {
+							this.routes.match(globalThis.location.hash)
+						} else {
+							this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
+						}
 					});
 					break
 				case 'actions':
