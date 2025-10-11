@@ -63,7 +63,7 @@ class SimplyRoute
                     matches = route.match.exec(path+'/')
                     if (matches) {
                         path+='/'
-                        history.replaceState({}, '', getURL(path))
+                        history.replaceState({}, '', getURL(path, this.root))
                     }
                 }
             }
@@ -153,7 +153,7 @@ class SimplyRoute
 
     goto(path)
     {
-        history.pushState({},'',getURL(path))
+        history.pushState({},'',getURL(path, this.root))
         return this.match(path)
     }
 
