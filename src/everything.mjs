@@ -19,6 +19,6 @@ const simply = {
 	view
 }
 
-window.simply = simply
+globalThis.simply = simply
 
 export default simply
