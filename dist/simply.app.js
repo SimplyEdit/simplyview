@@ -60,11 +60,11 @@
         }
         if (matches && matches.length) {
           let params = {};
-          route.params.forEach((key, i2) => {
+          route.params.forEach((key, i) => {
             if (key == "*") {
               key = "remainder";
             }
-            params[key] = matches[i2 + 1];
+            params[key] = matches[i + 1];
           });
           Object.assign(params, options);
           args.route = route;
@@ -115,10 +115,11 @@
           link = link.parentElement;
         }
         if (link && link.pathname && link.hostname == globalThis.location.hostname && !link.link && !link.dataset.simplyCommand) {
-          let path = getPath(link.pathname + link.hash, this.root);
-          if (!this.has(path)) {
-            path = getPath(link.pathname, this.root);
-          }
+          let check = [link.hash, link.pathname + link.hash, link.pathname];
+          let path;
+          do {
+            path = getPath(check.shift(), this.root);
+          } while (check.length && !this.has(path));
           if (this.has(path)) {
             let params = this.runListeners("goto", { path });
             if (params.path) {
@@ -184,6 +185,9 @@
     path = getPath(path, root);
     if (root[root.length - 1] === "/" && path[0] === "/") {
       path = path.substring(1);
+    }
+    if (path[0] == "#") {
+      return path;
     }
     return root + path;
   }
@@ -454,7 +458,7 @@
         keyboards.push("");
         let keyboard, subkeyboard;
         let separators = ["+", "-"];
-        for (i in keyboards) {
+        for (let i in keyboards) {
           keyboard = keyboards[i];
           if (keyboard == "") {
             subkeyboard = "default";
@@ -543,7 +547,11 @@
             this.routes = routes({ app: this, routes: options.routes });
             this.routes.handleEvents();
             globalThis.setTimeout(() => {
-              this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+              if (this.routes.has(globalThis.location?.hash)) {
+                this.routes.match(globalThis.location.hash);
+              } else {
+                this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+              }
             });
             break;
           case "actions":
