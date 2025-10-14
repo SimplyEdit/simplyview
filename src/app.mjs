@@ -16,8 +16,14 @@ class SimplyApp {
 				case 'keyboard': // backwards compatible
 					this.keys = keys({ app: this, keys: options.keys })
 					break
+				case 'root':
+					this.root = options.root
+					break
 				case 'routes':
 					this.routes = routes({ app: this, routes: options.routes})
+					if (this.root) {
+						this.routes.init({ root: this.root })
+					}
 					this.routes.handleEvents();
 					globalThis.setTimeout(() => {
 						if (this.routes.has(globalThis.location?.hash)) {
