@@ -1,5 +1,8 @@
 (() => {
   // src/activate.mjs
+  if (!Symbol.onDestroy) {
+    Symbol.onDestroy = Symbol("onDestroy");
+  }
   var listeners = /* @__PURE__ */ new Map();
   var activate = {
     addListener: (name, callback) => {
@@ -30,7 +33,12 @@
     const activate2 = node?.dataset?.simplyActivate;
     if (activate2 && listeners.has(activate2)) {
       for (let callback of listeners.get(activate2)) {
-        callback.call(node);
+        const onDestroy = callback.call(node);
+        if (typeof onDestroy == "function") {
+          node[Symbol.onDestroy] = onDestroy;
+        } else if (typeof onDestroy != "undefined") {
+          console.warn("activate listener may only return a de-activate function, instead got", onDestroy);
+        }
       }
     }
   }
@@ -40,11 +48,24 @@
       if (change.type == "childList") {
         for (let node of change.addedNodes) {
           if (node.querySelectorAll) {
-            var toActivate = Array.from(node.querySelectorAll("[data-simply-activate]"));
+            let toActivate = Array.from(node.querySelectorAll("[data-simply-activate]"));
             if (node.matches("[data-simply-activate]")) {
               toActivate.push(node);
             }
             activateNodes = activateNodes.concat(toActivate);
+          }
+        }
+        for (let node of change.removedNodes) {
+          if (node.querySelectorAll) {
+            let toDestroy = Array.from(node.querySelectorAll("[data-simply-activate]"));
+            if (node.matches["[data-simply-activate"]) {
+              toDestroy.push(node);
+            }
+            for (let child of toDestroy) {
+              if (child[Symbol.onDestroy]) {
+                child[Symbol.onDestroy].call(child);
+              }
+            }
           }
         }
       }
@@ -603,8 +624,14 @@
           case "keyboard":
             this.keys = keys({ app: this, keys: options.keys });
             break;
+          case "root":
+            this.root = options.root;
+            break;
           case "routes":
             this.routes = routes({ app: this, routes: options.routes });
+            if (this.root) {
+              this.routes.init({ root: this.root });
+            }
             this.routes.handleEvents();
             globalThis.setTimeout(() => {
               if (this.routes.has(globalThis.location?.hash)) {
