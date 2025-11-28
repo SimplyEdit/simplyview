@@ -21,17 +21,6 @@ class SimplyApp {
 					break
 				case 'routes':
 					this.routes = routes({ app: this, routes: options.routes})
-					if (this.root) {
-						this.routes.init({ root: this.root })
-					}
-					this.routes.handleEvents();
-					globalThis.setTimeout(() => {
-						if (this.routes.has(globalThis.location?.hash)) {
-							this.routes.match(globalThis.location.hash)
-						} else {
-							this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
-						}
-					});
 					break
 				case 'actions':
 					this.actions = actions({app: this, actions: options.actions})
@@ -45,7 +34,11 @@ class SimplyApp {
 				case 'view':
 					this.view = view({app: this, view: options.view})
 					break
+				case 'hooks':
+					this.hooks = hooks({app: this, hooks: options.hooks})
+					break
 				default:
+					console.log('simply.app: unknown initialization option "'+key+'", added as-is')
 					this[key] = options[key] // allows easy additions
 					break
 			}
@@ -53,6 +46,24 @@ class SimplyApp {
 	}
 	get app() {
 		return this
+	}
+	start() {
+		if (this.hooks) {
+			await this.hooks.start()
+		}
+		if (this.route) {
+			if (this.root) {
+				this.routes.init({ root: this.root })
+			}
+			this.routes.handleEvents();
+			globalThis.setTimeout(() => {
+				if (this.routes.has(globalThis.location?.hash)) {
+					this.routes.match(globalThis.location.hash)
+				} else {
+					this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
+				}
+			});
+		}
 	}
 }
 
