@@ -70,7 +70,7 @@ class SimplyApp {
 	get app() {
 		return this
 	}
-	start() {
+	async start() {
 		if (this.hooks?.start) {
 			await this.hooks.start()
 		}
