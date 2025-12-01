@@ -57,9 +57,9 @@ export function actions(options, optionsCompat)
 				if (!target[property]) {
 					return undefined
 				}
-				if (options.app.hooks.error) {
+				if (options.app.hooks?.error) {
 					return new Proxy(target[property].bind(options.app), functionHandler)
-				} else if (options.app.hooks.wait) {
+				} else if (options.app.hooks?.wait) {
 					return new Proxy(target[property].bind(options.app), waitHandler)
 				} else {
 					return target[property].bind(options.app)
