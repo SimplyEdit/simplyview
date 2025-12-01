@@ -2,15 +2,17 @@ import { actions } from '../src/action.mjs'
 
 describe('actions can', () => {
 	it('catch exceptions', (done) => {
-		const app = {}
 		let errors = []
+		const app = {
+			hooks: {
+				error: function(err) {
+					errors.push(err.message)
+				}
+			}
+		}
 		const testActions = actions({
 			app, 
 			actions: {
-				async catch(err) {
-					errors.push(err.message)
-					return null
-				},
 				async willThrow() {
 					throw new Error('throw!')
 				},
