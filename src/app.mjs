@@ -16,22 +16,12 @@ class SimplyApp {
 				case 'keyboard': // backwards compatible
 					this.keys = keys({ app: this, keys: options.keys })
 					break
-				case 'root':
-					this.root = options.root
+				case 'root': // backwards compatibility
+				case 'baseURL':
+					this.baseURL = options[key]
 					break
 				case 'routes':
 					this.routes = routes({ app: this, routes: options.routes})
-					if (this.root) {
-						this.routes.init({ root: this.root })
-					}
-					this.routes.handleEvents();
-					globalThis.setTimeout(() => {
-						if (this.routes.has(globalThis.location?.hash)) {
-							this.routes.match(globalThis.location.hash)
-						} else {
-							this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
-						}
-					});
 					break
 				case 'actions':
 					this.actions = actions({app: this, actions: options.actions})
@@ -45,14 +35,58 @@ class SimplyApp {
 				case 'view':
 					this.view = view({app: this, view: options.view})
 					break
+				case 'hooks':
+					const moduleHandler = {
+						get(target, property) {
+							if (!target[property]) {
+								return undefined
+							}
+							if (typeof target[property]=='function') {
+								return new Proxy(target[property], functionHandler)
+							} else if (target[property] && typeof target[property]=='object') {
+								return new Proxy(target[property], moduleHandler)
+							} else {
+								return target[property]
+							}
+						}
+					}
+					const functionHandler = {
+						get(target, property) {
+							if (!target[property]) {
+								return undefined
+							}
+							return target[property].bind(this)
+						}
+					}
+					this[key] = new Proxy(options[key], moduleHandler)
+					break
 				default:
-					this[key] = options[key] // allows easy additions
+					console.log('simply.app: unknown initialization option "'+key+'", added as-is')
+					this[key] = options[key]
 					break
 			}
 		}
 	}
 	get app() {
 		return this
+	}
+	async start() {
+		if (this.hooks?.start) {
+			await this.hooks.start()
+		}
+		if (this.route) {
+			if (this.baseURL) {
+				this.routes.init({ baseURL: this.baseURL })
+			}
+			this.routes.handleEvents();
+			globalThis.setTimeout(() => {
+				if (this.routes.has(globalThis.location?.hash)) {
+					this.routes.match(globalThis.location.hash)
+				} else {
+					this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
+				}
+			});
+		}
 	}
 }
 

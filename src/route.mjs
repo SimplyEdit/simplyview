@@ -12,7 +12,7 @@ class SimplyRoute
 {
     constructor(options={})
     {
-        this.root = options.root || '/'
+        this.baseURL = options.baseURL || '/'
         this.app = options.app || {}
         this.addMissingSlash = !!options.addMissingSlash
         this.matchExact = !!options.matchExact
@@ -63,7 +63,7 @@ class SimplyRoute
                     matches = route.match.exec(path+'/')
                     if (matches) {
                         path+='/'
-                        history.replaceState({}, '', getURL(path, this.root))
+                        history.replaceState({}, '', getURL(path, this.baseURL))
                     }
                 }
             }
@@ -112,8 +112,8 @@ class SimplyRoute
     handleEvents()
     {
         globalThis.addEventListener('popstate', () => {
-            if (this.match(getPath(document.location.pathname + document.location.hash, this.root)) === false) {
-                this.match(getPath(document.location.pathname, this.root))
+            if (this.match(getPath(document.location.pathname + document.location.hash, this.baseURL)) === false) {
+                this.match(getPath(document.location.pathname, this.baseURL))
             }
         })
         this.app.container.addEventListener('click', (evt) => {
@@ -136,7 +136,7 @@ class SimplyRoute
                 let check = [link.hash, link.pathname+link.hash, link.pathname]
                 let path
                 do {
-                    path = getPath(check.shift(), this.root);
+                    path = getPath(check.shift(), this.baseURL);
                 } while(check.length && !this.has(path))
                 if ( this.has(path) ) {
                     let params = this.runListeners('goto', { path: path});
@@ -154,13 +154,13 @@ class SimplyRoute
 
     goto(path)
     {
-        history.pushState({},'',getURL(path, this.root))
+        history.pushState({},'',getURL(path, this.baseURL))
         return this.match(path)
     }
 
     has(path)
     {
-        path = getPath(path, this.root)
+        path = getPath(path, this.baseURL)
         for (let route of this.routeInfo) {
             var matches = route.match.exec(path)
             if (matches && matches.length) {
@@ -196,22 +196,22 @@ class SimplyRoute
 
     init(options)
     {
-        if (options.root) {
-            this.root = options.root
+        if (options.baseURL) {
+            this.baseURL = options.baseURL
         }
     }
 }
 
-function getPath(path, root='/')
+function getPath(path, baseURL='/')
 {
-    if (path.substring(0,root.length)==root
+    if (path.substring(0,baseURL.length)==baseURL
         ||
-        ( root[root.length-1]=='/' 
-            && path.length==(root.length-1)
-            && path == root.substring(0,path.length)
+        ( baseURL[baseURL.length-1]=='/' 
+            && path.length==(baseURL.length-1)
+            && path == baseURL.substring(0,path.length)
         )
     ) {
-        path = path.substring(root.length)
+        path = path.substring(baseURL.length)
     }
     if (path[0]!='/' && path[0]!='#') {
         path = '/'+path
@@ -219,16 +219,16 @@ function getPath(path, root='/')
     return path
 }
 
-function getURL(path, root)
+function getURL(path, baseURL)
 {
-    path = getPath(path, root)
-    if (root[root.length-1]==='/' && path[0]==='/') {
+    path = getPath(path, baseURL)
+    if (baseURL[baseURL.length-1]==='/' && path[0]==='/') {
         path = path.substring(1)
     }
     if (path[0]=='#') {
         return path
     }
-    return root + path
+    return baseURL + path
 }
 
 function getRegexpFromRoute(route, exact=false)
