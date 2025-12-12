@@ -40,3 +40,5 @@ myApp.actions.anotherAction = function(...arguments) {
    ...
 };
 ```
+
+If you defined a `error` hook in simply.app, this function will be called whenever an exception is thrown and not handled by the action itself.
