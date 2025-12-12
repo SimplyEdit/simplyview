@@ -37,7 +37,7 @@ class SimplyApp {
 					break
 				case 'hooks':
 					const moduleHandler = {
-						get(target, property) {
+						get: (target, property) => {
 							if (!target[property]) {
 								return undefined
 							}
@@ -51,11 +51,9 @@ class SimplyApp {
 						}
 					}
 					const functionHandler = {
-						get(target, property) {
-							if (!target[property]) {
-								return undefined
-							}
-							return target[property].bind(this)
+						apply: (target, thisArg, argumentsList) => {
+							// note: must use short function syntax so this is set to the app
+							return target.apply(this, argumentsList)
 						}
 					}
 					this[key] = new Proxy(options[key], moduleHandler)
@@ -74,7 +72,7 @@ class SimplyApp {
 		if (this.hooks?.start) {
 			await this.hooks.start()
 		}
-		if (this.route) {
+		if (this.routes) {
 			if (this.baseURL) {
 				this.routes.init({ baseURL: this.baseURL })
 			}
