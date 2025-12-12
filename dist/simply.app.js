@@ -10,7 +10,7 @@
   }
   var SimplyRoute = class {
     constructor(options = {}) {
-      this.root = options.root || "/";
+      this.baseURL = options.baseURL || "/";
       this.app = options.app || {};
       this.addMissingSlash = !!options.addMissingSlash;
       this.matchExact = !!options.matchExact;
@@ -54,7 +54,7 @@
             matches = route.match.exec(path + "/");
             if (matches) {
               path += "/";
-              history.replaceState({}, "", getURL(path, this.root));
+              history.replaceState({}, "", getURL(path, this.baseURL));
             }
           }
         }
@@ -80,7 +80,7 @@
       return false;
     }
     runListeners(action, params) {
-      if (!Object.keys(this.listeners[action])) {
+      if (!this.listeners[action] || !Object.keys(this.listeners[action])) {
         return;
       }
       Object.keys(this.listeners[action]).forEach((route) => {
@@ -99,8 +99,8 @@
     }
     handleEvents() {
       globalThis.addEventListener("popstate", () => {
-        if (this.match(getPath(document.location.pathname + document.location.hash, this.root)) === false) {
-          this.match(getPath(document.location.pathname, this.root));
+        if (this.match(getPath(document.location.pathname + document.location.hash, this.baseURL)) === false) {
+          this.match(getPath(document.location.pathname, this.baseURL));
         }
       });
       this.app.container.addEventListener("click", (evt) => {
@@ -118,7 +118,7 @@
           let check = [link.hash, link.pathname + link.hash, link.pathname];
           let path;
           do {
-            path = getPath(check.shift(), this.root);
+            path = getPath(check.shift(), this.baseURL);
           } while (check.length && !this.has(path));
           if (this.has(path)) {
             let params = this.runListeners("goto", { path });
@@ -133,11 +133,11 @@
       });
     }
     goto(path) {
-      history.pushState({}, "", getURL(path, this.root));
+      history.pushState({}, "", getURL(path, this.baseURL));
       return this.match(path);
     }
     has(path) {
-      path = getPath(path, this.root);
+      path = getPath(path, this.baseURL);
       for (let route of this.routeInfo) {
         var matches = route.match.exec(path);
         if (matches && matches.length) {
@@ -167,29 +167,29 @@
       });
     }
     init(options) {
-      if (options.root) {
-        this.root = options.root;
+      if (options.baseURL) {
+        this.baseURL = options.baseURL;
       }
     }
   };
-  function getPath(path, root = "/") {
-    if (path.substring(0, root.length) == root || root[root.length - 1] == "/" && path.length == root.length - 1 && path == root.substring(0, path.length)) {
-      path = path.substring(root.length);
+  function getPath(path, baseURL = "/") {
+    if (path.substring(0, baseURL.length) == baseURL || baseURL[baseURL.length - 1] == "/" && path.length == baseURL.length - 1 && path == baseURL.substring(0, path.length)) {
+      path = path.substring(baseURL.length);
     }
     if (path[0] != "/" && path[0] != "#") {
       path = "/" + path;
     }
     return path;
   }
-  function getURL(path, root) {
-    path = getPath(path, root);
-    if (root[root.length - 1] === "/" && path[0] === "/") {
+  function getURL(path, baseURL) {
+    path = getPath(path, baseURL);
+    if (baseURL[baseURL.length - 1] === "/" && path[0] === "/") {
       path = path.substring(1);
     }
     if (path[0] == "#") {
       return path;
     }
-    return root + path;
+    return baseURL + path;
   }
   function getRegexpFromRoute(route, exact = false) {
     if (exact) {
@@ -371,13 +371,54 @@
       options.app = app2;
     }
     if (options.app) {
+      const waitHandler = {
+        apply(target, thisArg, argumentsList) {
+          try {
+            const result = target(...argumentsList);
+            if (result instanceof Promise) {
+              options.app.hooks.wait(true);
+              return result.finally(() => {
+                options.app.hooks.wait(false, target);
+              });
+            }
+            return result;
+          } catch (err) {
+          }
+        }
+      };
+      const functionHandler = {
+        apply(target, thisArg, argumentsList) {
+          try {
+            const result = target(...argumentsList);
+            if (result instanceof Promise) {
+              if (options.app.hooks.wait) {
+                options.app.hooks.wait(true, target);
+                return result.catch((err) => {
+                  return options.app.hooks.error(err, target);
+                }).finally(() => {
+                  options.app.hooks.wait(false, target);
+                });
+              } else {
+                return result.catch((err) => {
+                  return options.app.hooks.error(err, target);
+                });
+              }
+            }
+            return result;
+          } catch (err) {
+            return options.app.hooks.error(err, target);
+          }
+        }
+      };
       const actionHandler = {
         get(target, property) {
           if (!target[property]) {
             return void 0;
           }
-          if (target.catch) {
+          if (options.app.hooks?.error) {
             return new Proxy(target[property].bind(options.app), functionHandler);
+          } else if (options.app.hooks?.wait) {
+            return new Proxy(target[property].bind(options.app), waitHandler);
           } else {
             return target[property].bind(options.app);
           }
@@ -388,21 +429,6 @@
       return options;
     }
   }
-  var functionHandler = {
-    apply(target, thisArg, argumentsList) {
-      try {
-        const result = target(...argumentsList);
-        if (result instanceof Promise) {
-          return result.catch((err) => {
-            return thisArg.catch(err);
-          });
-        }
-        return result;
-      } catch (err) {
-        return thisArg.catch(err);
-      }
-    }
-  };
 
   // src/key.mjs
   var KEY = Object.freeze({
@@ -544,21 +570,12 @@
             this.keys = keys({ app: this, keys: options.keys });
             break;
           case "root":
-            this.root = options.root;
+          // backwards compatibility
+          case "baseURL":
+            this.baseURL = options[key];
             break;
           case "routes":
             this.routes = routes({ app: this, routes: options.routes });
-            if (this.root) {
-              this.routes.init({ root: this.root });
-            }
-            this.routes.handleEvents();
-            globalThis.setTimeout(() => {
-              if (this.routes.has(globalThis.location?.hash)) {
-                this.routes.match(globalThis.location.hash);
-              } else {
-                this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
-              }
-            });
             break;
           case "actions":
             this.actions = actions({ app: this, actions: options.actions });
@@ -572,7 +589,30 @@
           case "view":
             this.view = view({ app: this, view: options.view });
             break;
+          case "hooks":
+            const moduleHandler = {
+              get: (target, property) => {
+                if (!target[property]) {
+                  return void 0;
+                }
+                if (typeof target[property] == "function") {
+                  return new Proxy(target[property], functionHandler);
+                } else if (target[property] && typeof target[property] == "object") {
+                  return new Proxy(target[property], moduleHandler);
+                } else {
+                  return target[property];
+                }
+              }
+            };
+            const functionHandler = {
+              apply: (target, thisArg, argumentsList) => {
+                return target.apply(this, argumentsList);
+              }
+            };
+            this[key] = new Proxy(options[key], moduleHandler);
+            break;
           default:
+            console.log('simply.app: unknown initialization option "' + key + '", added as-is');
             this[key] = options[key];
             break;
         }
@@ -580,6 +620,24 @@
     }
     get app() {
       return this;
+    }
+    async start() {
+      if (this.hooks?.start) {
+        await this.hooks.start();
+      }
+      if (this.routes) {
+        if (this.baseURL) {
+          this.routes.init({ baseURL: this.baseURL });
+        }
+        this.routes.handleEvents();
+        globalThis.setTimeout(() => {
+          if (this.routes.has(globalThis.location?.hash)) {
+            this.routes.match(globalThis.location.hash);
+          } else {
+            this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+          }
+        });
+      }
     }
   };
   function app(options = {}) {
