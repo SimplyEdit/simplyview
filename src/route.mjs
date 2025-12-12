@@ -91,7 +91,7 @@ class SimplyRoute
 
     runListeners(action, params)
     {
-        if (!Object.keys(this.listeners[action])) {
+        if (!this.listeners[action] || !Object.keys(this.listeners[action])) {
             return
         }
         Object.keys(this.listeners[action]).forEach((route) => {
