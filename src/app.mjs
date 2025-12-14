@@ -47,20 +47,28 @@ class SimplyApp
 			switch(key) {
 				case 'html':
 					for (const name in options.html) {
-						const template = document.createElement('template')
-						template.id=name
 						const element = document.createElement('div')
 						element.innerHTML = options.html[name]
-						template.content.append(...element.children)
-						this.container.appendChild(template)
+						let template = this.container.querySelector('template#'+name)
+						if (!template) {
+							template = document.createElement('template')
+							template.id=name
+							template.content.append(...element.children)
+							this.container.appendChild(template)
+						} else {
+							template.content.replaceChildren(...element.children)
+						}
 					}
 				break
 				case 'css':
 					for (const name in options.css) {
-						const style = document.createElement('style')
-						style.id=name 
-						style.innerText = options.css[name]
-						this.container.appendChild(style)
+						let style = this.container.querySelector('style#'+name)
+						if (!style) {
+							style = document.createElement('style')
+							style.id=name 
+							this.container.appendChild(style)
+						}
+						style.innerHTML = options.css[name]
 					}
 				break
 				case 'commands':

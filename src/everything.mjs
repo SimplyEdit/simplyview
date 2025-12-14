@@ -47,6 +47,8 @@ globalThis.css = function(strings, ...values) {
     (value, index) =>
       `${strings[index]}${escapeCSS(value)}`,
   );
-  return outputArray.join("") + strings[strings.length - 1];
+  const result = outputArray.join("") + strings[strings.length - 1];
+  console.log(result)
+  return result
 }
 export default simply
