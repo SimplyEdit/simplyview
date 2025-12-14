@@ -561,32 +561,8 @@
     constructor(options = {}) {
       this.container = options.container || document.body;
       if (options.components) {
-        this.mergeComponents(options, options.components);
+        mergeComponents(options, options.components);
       }
-      this.initOptions(options);
-    }
-    get app() {
-      return this;
-    }
-    async start() {
-      if (this.hooks?.start) {
-        await this.hooks.start();
-      }
-      if (this.routes) {
-        if (this.baseURL) {
-          this.routes.init({ baseURL: this.baseURL });
-        }
-        this.routes.handleEvents();
-        globalThis.setTimeout(() => {
-          if (this.routes.has(globalThis.location?.hash)) {
-            this.routes.match(globalThis.location.hash);
-          } else {
-            this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
-          }
-        });
-      }
-    }
-    initOptions(options) {
       for (let key in options) {
         switch (key) {
           case "html":
@@ -667,6 +643,9 @@
             components:
               this.components = components;
             break;
+            prototype:
+              __proto__:
+                break;
           default:
             console.log('simply.app: unknown initialization option "' + key + '", added as-is');
             this[key] = options[key];
@@ -674,47 +653,68 @@
         }
       }
     }
-    mergeOptions(options, otherOptions) {
-      for (const key in otherOptions) {
-        switch (typeof otherOptions[key]) {
-          case "object":
-            if (!otherOptions[key]) {
-              continue;
-            }
-            if (!options[key]) {
-              options[key] = otherOptions[key];
-            } else {
-              this.mergeOptions(options[key], otherOptions[key]);
-            }
-            break;
-          default:
-            options[key] = otherOptions[key];
-        }
-      }
+    get app() {
+      return this;
     }
-    mergeComponents(options, components2) {
-      for (const name in components2) {
-        const component = components2[name];
-        if (component.components) {
-          this.mergeComponents(options, component.components);
+    async start() {
+      if (this.hooks?.start) {
+        await this.hooks.start();
+      }
+      if (this.routes) {
+        if (this.baseURL) {
+          this.routes.init({ baseURL: this.baseURL });
         }
-        options.components[name] = component;
-        for (const key in component) {
-          switch (key) {
-            case "components":
-              break;
-            default:
-              if (!options[key]) {
-                options[key] = /* @__PURE__ */ Object.create(null);
-              }
-              this.mergeOptions(options[key], component[key]);
-              break;
+        this.routes.handleEvents();
+        globalThis.setTimeout(() => {
+          if (this.routes.has(globalThis.location?.hash)) {
+            this.routes.match(globalThis.location.hash);
+          } else {
+            this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
           }
-        }
+        });
       }
     }
   };
   function app(options = {}) {
     return new SimplyApp(options);
+  }
+  function mergeOptions(options, otherOptions) {
+    for (const key in otherOptions) {
+      switch (typeof otherOptions[key]) {
+        case "object":
+          if (!otherOptions[key]) {
+            continue;
+          }
+          if (!options[key]) {
+            options[key] = otherOptions[key];
+          } else {
+            mergeOptions(options[key], otherOptions[key]);
+          }
+          break;
+        default:
+          options[key] = otherOptions[key];
+      }
+    }
+  }
+  function mergeComponents(options, components2) {
+    for (const name in components2) {
+      const component = components2[name];
+      if (component.components) {
+        mergeComponents(options, component.components);
+      }
+      options.components[name] = component;
+      for (const key in component) {
+        switch (key) {
+          case "components":
+            break;
+          default:
+            if (!options[key]) {
+              options[key] = /* @__PURE__ */ Object.create(null);
+            }
+            mergeOptions(options[key], component[key]);
+            break;
+        }
+      }
+    }
   }
 })();
