@@ -15,36 +15,6 @@ class SimplyApp
 		if (options.components) {
 			mergeComponents(options, options.components)
 		}
-		this.initOptions(options)
-	}
-
-	get app()
-	{
-		return this
-	}
-
-	async start()
-	{
-		if (this.hooks?.start) {
-			await this.hooks.start()
-		}
-		if (this.routes) {
-			if (this.baseURL) {
-				this.routes.init({ baseURL: this.baseURL })
-			}
-			this.routes.handleEvents();
-			globalThis.setTimeout(() => {
-				if (this.routes.has(globalThis.location?.hash)) {
-					this.routes.match(globalThis.location.hash)
-				} else {
-					this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
-				}
-			});
-		}
-	}
-
-	initOptions(options)
-	{
 		for (let key in options) {
 			switch(key) {
 				case 'html':
@@ -132,6 +102,32 @@ class SimplyApp
 			}
 		}
 	}
+
+	get app()
+	{
+		return this
+	}
+
+	async start()
+	{
+		if (this.hooks?.start) {
+			await this.hooks.start()
+		}
+		if (this.routes) {
+			if (this.baseURL) {
+				this.routes.init({ baseURL: this.baseURL })
+			}
+			this.routes.handleEvents();
+			globalThis.setTimeout(() => {
+				if (this.routes.has(globalThis.location?.hash)) {
+					this.routes.match(globalThis.location.hash)
+				} else {
+					this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
+				}
+			});
+		}
+	}
+
 }
 
 export function app(options={})
