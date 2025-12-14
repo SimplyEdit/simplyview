@@ -4,6 +4,8 @@ import { actions } from './action.mjs'
 import { keys } from './key.mjs'
 import { view } from './view.mjs'
 
+
+
 class SimplyApp
 {
 
@@ -11,7 +13,7 @@ class SimplyApp
 	{
 		this.container = options.container || document.body
 		if (options.components) {
-			this.mergeComponents(options, options.components)
+			mergeComponents(options, options.components)
 		}
 		this.initOptions(options)
 	}
@@ -130,52 +132,53 @@ class SimplyApp
 			}
 		}
 	}
+}
 
-	mergeOptions(options, otherOptions)
-	{
-		for (const key in otherOptions) {
-			switch(typeof otherOptions[key]) {
-				case 'object':
-					if (!otherOptions[key]) {
-						continue // null
-					}
-					if (!options[key]) {
-						options[key] = otherOptions[key]
-					} else {
-						//FIXME: check that options[key] is also an object
-						this.mergeOptions(options[key], otherOptions[key])
-					}
-					break
-				default:
-					options[key] = otherOptions[key]
-			}
-		}
-	}
+export function app(options={})
+{
+	return new SimplyApp(options)
+}
 
-	mergeComponents(options, components) {
-		for (const name in components) {
-			const component = components[name]
-			if (component.components) {
-				this.mergeComponents(options, component.components)
-			}
-			options.components[name] = component
-			for (const key in component) {
-				switch(key) {
-					case 'components':
-						// already handled
-						break
-					default:
-						if (!options[key]) {
-							options[key] = Object.create(null)
-						}
-						this.mergeOptions(options[key], component[key])
-						break
+function mergeOptions(options, otherOptions)
+{
+	for (const key in otherOptions) {
+		switch(typeof otherOptions[key]) {
+			case 'object':
+				if (!otherOptions[key]) {
+					continue // null
 				}
-			}
+				if (!options[key]) {
+					options[key] = otherOptions[key]
+				} else {
+					//FIXME: check that options[key] is also an object
+					mergeOptions(options[key], otherOptions[key])
+				}
+				break
+			default:
+				options[key] = otherOptions[key]
 		}
 	}
 }
 
-export function app(options={}) {
-	return new SimplyApp(options)
+function mergeComponents(options, components) {
+	for (const name in components) {
+		const component = components[name]
+		if (component.components) {
+			mergeComponents(options, component.components)
+		}
+		options.components[name] = component
+		for (const key in component) {
+			switch(key) {
+				case 'components':
+					// already handled
+					break
+				default:
+					if (!options[key]) {
+						options[key] = Object.create(null)
+					}
+					mergeOptions(options[key], component[key])
+					break
+			}
+		}
+	}
 }
