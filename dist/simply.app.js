@@ -560,8 +560,61 @@
   var SimplyApp = class {
     constructor(options = {}) {
       this.container = options.container || document.body;
+      if (options.components) {
+        this.mergeComponents(options, options.components);
+      }
+      this.initOptions(options);
+    }
+    get app() {
+      return this;
+    }
+    async start() {
+      if (this.hooks?.start) {
+        await this.hooks.start();
+      }
+      if (this.routes) {
+        if (this.baseURL) {
+          this.routes.init({ baseURL: this.baseURL });
+        }
+        this.routes.handleEvents();
+        globalThis.setTimeout(() => {
+          if (this.routes.has(globalThis.location?.hash)) {
+            this.routes.match(globalThis.location.hash);
+          } else {
+            this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+          }
+        });
+      }
+    }
+    initOptions(options) {
       for (let key in options) {
         switch (key) {
+          case "html":
+            for (const name in options.html) {
+              const element = document.createElement("div");
+              element.innerHTML = options.html[name];
+              let template = this.container.querySelector("template#" + name);
+              if (!template) {
+                template = document.createElement("template");
+                template.id = name;
+                template.content.append(...element.children);
+                this.container.appendChild(template);
+              } else {
+                template.content.replaceChildren(...element.children);
+              }
+            }
+            break;
+          case "css":
+            for (const name in options.css) {
+              let style = this.container.querySelector("style#" + name);
+              if (!style) {
+                style = document.createElement("style");
+                style.id = name;
+                this.container.appendChild(style);
+              }
+              style.innerHTML = options.css[name];
+            }
+            break;
           case "commands":
             this.commands = commands({ app: this, container: this.container, commands: options.commands });
             break;
@@ -611,6 +664,9 @@
             };
             this[key] = new Proxy(options[key], moduleHandler);
             break;
+            components:
+              this.components = components;
+            break;
           default:
             console.log('simply.app: unknown initialization option "' + key + '", added as-is');
             this[key] = options[key];
@@ -618,25 +674,43 @@
         }
       }
     }
-    get app() {
-      return this;
-    }
-    async start() {
-      if (this.hooks?.start) {
-        await this.hooks.start();
-      }
-      if (this.routes) {
-        if (this.baseURL) {
-          this.routes.init({ baseURL: this.baseURL });
+    mergeOptions(options, otherOptions) {
+      for (const key in otherOptions) {
+        switch (typeof otherOptions[key]) {
+          case "object":
+            if (!otherOptions[key]) {
+              continue;
+            }
+            if (!options[key]) {
+              options[key] = otherOptions[key];
+            } else {
+              this.mergeOptions(options[key], otherOptions[key]);
+            }
+            break;
+          default:
+            options[key] = otherOptions[key];
         }
-        this.routes.handleEvents();
-        globalThis.setTimeout(() => {
-          if (this.routes.has(globalThis.location?.hash)) {
-            this.routes.match(globalThis.location.hash);
-          } else {
-            this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+      }
+    }
+    mergeComponents(options, components2) {
+      for (const name in components2) {
+        const component = components2[name];
+        if (component.components) {
+          this.mergeComponents(options, component.components);
+        }
+        options.components[name] = component;
+        for (const key in component) {
+          switch (key) {
+            case "components":
+              break;
+            default:
+              if (!options[key]) {
+                options[key] = /* @__PURE__ */ Object.create(null);
+              }
+              this.mergeOptions(options[key], component[key]);
+              break;
           }
-        });
+        }
       }
     }
   };
