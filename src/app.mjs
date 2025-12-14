@@ -95,6 +95,10 @@ class SimplyApp
 				components:
 					this.components = components
 					break
+				prototype:
+				__proto__:
+					// ignore this to avoid prototype pollution
+					break
 				default:
 					console.log('simply.app: unknown initialization option "'+key+'", added as-is')
 					this[key] = options[key]
