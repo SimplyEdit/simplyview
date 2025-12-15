@@ -3,12 +3,46 @@ import { commands } from './command.mjs'
 import { actions } from './action.mjs'
 import { keys } from './key.mjs'
 import { view } from './view.mjs'
+import { html, css } from './highlight.mjs'
 
-class SimplyApp {
-	constructor(options={}) {
+
+class SimplyApp
+{
+
+	constructor(options={})
+	{
 		this.container = options.container || document.body
+		if (options.components) {
+			mergeComponents(options, options.components)
+		}
 		for (let key in options) {
 			switch(key) {
+				case 'html':
+					for (const name in options.html) {
+						const element = document.createElement('div')
+						element.innerHTML = options.html[name]
+						let template = this.container.querySelector('template#'+name)
+						if (!template) {
+							template = document.createElement('template')
+							template.id=name
+							template.content.append(...element.children)
+							this.container.appendChild(template)
+						} else {
+							template.content.replaceChildren(...element.children)
+						}
+					}
+				break
+				case 'css':
+					for (const name in options.css) {
+						let style = this.container.querySelector('style#'+name)
+						if (!style) {
+							style = document.createElement('style')
+							style.id=name 
+							this.container.appendChild(style)
+						}
+						style.innerHTML = options.css[name]
+					}
+				break
 				case 'commands':
 					this.commands = commands({ app: this, container: this.container, commands: options.commands})
 					break
@@ -58,6 +92,13 @@ class SimplyApp {
 					}
 					this[key] = new Proxy(options[key], moduleHandler)
 					break
+				components:
+					this.components = components
+					break
+				prototype:
+				__proto__:
+					// ignore this to avoid prototype pollution
+					break
 				default:
 					console.log('simply.app: unknown initialization option "'+key+'", added as-is')
 					this[key] = options[key]
@@ -65,10 +106,21 @@ class SimplyApp {
 			}
 		}
 	}
-	get app() {
+
+	get app()
+	{
 		return this
 	}
-	async start() {
+
+	async start()
+	{
+		if (this.components) {
+			for (const name in this.components) {
+				if (this.components[name].hooks?.start) {
+					await this.components[name].hooks.start()
+				}
+			}
+		}
 		if (this.hooks?.start) {
 			await this.hooks.start()
 		}
@@ -86,8 +138,63 @@ class SimplyApp {
 			});
 		}
 	}
+
 }
 
-export function app(options={}) {
+export function app(options={})
+{
 	return new SimplyApp(options)
+}
+
+if (!globalThis.html) {
+	globalThis.html = html
+}
+if (!globalThis.css) {
+	globalThis.css = css
+}
+
+function mergeOptions(options, otherOptions)
+{
+	for (const key in otherOptions) {
+		switch(typeof otherOptions[key]) {
+			case 'object':
+				if (!otherOptions[key]) {
+					continue // null
+				}
+				if (!options[key]) {
+					options[key] = otherOptions[key]
+				} else {
+					//FIXME: check that options[key] is also an object
+					mergeOptions(options[key], otherOptions[key])
+				}
+				break
+			default:
+				options[key] = otherOptions[key]
+		}
+	}
+}
+
+function mergeComponents(options, components) {
+	for (const name in components) {
+		const component = components[name]
+		if (component.components) {
+			mergeComponents(options, component.components)
+		}
+		options.components[name] = component
+		for (const key in component) {
+			switch(key) {
+				case 'hooks':
+					// don't merge these, app.hooks.start will trigger each components start hook
+				case 'components':
+					// already handled
+					break
+				default:
+					if (!options[key]) {
+						options[key] = Object.create(null)
+					}
+					mergeOptions(options[key], component[key])
+					break
+			}
+		}
+	}
 }
