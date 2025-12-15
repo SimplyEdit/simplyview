@@ -3,7 +3,7 @@ import { commands } from './command.mjs'
 import { actions } from './action.mjs'
 import { keys } from './key.mjs'
 import { view } from './view.mjs'
-
+import { html, css } from './highlight.mjs'
 
 
 class SimplyApp
@@ -114,6 +114,13 @@ class SimplyApp
 
 	async start()
 	{
+		if (this.components) {
+			for (const name in this.components) {
+				if (this.components[name].hooks?.start) {
+					await this.components[name].hooks.start()
+				}
+			}
+		}
 		if (this.hooks?.start) {
 			await this.hooks.start()
 		}
@@ -137,6 +144,13 @@ class SimplyApp
 export function app(options={})
 {
 	return new SimplyApp(options)
+}
+
+if (!globalThis.html) {
+	globalThis.html = html
+}
+if (!globalThis.css) {
+	globalThis.css = css
 }
 
 function mergeOptions(options, otherOptions)
@@ -169,6 +183,8 @@ function mergeComponents(options, components) {
 		options.components[name] = component
 		for (const key in component) {
 			switch(key) {
+				case 'hooks':
+					// don't merge these, app.hooks.start will trigger each components start hook
 				case 'components':
 					// already handled
 					break
