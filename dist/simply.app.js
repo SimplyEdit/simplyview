@@ -556,6 +556,17 @@
     }
   }
 
+  // src/highlight.mjs
+  function html(strings, ...values) {
+    const outputArray = values.map(
+      (value, index) => `${strings[index]}${value}`
+    );
+    return outputArray.join("") + strings[strings.length - 1];
+  }
+  function css(strings, ...values) {
+    return html(strings, ...values);
+  }
+
   // src/app.mjs
   var SimplyApp = class {
     constructor(options = {}) {
@@ -657,6 +668,13 @@
       return this;
     }
     async start() {
+      if (this.components) {
+        for (const name in this.components) {
+          if (this.components[name].hooks?.start) {
+            await this.components[name].hooks.start();
+          }
+        }
+      }
       if (this.hooks?.start) {
         await this.hooks.start();
       }
@@ -677,6 +695,12 @@
   };
   function app(options = {}) {
     return new SimplyApp(options);
+  }
+  if (!globalThis.html) {
+    globalThis.html = html;
+  }
+  if (!globalThis.css) {
+    globalThis.css = css;
   }
   function mergeOptions(options, otherOptions) {
     for (const key in otherOptions) {
@@ -705,6 +729,8 @@
       options.components[name] = component;
       for (const key in component) {
         switch (key) {
+          case "hooks":
+          // don't merge these, app.hooks.start will trigger each components start hook
           case "components":
             break;
           default:

@@ -637,6 +637,17 @@
     }
   }
 
+  // src/highlight.mjs
+  function html(strings, ...values) {
+    const outputArray = values.map(
+      (value, index) => `${strings[index]}${value}`
+    );
+    return outputArray.join("") + strings[strings.length - 1];
+  }
+  function css(strings, ...values) {
+    return html(strings, ...values);
+  }
+
   // src/app.mjs
   var SimplyApp = class {
     constructor(options = {}) {
@@ -738,6 +749,13 @@
       return this;
     }
     async start() {
+      if (this.components) {
+        for (const name in this.components) {
+          if (this.components[name].hooks?.start) {
+            await this.components[name].hooks.start();
+          }
+        }
+      }
       if (this.hooks?.start) {
         await this.hooks.start();
       }
@@ -758,6 +776,12 @@
   };
   function app(options = {}) {
     return new SimplyApp(options);
+  }
+  if (!globalThis.html) {
+    globalThis.html = html;
+  }
+  if (!globalThis.css) {
+    globalThis.css = css;
   }
   function mergeOptions(options, otherOptions) {
     for (const key in otherOptions) {
@@ -786,6 +810,8 @@
       options.components[name] = component;
       for (const key in component) {
         switch (key) {
+          case "hooks":
+          // don't merge these, app.hooks.start will trigger each components start hook
           case "components":
             break;
           default:
@@ -900,8 +926,8 @@
         importScript();
       }
     },
-    html: (html, link) => {
-      let fragment = globalThis.document.createRange().createContextualFragment(html);
+    html: (html2, link) => {
+      let fragment = globalThis.document.createRange().createContextualFragment(html2);
       const stylesheets = fragment.querySelectorAll('link[rel="stylesheet"],style');
       for (let stylesheet of stylesheets) {
         if (stylesheet.href) {
@@ -948,8 +974,8 @@
         continue;
       }
       console.log("simply-include: loaded " + link.href);
-      const html = await response.text();
-      include.html(html, link);
+      const html2 = await response.text();
+      include.html(html2, link);
       link.parentNode.removeChild(link);
     }
   };
@@ -1007,26 +1033,6 @@
     route: routes,
     view
   };
-  function escapeHTML(content) {
-    return ("" + content).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-  }
-  function escapeCSS(content) {
-    return ("" + content).replace(/<\//g, "<");
-  }
   globalThis.simply = simply;
-  globalThis.html = function(strings, ...values) {
-    const outputArray = values.map(
-      (value, index) => `${strings[index]}${escapeHTML(value)}`
-    );
-    return outputArray.join("") + strings[strings.length - 1];
-  };
-  globalThis.css = function(strings, ...values) {
-    const outputArray = values.map(
-      (value, index) => `${strings[index]}${escapeCSS(value)}`
-    );
-    const result = outputArray.join("") + strings[strings.length - 1];
-    console.log(result);
-    return result;
-  };
   var everything_default = simply;
 })();
