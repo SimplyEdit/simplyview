@@ -39,7 +39,7 @@ if (!currentScript) {
         var scripts = document.getElementsByTagName('script')
         var index = scripts.length - 1
         var myScript = scripts[index]
-        return () => myScript.src
+        return () => myScript?.src
     })()
     currentScriptURL = getScriptURL()
 } else {
