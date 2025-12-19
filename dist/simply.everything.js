@@ -179,30 +179,30 @@
         finish: {}
       };
     }
-    match(path, options) {
+    match(path2, options) {
       let args = {
-        path,
+        path: path2,
         options
       };
       args = this.runListeners("match", args);
-      path = args.path ? args.path : path;
+      path2 = args.path ? args.path : path2;
       let matches;
-      if (!path) {
+      if (!path2) {
         if (this.match(document.location.pathname + document.location.hash)) {
           return true;
         } else {
           return this.match(document.location.pathname);
         }
       }
-      path = getPath(path);
+      path2 = getPath(path2);
       for (let route of this.routeInfo) {
-        matches = route.match.exec(path);
+        matches = route.match.exec(path2);
         if (this.addMissingSlash && !matches?.length) {
-          if (path && path[path.length - 1] != "/") {
-            matches = route.match.exec(path + "/");
+          if (path2 && path2[path2.length - 1] != "/") {
+            matches = route.match.exec(path2 + "/");
             if (matches) {
-              path += "/";
-              history.replaceState({}, "", getURL(path, this.baseURL));
+              path2 += "/";
+              history.replaceState({}, "", getURL(path2, this.baseURL));
             }
           }
         }
@@ -264,12 +264,12 @@
         }
         if (link && link.pathname && link.hostname == globalThis.location.hostname && !link.link && !link.dataset.simplyCommand) {
           let check = [link.hash, link.pathname + link.hash, link.pathname];
-          let path;
+          let path2;
           do {
-            path = getPath(check.shift(), this.baseURL);
-          } while (check.length && !this.has(path));
-          if (this.has(path)) {
-            let params = this.runListeners("goto", { path });
+            path2 = getPath(check.shift(), this.baseURL);
+          } while (check.length && !this.has(path2));
+          if (this.has(path2)) {
+            let params = this.runListeners("goto", { path: path2 });
             if (params.path) {
               if (this.goto(params.path)) {
                 evt.preventDefault();
@@ -280,14 +280,14 @@
         }
       });
     }
-    goto(path) {
-      history.pushState({}, "", getURL(path, this.baseURL));
-      return this.match(path);
+    goto(path2) {
+      history.pushState({}, "", getURL(path2, this.baseURL));
+      return this.match(path2);
     }
-    has(path) {
-      path = getPath(path, this.baseURL);
+    has(path2) {
+      path2 = getPath(path2, this.baseURL);
       for (let route of this.routeInfo) {
-        var matches = route.match.exec(path);
+        var matches = route.match.exec(path2);
         if (matches && matches.length) {
           return true;
         }
@@ -320,24 +320,24 @@
       }
     }
   };
-  function getPath(path, baseURL = "/") {
-    if (path.substring(0, baseURL.length) == baseURL || baseURL[baseURL.length - 1] == "/" && path.length == baseURL.length - 1 && path == baseURL.substring(0, path.length)) {
-      path = path.substring(baseURL.length);
+  function getPath(path2, baseURL = "/") {
+    if (path2.substring(0, baseURL.length) == baseURL || baseURL[baseURL.length - 1] == "/" && path2.length == baseURL.length - 1 && path2 == baseURL.substring(0, path2.length)) {
+      path2 = path2.substring(baseURL.length);
     }
-    if (path[0] != "/" && path[0] != "#") {
-      path = "/" + path;
+    if (path2[0] != "/" && path2[0] != "#") {
+      path2 = "/" + path2;
     }
-    return path;
+    return path2;
   }
-  function getURL(path, baseURL) {
-    path = getPath(path, baseURL);
-    if (baseURL[baseURL.length - 1] === "/" && path[0] === "/") {
-      path = path.substring(1);
+  function getURL(path2, baseURL) {
+    path2 = getPath(path2, baseURL);
+    if (baseURL[baseURL.length - 1] === "/" && path2[0] === "/") {
+      path2 = path2.substring(1);
     }
-    if (path[0] == "#") {
-      return path;
+    if (path2[0] == "#") {
+      return path2;
     }
-    return baseURL + path;
+    return baseURL + path2;
   }
   function getRegexpFromRoute(route, exact = false) {
     if (exact) {
@@ -348,19 +348,19 @@
   function parseRoutes(routes2, routeInfo, exact = false) {
     const paths = Object.keys(routes2);
     const matchParams = /:(\w+|\*)/g;
-    for (let path of paths) {
+    for (let path2 of paths) {
       let matches = [];
       let params = [];
       do {
-        matches = matchParams.exec(path);
+        matches = matchParams.exec(path2);
         if (matches) {
           params.push(matches[1]);
         }
       } while (matches);
       routeInfo.push({
-        match: getRegexpFromRoute(path, exact),
+        match: getRegexpFromRoute(path2, exact),
         params,
-        action: routes2[path]
+        action: routes2[path2]
       });
     }
     return routeInfo;
@@ -622,8 +622,8 @@
       options.app.view = options.view || {};
       const load = () => {
         const data = options.app.view;
-        const path = globalThis.editor.data.getDataPath(options.app.container || document.body);
-        options.app.view = globalThis.editor.currentData[path];
+        const path2 = globalThis.editor.data.getDataPath(options.app.container || document.body);
+        options.app.view = globalThis.editor.currentData[path2];
         Object.assign(options.app.view, data);
       };
       if (globalThis.editor && globalThis.editor.currentData) {
@@ -866,7 +866,7 @@
       var scripts = document.getElementsByTagName("script");
       var index = scripts.length - 1;
       var myScript = scripts[index];
-      return () => myScript.src;
+      return () => myScript?.src;
     })();
     currentScriptURL = getScriptURL();
   } else {
@@ -997,6 +997,45 @@
   observe();
   handleChanges2();
 
+  // src/path.mjs
+  var path = {
+    get(dataset, pointer) {
+      if (typeof pointer !== "string") {
+        return pointer;
+      }
+      if (!pointer) {
+        return dataset;
+      }
+      pointer.split(".").reduce(function(acc, name) {
+        return acc && acc[name] ? acc[name] : null;
+      }, dataset);
+      return dataset;
+    },
+    set: function(dataset, pointer, value) {
+      const parent = path.get(dataset, path.parent(pointer));
+      parent[path.pop(pointer)] = value;
+    },
+    pop: function(pointer) {
+      return pointer.split(".").pop();
+    },
+    push: function(pointer, name) {
+      return (pointer ? pointer + "." : "") + name;
+    },
+    parent: function(dataset, pointer) {
+      const names = pointer.split(".");
+      names.pop();
+      return names.join(".");
+    },
+    parents: function(dataset, pointer) {
+      let result = [];
+      while (pointer) {
+        pointer = path.parent(pointer);
+        result.unshift(pointer);
+      }
+    }
+  };
+  var path_default = path;
+
   // src/render.mjs
   var SimplyRender = class extends HTMLElement {
     constructor() {
@@ -1030,6 +1069,7 @@
     command: commands,
     include,
     key: keys,
+    path: path_default,
     route: routes,
     view
   };
