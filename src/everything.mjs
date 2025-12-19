@@ -4,6 +4,7 @@ import { app } from './app.mjs'
 import { commands as command } from './command.mjs'
 import { include } from './include.mjs'
 import { keys as key } from './key.mjs'
+import path from './path.mjs'
 import { routes as route } from './route.mjs'
 import { view } from './view.mjs'
 import { SimplyRender } from './render.mjs'
@@ -15,6 +16,7 @@ const simply = {
 	command,
 	include,
 	key,
+	path,
 	route,
 	view
 }
