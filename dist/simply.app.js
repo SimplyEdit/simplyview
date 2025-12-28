@@ -572,7 +572,10 @@
     constructor(options = {}) {
       this.container = options.container || document.body;
       if (options.components) {
-        mergeComponents(options, options.components);
+        let tempOptions = {};
+        mergeComponents(tempOptions, options.components);
+        mergeOptions(tempOptions, options);
+        options = tempOptions;
       }
       for (let key in options) {
         switch (key) {
@@ -671,7 +674,7 @@
       if (this.components) {
         for (const name in this.components) {
           if (this.components[name].hooks?.start) {
-            await this.components[name].hooks.start();
+            await this.components[name].hooks.start.call(this, this.components[name]);
           }
         }
       }
@@ -725,6 +728,9 @@
       const component = components2[name];
       if (component.components) {
         mergeComponents(options, component.components);
+      }
+      if (!options.components) {
+        options.components = {};
       }
       options.components[name] = component;
       for (const key in component) {

@@ -5,7 +5,6 @@ import { keys } from './key.mjs'
 import { view } from './view.mjs'
 import { html, css } from './highlight.mjs'
 
-
 class SimplyApp
 {
 
@@ -13,7 +12,10 @@ class SimplyApp
 	{
 		this.container = options.container || document.body
 		if (options.components) {
-			mergeComponents(options, options.components)
+			let tempOptions = {}
+			mergeComponents(tempOptions, options.components)
+			mergeOptions(tempOptions, options) // make sure options to the app override components options
+			options = tempOptions
 		}
 		for (let key in options) {
 			switch(key) {
@@ -117,7 +119,7 @@ class SimplyApp
 		if (this.components) {
 			for (const name in this.components) {
 				if (this.components[name].hooks?.start) {
-					await this.components[name].hooks.start()
+					await this.components[name].hooks.start.call(this, this.components[name])
 				}
 			}
 		}
@@ -179,6 +181,9 @@ function mergeComponents(options, components) {
 		const component = components[name]
 		if (component.components) {
 			mergeComponents(options, component.components)
+		}
+		if (!options.components) {
+			options.components = {}
 		}
 		options.components[name] = component
 		for (const key in component) {
