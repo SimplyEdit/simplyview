@@ -6,10 +6,9 @@ const path = {
 		if (!pointer) {
 			return dataset
 		}
-		pointer.split('.').reduce(function(acc, name) {
+		return pointer.split('.').reduce(function(acc, name) {
 	        return (acc && acc[name] ? acc[name] : null)
 	    }, dataset)
-	    return dataset
 	},
 	set: function(dataset, pointer, value) {
 		const parent = path.get(dataset, path.parent(pointer))
