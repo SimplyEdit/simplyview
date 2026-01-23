@@ -3,6 +3,10 @@ export class SimplyRender extends HTMLElement
     constructor()
     {
         super()
+    }
+
+    connectedCallback()
+    {
         let templateId = this.getAttribute("rel")
         let template = document.getElementById(templateId)
 
@@ -25,3 +29,22 @@ export class SimplyRender extends HTMLElement
 if (!customElements.get('simply-render')) {
     customElements.define('simply-render', SimplyRender);
 }
+
+const handleChanges = () => {
+    const simplyrenders = globalThis.document.querySelectorAll('simply-render[rel]')
+    for (el of simplyrenders) {
+        if (document.querySelector('template#'+el.getAttribute('rel'))) {
+            el.replaceWith(el) // trigger connectedCallback?
+        }
+    }
+}
+
+const observe = () => {
+    observer = new MutationObserver(handleChanges)
+    observer.observe(globalThis.document, {
+        subtree: true,
+        childList: true,
+    })
+}
+
+observe()
