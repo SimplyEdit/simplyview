@@ -1,6 +1,6 @@
 {
   "name": "simplyview",
-  "version": "3.4.3",
+  "version": "3.4.4",
   "description": "Library to rapidly build UI components, using declarative tools",
   "main": "src/everything.mjs",
   "type": "module",
