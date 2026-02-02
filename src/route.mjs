@@ -49,13 +49,15 @@ class SimplyRoute
 
         let matches;
         if (!path) {
-            if (this.match(document.location.pathname+document.location.hash)) {
-                return true;
+            if (this.has(document.location.pathname+document.location.hash)) {
+                path = document.location.pathname+document.location.hash
+            } else if (this.has(document.location.hash)) {
+                path = document.location.hash
             } else {
-                return this.match(document.location.pathname);
+                path = document.location.pathname
             }
         }
-        path = getPath(path);
+        path = getPath(path, this.baseURL);
         for ( let route of this.routeInfo) {
             matches = route.match.exec(path)
             if (this.addMissingSlash && !matches?.length) {
@@ -112,9 +114,7 @@ class SimplyRoute
     handleEvents()
     {
         globalThis.addEventListener('popstate', () => {
-            if (this.match(getPath(document.location.pathname + document.location.hash, this.baseURL)) === false) {
-                this.match(getPath(document.location.pathname, this.baseURL))
-            }
+            this.match()
         })
         this.app.container.addEventListener('click', (evt) => {
             if (evt.ctrlKey) {

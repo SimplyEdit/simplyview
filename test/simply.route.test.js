@@ -129,3 +129,59 @@ test('bind to app', () => {
 	expect(simplyRoute.match('foo/bar')).toBe('bar');
 	expect(simplyRoute.match('foo/bar/baz')).toBe(false);
 })
+
+test('match baseURL', () => {
+	const hashRoutes = routes({
+		baseURL: '/foo/',
+		routes: {
+			'#bar': function() {
+				return 'bar'
+			},
+			'/baz/': function() {
+				return 'baz'
+			}
+		}
+	});
+	expect(hashRoutes.has('/foo/#bar')).toBe(true);
+	expect(hashRoutes.match('/foo/#bar')).toBe('bar');
+	expect(hashRoutes.match('#bar')).toBe('bar');
+	expect(hashRoutes.has('/foo/baz/')).toBe(true);
+	expect(hashRoutes.match('/foo/baz/')).toBe('baz');
+	expect(hashRoutes.has('/baz/')).toBe(true)
+	expect(hashRoutes.match('/baz/')).toBe('baz');
+})
+
+test('match baseURL default', () => {
+	const hashRoutes = routes({
+		routes: {
+			'#bar': function() {
+				return 'bar'
+			},
+			'/baz/': function() {
+				return 'baz'
+			}
+		}
+	});
+	expect(hashRoutes.match('#bar')).toBe('bar');
+	expect(hashRoutes.has('/foo/#bar')).toBe(false);
+	expect(hashRoutes.has('/baz/')).toBe(true);
+	expect(hashRoutes.match('/baz/')).toBe('baz');
+	expect(hashRoutes.has('/foo/baz/')).toBe(false);
+})
+
+test('match document.location', () => {
+	const hashRoutes = routes({
+		routes: {
+			'#bar': function() {
+				return 'bar'
+			},
+			'/baz/': function() {
+				return 'baz'
+			}
+		}
+	});
+	document.location.href = '/#bar'
+	expect(hashRoutes.match()).toBe('bar');
+	// cannot test other document.location values, since jest jsdom
+	// doesn't implement navigation change and throws an error if you try
+})
