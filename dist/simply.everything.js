@@ -162,13 +162,15 @@
       path2 = args.path ? args.path : path2;
       let matches;
       if (!path2) {
-        if (this.match(document.location.pathname + document.location.hash)) {
-          return true;
+        if (this.has(document.location.pathname + document.location.hash)) {
+          path2 = document.location.pathname + document.location.hash;
+        } else if (this.has(document.location.hash)) {
+          path2 = document.location.hash;
         } else {
-          return this.match(document.location.pathname);
+          path2 = document.location.pathname;
         }
       }
-      path2 = getPath(path2);
+      path2 = getPath(path2, this.baseURL);
       for (let route of this.routeInfo) {
         matches = route.match.exec(path2);
         if (this.addMissingSlash && !matches?.length) {
@@ -221,9 +223,7 @@
     }
     handleEvents() {
       globalThis.addEventListener("popstate", () => {
-        if (this.match(getPath(document.location.pathname + document.location.hash, this.baseURL)) === false) {
-          this.match(getPath(document.location.pathname, this.baseURL));
-        }
+        this.match();
       });
       this.app.container.addEventListener("click", (evt) => {
         if (evt.ctrlKey) {
