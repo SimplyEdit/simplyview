@@ -7,7 +7,6 @@ import { keys as key } from './key.mjs'
 import path from './path.mjs'
 import { routes as route } from './route.mjs'
 import { view } from './view.mjs'
-import { SimplyRender } from './render.mjs'
 
 const simply = {
 	activate,
