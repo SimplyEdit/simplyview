@@ -185,3 +185,65 @@ test('match document.location', () => {
 	// cannot test other document.location values, since jest jsdom
 	// doesn't implement navigation change and throws an error if you try
 })
+
+test('match order fallback 1', () => {
+	const matchRoutes1 = routes({
+		routes: {
+			'/foo/#bar': function() {
+				return 'foobar'
+			},
+			'#bar': function() {
+				return 'bar'
+			},
+			':*': function() {
+				return 'catchall'
+			}
+		}
+	});
+	expect(matchRoutes1.match('#bar')).toBe('bar')
+	expect(matchRoutes1.match('/foo/#bar')).toBe('foobar')
+	expect(matchRoutes1.match('#foo')).toBe('catchall')
+})
+
+test('match order fallback 2', () => {
+	const matchRoutes1 = routes({
+		routes: {
+			'#bar': function() {
+				return 'bar'
+			},
+			':*': function() {
+				return 'catchall'
+			}
+		}
+	});
+	expect(matchRoutes1.match('#bar')).toBe('bar')
+	expect(matchRoutes1.match('/foo/#bar')).toBe('catchall')
+	expect(matchRoutes1.match('#foo')).toBe('catchall')
+})
+
+test('match order fallback 3', () => {
+	const matchRoutes1 = routes({
+		routes: {
+			':*': function() {
+				return 'catchall'
+			}
+		}
+	});
+	expect(matchRoutes1.match('#bar')).toBe('catchall')
+	expect(matchRoutes1.match('/foo/#bar')).toBe('catchall')
+	expect(matchRoutes1.match('#foo')).toBe('catchall')
+})
+
+test('match order fallback 4', () => {
+	const matchRoutes1 = routes({
+		routes: {
+			'/': function() {
+				return 'catchall'
+			}
+		}
+	});
+	console.log('matchExact:',matchRoutes1.matchExact)
+	expect(matchRoutes1.match('/foo/#bar')).toBe('catchall')
+	expect(matchRoutes1.match('/#bar')).toBe('catchall')
+	expect(matchRoutes1.match('#foo')).toBe('catchall')
+})
