@@ -371,42 +371,18 @@
       options.app = app2;
     }
     if (options.app) {
-      const waitHandler = {
-        apply(target, thisArg, argumentsList) {
-          try {
-            const result = target(...argumentsList);
-            if (result instanceof Promise) {
-              options.app.hooks.wait(true);
-              return result.finally(() => {
-                options.app.hooks.wait(false, target);
-              });
-            }
-            return result;
-          } catch (err) {
-          }
-        }
-      };
       const functionHandler = {
         apply(target, thisArg, argumentsList) {
           try {
             const result = target(...argumentsList);
             if (result instanceof Promise) {
-              if (options.app.hooks.wait) {
-                options.app.hooks.wait(true, target);
-                return result.catch((err) => {
-                  return options.app.hooks.error(err, target);
-                }).finally(() => {
-                  options.app.hooks.wait(false, target);
-                });
-              } else {
-                return result.catch((err) => {
-                  return options.app.hooks.error(err, target);
-                });
-              }
+              return result.catch((err) => {
+                return options.app.hooks.error.call(this, err, target);
+              });
             }
             return result;
           } catch (err) {
-            return options.app.hooks.error(err, target);
+            return options.app.hooks.error.call(this, err, target);
           }
         }
       };
@@ -417,8 +393,6 @@
           }
           if (options.app.hooks?.error) {
             return new Proxy(target[property].bind(options.app), functionHandler);
-          } else if (options.app.hooks?.wait) {
-            return new Proxy(target[property].bind(options.app), waitHandler);
           } else {
             return target[property].bind(options.app);
           }
@@ -633,33 +607,12 @@
             this.view = view({ app: this, view: options.view });
             break;
           case "hooks":
-            const moduleHandler = {
-              get: (target, property) => {
-                if (!target[property]) {
-                  return void 0;
-                }
-                if (typeof target[property] == "function") {
-                  return new Proxy(target[property], functionHandler);
-                } else if (target[property] && typeof target[property] == "object") {
-                  return new Proxy(target[property], moduleHandler);
-                } else {
-                  return target[property];
-                }
-              }
-            };
-            const functionHandler = {
-              apply: (target, thisArg, argumentsList) => {
-                return target.apply(this, argumentsList);
-              }
-            };
-            this[key] = new Proxy(options[key], moduleHandler);
+          case "components":
+            this[key] = options[key];
             break;
-            components:
-              this.components = components;
+          case "prototype":
+          case "__proto__":
             break;
-            prototype:
-              __proto__:
-                break;
           default:
             console.log('simply.app: unknown initialization option "' + key + '", added as-is');
             this[key] = options[key];
@@ -670,34 +623,30 @@
     get app() {
       return this;
     }
-    async start() {
-      if (this.components) {
-        for (const name in this.components) {
-          if (this.components[name].hooks?.start) {
-            await this.components[name].hooks.start.call(this, this.components[name]);
-          }
-        }
-      }
-      if (this.hooks?.start) {
-        await this.hooks.start();
-      }
-      if (this.routes) {
-        if (this.baseURL) {
-          this.routes.init({ baseURL: this.baseURL });
-        }
-        this.routes.handleEvents();
-        globalThis.setTimeout(() => {
-          if (this.routes.has(globalThis.location?.hash)) {
-            this.routes.match(globalThis.location.hash);
-          } else {
-            this.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
-          }
-        });
-      }
-    }
   };
+  function initRoutes(app2) {
+    if (app2.routes) {
+      if (app2.baseURL) {
+        app2.routes.init({ baseURL: this.baseURL });
+      }
+      app2.routes.handleEvents();
+      globalThis.setTimeout(() => {
+        if (app2.routes.has(globalThis.location?.hash)) {
+          app2.routes.match(globalThis.location.hash);
+        } else {
+          app2.routes.match(globalThis.location?.pathname + globalThis.location?.hash);
+        }
+      });
+    }
+  }
   function app(options = {}) {
-    return new SimplyApp(options);
+    const app2 = new SimplyApp(options);
+    if (app2.hooks?.start) {
+      app2.hooks.start.call(app2).then(() => initRoutes(app2));
+    } else {
+      initRoutes(app2);
+    }
+    return app2;
   }
   if (!globalThis.html) {
     globalThis.html = html;
@@ -723,9 +672,9 @@
       }
     }
   }
-  function mergeComponents(options, components2) {
-    for (const name in components2) {
-      const component = components2[name];
+  function mergeComponents(options, components) {
+    for (const name in components) {
+      const component = components[name];
       if (component.components) {
         mergeComponents(options, component.components);
       }
