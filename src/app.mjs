@@ -72,33 +72,11 @@ class SimplyApp
 					this.view = view({app: this, view: options.view})
 					break
 				case 'hooks':
-					const moduleHandler = {
-						get: (target, property) => {
-							if (!target[property]) {
-								return undefined
-							}
-							if (typeof target[property]=='function') {
-								return new Proxy(target[property], functionHandler)
-							} else if (target[property] && typeof target[property]=='object') {
-								return new Proxy(target[property], moduleHandler)
-							} else {
-								return target[property]
-							}
-						}
-					}
-					const functionHandler = {
-						apply: (target, thisArg, argumentsList) => {
-							// note: must use short function syntax so this is set to the app
-							return target.apply(this, argumentsList)
-						}
-					}
-					this[key] = new Proxy(options[key], moduleHandler)
+				case 'components':
+					this[key] = options[key]
 					break
-				components:
-					this.components = components
-					break
-				prototype:
-				__proto__:
+				case 'prototype':
+				case '__proto__':
 					// ignore this to avoid prototype pollution
 					break
 				default:
@@ -109,43 +87,47 @@ class SimplyApp
 		}
 	}
 
-	get app()
+	get app() //backwards compatibility, actions/commands used to call this.app instead of this
 	{
 		return this
 	}
 
-	async start()
-	{
-		if (this.components) {
-			for (const name in this.components) {
-				if (this.components[name].hooks?.start) {
-					await this.components[name].hooks.start.call(this, this.components[name])
-				}
-			}
-		}
-		if (this.hooks?.start) {
-			await this.hooks.start()
-		}
-		if (this.routes) {
-			if (this.baseURL) {
-				this.routes.init({ baseURL: this.baseURL })
-			}
-			this.routes.handleEvents();
-			globalThis.setTimeout(() => {
-				if (this.routes.has(globalThis.location?.hash)) {
-					this.routes.match(globalThis.location.hash)
-				} else {
-					this.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
-				}
-			});
-		}
-	}
+}
 
+function initRoutes(app) {
+	if (app.routes) {
+		if (app.baseURL) {
+			app.routes.init({ baseURL: this.baseURL })
+		}
+		app.routes.handleEvents();
+		globalThis.setTimeout(() => {
+			if (app.routes.has(globalThis.location?.hash)) {
+				app.routes.match(globalThis.location.hash)
+			} else {
+				app.routes.match(globalThis.location?.pathname+globalThis.location?.hash)
+			}
+		});
+	}
 }
 
 export function app(options={})
 {
-	return new SimplyApp(options)
+	const app = new SimplyApp(options)
+	if (app.hooks?.start) {
+		app.hooks.start.call(app)
+		// yagni - for now do this in your own app.hooks.start
+		// if (app.components) {
+		// 	for (const name in app.components) {
+		// 		if (app.components[name].hooks?.start) {
+		// 			await app.components[name].hooks.start.call(app, this.components[name])
+		// 		}
+		// 	}
+		// }
+		.then(() => initRoutes(app))
+	} else {
+		initRoutes(app)
+	}
+	return app
 }
 
 if (!globalThis.html) {
