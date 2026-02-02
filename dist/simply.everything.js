@@ -74,8 +74,8 @@
       callListeners(node);
     }
   }
-  var observer2 = new MutationObserver(handleChanges);
-  observer2.observe(document, {
+  var observer = new MutationObserver(handleChanges);
+  observer.observe(document, {
     subtree: true,
     childList: true
   });
@@ -401,12 +401,12 @@
       options.app.container.addEventListener("change", commandHandler);
       options.app.container.addEventListener("input", commandHandler);
     }
-    call(command, el2, value) {
+    call(command, el, value) {
       if (!this[command]) {
         console.error("simply.command: undefined command " + command);
         return;
       }
-      return this[command].call(this.app, el2, value);
+      return this[command].call(this.app, el, value);
     }
     action(name) {
       console.warn("deprecated call to `this.commands.action`");
@@ -430,15 +430,15 @@
     return new SimplyCommands(options);
   }
   function getCommand(evt, handlers) {
-    var el2 = evt.target.closest("[data-simply-command]");
-    if (el2) {
+    var el = evt.target.closest("[data-simply-command]");
+    if (el) {
       for (let handler of handlers) {
-        if (el2.matches(handler.match)) {
-          if (handler.check(el2, evt)) {
+        if (el.matches(handler.match)) {
+          if (handler.check(el, evt)) {
             return {
-              name: el2.dataset.simplyCommand,
-              source: el2,
-              value: handler.get(el2)
+              name: el.dataset.simplyCommand,
+              source: el,
+              value: handler.get(el)
             };
           }
           return null;
@@ -450,36 +450,36 @@
   var defaultHandlers = [
     {
       match: "input,select,textarea",
-      get: function(el2) {
-        if (el2.tagName === "SELECT" && el2.multiple) {
+      get: function(el) {
+        if (el.tagName === "SELECT" && el.multiple) {
           let values = [];
-          for (let option of el2.options) {
+          for (let option of el.options) {
             if (option.selected) {
               values.push(option.value);
             }
           }
           return values;
         }
-        return el2.dataset.simplyValue || el2.value;
+        return el.dataset.simplyValue || el.value;
       },
-      check: function(el2, evt) {
-        return evt.type == "change" || el2.dataset.simplyImmediate && evt.type == "input";
+      check: function(el, evt) {
+        return evt.type == "change" || el.dataset.simplyImmediate && evt.type == "input";
       }
     },
     {
       match: "a,button",
-      get: function(el2) {
-        return el2.dataset.simplyValue || el2.href || el2.value;
+      get: function(el) {
+        return el.dataset.simplyValue || el.href || el.value;
       },
-      check: function(el2, evt) {
+      check: function(el, evt) {
         return evt.type == "click" && evt.ctrlKey == false && evt.button == 0;
       }
     },
     {
       match: "form",
-      get: function(el2) {
+      get: function(el) {
         let data = {};
-        for (let input of Array.from(el2.elements)) {
+        for (let input of Array.from(el.elements)) {
           if (input.tagName == "INPUT" && (input.type == "checkbox" || input.type == "radio")) {
             if (!input.checked) {
               return;
@@ -496,16 +496,16 @@
         }
         return data;
       },
-      check: function(el2, evt) {
+      check: function(el, evt) {
         return evt.type == "submit";
       }
     },
     {
       match: "*",
-      get: function(el2) {
-        return el2.dataset.simplyValue;
+      get: function(el) {
+        return el.dataset.simplyValue;
       },
-      check: function(el2, evt) {
+      check: function(el, evt) {
         return evt.type == "click" && evt.ctrlKey == false && evt.button == 0;
       }
     }
@@ -861,7 +861,7 @@
     }
     return url.href;
   }
-  var observer3;
+  var observer2;
   var loaded = {};
   var head = globalThis.document.querySelector("head");
   var currentScript = globalThis.document.currentScript;
@@ -994,8 +994,8 @@
     });
   });
   var observe = () => {
-    observer3 = new MutationObserver(handleChanges2);
-    observer3.observe(globalThis.document, {
+    observer2 = new MutationObserver(handleChanges2);
+    observer2.observe(globalThis.document, {
       subtree: true,
       childList: true
     });
@@ -1057,32 +1057,38 @@
             clone.querySelectorAll("template").forEach(function(t) {
               t.setAttribute("simply-render", "");
             });
+            if (this.attributes) {
+              for (const attr of this.attributes) {
+                if (attr.name != "rel") {
+                  clone.setAttribute(attr.name, attr.value);
+                }
+              }
+            }
           }
           this.parentNode.insertBefore(clone, this);
         }
         this.parentNode.removeChild(this);
+      } else {
+        const observe2 = () => {
+          const observer3 = new MutationObserver(() => {
+            template = document.getElementById(templateId);
+            if (template) {
+              observer3.disconnect();
+              this.replaceWith(this);
+            }
+          });
+          observer3.observe(globalThis.document, {
+            subtree: true,
+            childList: true
+          });
+        };
+        observe2();
       }
     }
   };
   if (!customElements.get("simply-render")) {
     customElements.define("simply-render", SimplyRender);
   }
-  var handleChanges3 = () => {
-    const simplyrenders = globalThis.document.querySelectorAll("simply-render[rel]");
-    for (el of simplyrenders) {
-      if (document.querySelector("template#" + el.getAttribute("rel"))) {
-        el.replaceWith(el);
-      }
-    }
-  };
-  var observe2 = () => {
-    observer = new MutationObserver(handleChanges3);
-    observer.observe(globalThis.document, {
-      subtree: true,
-      childList: true
-    });
-  };
-  observe2();
 
   // src/everything.mjs
   var simply = {
