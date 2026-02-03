@@ -163,7 +163,7 @@ test('match baseURL default', () => {
 		}
 	});
 	expect(hashRoutes.match('#bar')).toBe('bar');
-	expect(hashRoutes.has('/foo/#bar')).toBe(false);
+	expect(hashRoutes.match('/foo/#bar')).toBe('bar');
 	expect(hashRoutes.has('/baz/')).toBe(true);
 	expect(hashRoutes.match('/baz/')).toBe('baz');
 	expect(hashRoutes.has('/foo/baz/')).toBe(false);
@@ -217,7 +217,7 @@ test('match order fallback 2', () => {
 		}
 	});
 	expect(matchRoutes1.match('#bar')).toBe('bar')
-	expect(matchRoutes1.match('/foo/#bar')).toBe('catchall')
+	expect(matchRoutes1.match('/foo/#bar')).toBe('bar')
 	expect(matchRoutes1.match('#foo')).toBe('catchall')
 })
 
@@ -242,8 +242,8 @@ test('match order fallback 4', () => {
 			}
 		}
 	});
-	console.log('matchExact:',matchRoutes1.matchExact)
 	expect(matchRoutes1.match('/foo/#bar')).toBe('catchall')
+	expect(matchRoutes1.has('/#bar')).toBe(true)
 	expect(matchRoutes1.match('/#bar')).toBe('catchall')
 	expect(matchRoutes1.match('#foo')).toBe('catchall')
 })

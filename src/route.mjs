@@ -51,8 +51,6 @@ class SimplyRoute
         if (!path) {
             if (this.has(document.location.pathname+document.location.hash)) {
                 path = document.location.pathname+document.location.hash
-            } else if (this.has(document.location.hash)) {
-                path = document.location.hash
             } else {
                 path = document.location.pathname
             }
@@ -213,7 +211,7 @@ function getPath(path, baseURL='/')
     ) {
         path = path.substring(baseURL.length)
     }
-    if (path[0]!='/' && path[0]!='#') {
+    if (path[0]!='/') {
         path = '/'+path
     }
     return path
@@ -233,10 +231,13 @@ function getURL(path, baseURL)
 
 function getRegexpFromRoute(route, exact=false)
 {
-    if (exact) {
-        return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')+'(\\?|$)')
+    if (route[0]!='#') {
+        route = '^'+route
     }
-    return new RegExp('^'+route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'))
+    if (exact) {
+        return new RegExp(route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)')+'(\\?|$)')
+    }
+    return new RegExp(route.replace(/:\w+/g, '([^/]+)').replace(/:\*/, '(.*)'))
 }
 
 function parseRoutes(routes, routeInfo, exact=false)
