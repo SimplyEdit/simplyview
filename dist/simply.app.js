@@ -176,7 +176,7 @@
     if (path.substring(0, baseURL.length) == baseURL || baseURL[baseURL.length - 1] == "/" && path.length == baseURL.length - 1 && path == baseURL.substring(0, path.length)) {
       path = path.substring(baseURL.length);
     }
-    if (path[0] != "/" && path[0] != "#") {
+    if (path[0] != "/") {
       path = "/" + path;
     }
     return path;
@@ -192,10 +192,13 @@
     return baseURL + path;
   }
   function getRegexpFromRoute(route, exact = false) {
-    if (exact) {
-      return new RegExp("^" + route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)") + "(\\?|$)");
+    if (route[0] != "#") {
+      route = "^" + route;
     }
-    return new RegExp("^" + route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)"));
+    if (exact) {
+      return new RegExp(route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)") + "(\\?|$)");
+    }
+    return new RegExp(route.replace(/:\w+/g, "([^/]+)").replace(/:\*/, "(.*)"));
   }
   function parseRoutes(routes2, routeInfo, exact = false) {
     const paths = Object.keys(routes2);
