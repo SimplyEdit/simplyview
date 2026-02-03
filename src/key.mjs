@@ -55,7 +55,7 @@ class SimplyKey {
 			}
 			keyboards.push('')
 
-			let keyboard, keyboard
+			let keyboard
 			let separators = ['+','-']
 
 			for (let i in keyboards) {
