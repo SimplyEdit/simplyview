@@ -1,0 +1,29 @@
+<script src="../dist/simply.everything.js"></script>
+<textarea data-simply-keyboard="editor">
+</textarea>
+<button data-simply-command="keypress" data-simply-accesskey="default.Control-Alt-s">button</button>
+<textarea data-simply-keyboard="alt"></textarea>
+<script>
+    const app = simply.app({
+        keys: {
+            default: {
+                'Control-Shift-s': function() {
+                    alert('saving...');
+                }
+            },
+            editor: {
+                'Control-s': function() {
+                    alert('editor save...');
+                }
+            },
+            'alt.Control-s': function() {
+                alert('alt save...');
+            }
+        },
+        commands: {
+            keypress: function() {
+                alert('access key pressed');
+            }
+        }
+    })
+</script>

@@ -164,8 +164,6 @@
       if (!path2) {
         if (this.has(document.location.pathname + document.location.hash)) {
           path2 = document.location.pathname + document.location.hash;
-        } else if (this.has(document.location.hash)) {
-          path2 = document.location.hash;
         } else {
           path2 = document.location.pathname;
         }
@@ -540,38 +538,35 @@
           keyboardElement = keyboardElement.parentNode.closest("[data-simply-keyboard]");
         }
         keyboards.push("");
-        let keyboard, subkeyboard;
+        let keyboard;
         let separators = ["+", "-"];
         for (let i in keyboards) {
           keyboard = keyboards[i];
           if (keyboard == "") {
-            subkeyboard = "default";
-          } else {
-            subkeyboard = keyboard;
-            keyboard += ".";
+            keyboard = "default";
           }
           for (let separator of separators) {
             let keyString = keyCombination.join(separator);
-            if (this[subkeyboard] && typeof this[subkeyboard][keyString] == "function") {
-              let _continue = this[subkeyboard][keyString].call(options.app, e);
+            if (this[keyboard] && typeof this[keyboard][keyString] == "function") {
+              let _continue = this[keyboard][keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
               }
             }
-            if (typeof this[subkeyboard + keyString] == "function") {
-              let _continue = this[subkeyboard + keyString].call(options.app, e);
+            if (typeof this[keyboard + "." + keyString] == "function") {
+              let _continue = this[keyboard + "." + keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
               }
             }
-            if (this[selectedKeyboard] && this[selectedKeyboard][keyString]) {
-              let targets = options.app.container.querySelectorAll('[data-simply-accesskey="' + keyboard + keyString + '"]');
-              if (targets.length) {
-                targets.forEach((t) => t.click());
-                e.preventDefault();
-              }
+            const qsa = '[data-simply-accesskey="' + keyboard + "." + keyString + '"]';
+            const targets = options.app.container.querySelectorAll(qsa);
+            console.log(qsa, targets);
+            if (targets.length) {
+              targets.forEach((t) => t.click());
+              e.preventDefault();
             }
           }
         }
