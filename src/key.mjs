@@ -114,13 +114,39 @@ export function keys(options={}, optionsCompat)
 export function accesskeys(app) {
 	const container = app.container || document.body
 	container.addEventListener('keydown', (e) => {
-		const keyString = getKeyString(e, '-')
-		const selector = "[data-simply-accesskey='" + keyString + "']"
-	    const targets = container.querySelectorAll(selector)
-	    if (targets.length) {
-	        targets.forEach(function(target) {
-	            target.click()
-	        })
-	    }
+		let keyboards = []
+		let keyboardElement = event.target.closest("[data-simply-keyboard]")
+		while (keyboardElement) {
+			keyboards.push(keyboardElement.getAttribute("data-simply-keyboard"))
+			keyboardElement = keyboardElement.parentNode.closest("[data-simply-keyboard]")
+		}
+		keyboards.push("")
+
+		let keyboard
+		let subkeyboard
+		let separators = ["+", "-"]
+		let key
+		for (var i=0; i<keyboards.length; i++) {
+			keyboard = keyboards[i]
+
+			if (keyboard === "") {
+				subkeyboard = "default"
+			} else {
+				subkeyboard = keyboard
+				keyboard = keyboard + "."
+			}
+			for (var j=0; j<separators.length; j++) {
+				const keyString = getKeyString(e, separators[j])
+				const selector = "[data-simply-accesskey='" + keyString + "']"
+				const targets = container.querySelectorAll(selector)
+				if (targets.length) {
+					targets.forEach(function(target) {
+						target.click()
+					})
+					event.preventDefault()
+					return
+				}
+			}
+		}
 	})
 }
