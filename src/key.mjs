@@ -52,6 +52,13 @@ class SimplyKey
 							return
 						}					
 					}
+					if (typeof this[keyString] == 'function') {
+						let _continue = this[keyString].call(options.app, e)
+						if (!_continue) {
+							e.preventDefault()
+							return
+						}					
+					}
 				}
 			}
 		}
