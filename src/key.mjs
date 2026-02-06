@@ -1,3 +1,5 @@
+import { findAttribute } from './dom.mjs'
+
 const KEY = Object.freeze({
 	Compose: 229,
 	Control: 17,
@@ -6,8 +8,10 @@ const KEY = Object.freeze({
 	Shift:   16
 })
 
-class SimplyKey {
-	constructor(options = {}) {
+class SimplyKey
+{
+	constructor(options = {})
+	{
 		if (!options.app) {
 			options.app = {}
 		}
@@ -17,55 +21,23 @@ class SimplyKey {
 		Object.assign(this, options.keys)
 
 		const keyHandler = (e) => {
-			if (e.isComposing || e.keyCode === KEY.Compose) {
-			    return
-			}
-			if (e.defaultPrevented) {
-			    return
-			}
-			if (!e.target) {
-			    return
-			}
-
-			let selectedKeyboard = 'default'
-			if (e.target.closest('[data-simply-keyboard]')) {
-			    selectedKeyboard = e.target.closest('[data-simply-keyboard]')
-			    					.dataset.simplyKeyboard
-			}
-			let keyCombination = []
-			if (e.ctrlKey && e.keyCode!=KEY.Control) {
-			    keyCombination.push('Control')
-			}
-			if (e.metaKey && e.keyCode!=KEY.Meta) {
-			    keyCombination.push('Meta')
-			}
-			if (e.altKey && e.keyCode!=KEY.Alt) {
-			    keyCombination.push('Alt')
-			}
-			if (e.shiftKey && e.keyCode!=KEY.Shift) {
-			    keyCombination.push('Shift')
-			}
-			keyCombination.push(e.key.toLowerCase())
-
 			let keyboards = []
 			let keyboardElement = event.target.closest('[data-simply-keyboard]')
 			while (keyboardElement) {
 				keyboards.push(keyboardElement.dataset.simplyKeyboard)
 				keyboardElement = keyboardElement.parentNode.closest('[data-simply-keyboard]')
 			}
-			keyboards.push('')
+			if (keyboards[keyboards.length-1]!='default') {
+				keyboards.push('default')
+			}
 
 			let keyboard
-			let separators = ['+','-']
+			let separators = ['-','+']
 
-			for (let i in keyboards) {
-				keyboard = keyboards[i]
-				if (keyboard == '') {
-					keyboard = 'default'
-				}
-				for (let separator of separators) {
-					let keyString = keyCombination.join(separator)
-
+			for (let separator of separators) {
+				const keyString = getKeyString(e, separator)
+				for (let i in keyboards) {
+					keyboard = keyboards[i]
 					if (this[keyboard] && (typeof this[keyboard][keyString]=='function')) {
 						let _continue = this[keyboard][keyString].call(options.app, e)
 						if (!_continue) {
@@ -80,25 +52,50 @@ class SimplyKey {
 							return
 						}					
 					}
-
-					const qsa = '[data-simply-accesskey="' + keyboard + '.' + keyString + '"]'
-					const targets = options.app.container.querySelectorAll(qsa)
-					console.log(qsa, targets)
-					if (targets.length) {
-						targets.forEach(t => t.click())
-						e.preventDefault()
-					}
-
 				}
 			}
 		}
 
 		options.app.container.addEventListener('keydown', keyHandler)
 	}
-
 }
 
-export function keys(options={}, optionsCompat) {
+function getKeyString(e, separator='+')
+{
+	if (e.isComposing || e.keyCode === KEY.Compose) {
+	    return
+	}
+	if (e.defaultPrevented) {
+	    return
+	}
+	if (!e.target) {
+	    return
+	}
+
+	let selectedKeyboard = 'default'
+	if (e.target.closest('[data-simply-keyboard]')) {
+	    selectedKeyboard = e.target.closest('[data-simply-keyboard]')
+	    					.dataset.simplyKeyboard
+	}
+	let keyCombination = []
+	if (e.ctrlKey && e.keyCode!=KEY.Control) {
+	    keyCombination.push('Control')
+	}
+	if (e.metaKey && e.keyCode!=KEY.Meta) {
+	    keyCombination.push('Meta')
+	}
+	if (e.altKey && e.keyCode!=KEY.Alt) {
+	    keyCombination.push('Alt')
+	}
+	if (e.shiftKey && e.keyCode!=KEY.Shift) {
+	    keyCombination.push('Shift')
+	}
+	keyCombination.push(e.key.toLowerCase())
+	return keyCombination.join(separator)
+}
+
+export function keys(options={}, optionsCompat)
+{
 	if (optionsCompat) {
 		let app = options
 		options = optionsCompat
@@ -107,3 +104,16 @@ export function keys(options={}, optionsCompat) {
 	return new SimplyKey(options)
 }
 
+export function accesskeys(app) {
+	const container = app.container || document.body
+	container.addEventListener('keydown', (e) => {
+		const keyString = getKeyString(e, '-')
+		const selector = "[data-simply-accesskey='" + keyString + "']"
+	    const targets = container.querySelectorAll(selector)
+	    if (targets.length) {
+	        targets.forEach(function(target) {
+	            target.click()
+	        })
+	    }
+	})
+}
