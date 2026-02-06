@@ -1,7 +1,7 @@
 <script src="../dist/simply.everything.js"></script>
 <textarea data-simply-keyboard="editor">
 </textarea>
-<button data-simply-command="keypress" data-simply-accesskey="default.Control-Alt-s">button</button>
+<button data-simply-command="keypress" data-simply-accesskey="Control-Alt-s">button</button>
 <textarea data-simply-keyboard="alt"></textarea>
 <script>
     const app = simply.app({
@@ -21,8 +21,9 @@
             }
         },
         commands: {
-            keypress: function() {
-                alert('access key pressed');
+            keypress: function(el) {
+                const a = this.findAttribute(el, 'data-simply-accesskey')
+                alert('access key pressed '+a);
             }
         }
     })
