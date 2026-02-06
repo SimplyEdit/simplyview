@@ -1,9 +1,10 @@
 import { routes } from './route.mjs'
 import { commands } from './command.mjs'
 import { actions } from './action.mjs'
-import { keys } from './key.mjs'
+import { keys, accesskeys } from './key.mjs'
 import { view } from './view.mjs'
 import { html, css } from './highlight.mjs'
+import { findAttribute } from './dom.mjs'
 
 class SimplyApp
 {
@@ -85,6 +86,7 @@ class SimplyApp
 					break
 			}
 		}
+		accesskeys({ app: this }) // adds accesskey handler
 	}
 
 	get app() //backwards compatibility, actions/commands used to call this.app instead of this
@@ -92,6 +94,9 @@ class SimplyApp
 		return this
 	}
 
+	findAttribute(...params) {
+		return findAttribute.apply(this, params)
+	}
 }
 
 function initRoutes(app) {
