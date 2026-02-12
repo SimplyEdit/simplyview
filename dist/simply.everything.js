@@ -519,7 +519,7 @@
           keyboards.push("default");
         }
         let keyboard;
-        let separators = ["-", "+"];
+        let separators = ["+", "-"];
         for (let separator of separators) {
           const keyString = getKeyString(e, separator);
           for (let i in keyboards) {
@@ -533,6 +533,13 @@
             }
             if (typeof this[keyboard + "." + keyString] == "function") {
               let _continue = this[keyboard + "." + keyString].call(options.app, e);
+              if (!_continue) {
+                e.preventDefault();
+                return;
+              }
+            }
+            if (typeof this[keyString] == "function") {
+              let _continue = this[keyString].call(options.app, e);
               if (!_continue) {
                 e.preventDefault();
                 return;
@@ -585,13 +592,16 @@
   function accesskeys(app2) {
     const container = app2.container || document.body;
     container.addEventListener("keydown", (e) => {
-      const keyString = getKeyString(e, "-");
-      const selector = "[data-simply-accesskey='" + keyString + "']";
-      const targets = container.querySelectorAll(selector);
-      if (targets.length) {
-        targets.forEach(function(target) {
-          target.click();
-        });
+      const separators = ["+", "-"];
+      for (const separator of separators) {
+        const keyString = getKeyString(e, separator);
+        const selector = "[data-simply-accesskey='" + keyString + "']";
+        const targets = container.querySelectorAll(selector);
+        if (targets.length) {
+          targets.forEach(function(target) {
+            target.click();
+          });
+        }
       }
     });
   }
@@ -675,8 +685,10 @@
             this.commands = commands({ app: this, container: this.container, commands: options.commands });
             break;
           case "keys":
-          case "keyboard":
             this.keys = keys({ app: this, keys: options.keys });
+            break;
+          case "keyboard":
+            this.keys = keys({ app: this, keys: options.keyboard });
             break;
           case "root":
           // backwards compatibility
