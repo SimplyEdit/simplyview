@@ -50,8 +50,10 @@ class SimplyApp
 					this.commands = commands({ app: this, container: this.container, commands: options.commands})
 					break
 				case 'keys':
-				case 'keyboard': // backwards compatible
 					this.keys = keys({ app: this, keys: options.keys })
+					break
+				case 'keyboard': // backwards compatible
+					this.keys = keys({ app: this, keys: options.keyboard })
 					break
 				case 'root': // backwards compatibility
 				case 'baseURL':

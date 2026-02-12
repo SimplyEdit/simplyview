@@ -32,7 +32,7 @@ class SimplyKey
 			}
 
 			let keyboard
-			let separators = ['-','+']
+			let separators = ['+','-']
 
 			for (let separator of separators) {
 				const keyString = getKeyString(e, separator)
@@ -47,6 +47,13 @@ class SimplyKey
 					}
 					if (typeof this[keyboard + '.' + keyString] == 'function') {
 						let _continue = this[keyboard + '.' + keyString].call(options.app, e)
+						if (!_continue) {
+							e.preventDefault()
+							return
+						}					
+					}
+					if (typeof this[keyString] == 'function') {
+						let _continue = this[keyString].call(options.app, e)
 						if (!_continue) {
 							e.preventDefault()
 							return
@@ -107,13 +114,16 @@ export function keys(options={}, optionsCompat)
 export function accesskeys(app) {
 	const container = app.container || document.body
 	container.addEventListener('keydown', (e) => {
-		const keyString = getKeyString(e, '-')
-		const selector = "[data-simply-accesskey='" + keyString + "']"
-	    const targets = container.querySelectorAll(selector)
-	    if (targets.length) {
-	        targets.forEach(function(target) {
-	            target.click()
-	        })
-	    }
+		const separators = ["+", "-"]
+		for (const separator of separators) {
+			const keyString = getKeyString(e, separator)
+			const selector = "[data-simply-accesskey='" + keyString + "']"
+			const targets = container.querySelectorAll(selector)
+			if (targets.length) {
+				targets.forEach(function(target) {
+					target.click()
+				})
+			}
+		}
 	})
 }
