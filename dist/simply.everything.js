@@ -675,7 +675,7 @@
               let style = this.container.querySelector("style#" + name);
               if (!style) {
                 style = document.createElement("style");
-                style.id = name;
+                style.id = name + ".css";
                 this.container.appendChild(style);
               }
               style.innerHTML = options.css[name];
