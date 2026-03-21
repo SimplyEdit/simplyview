@@ -121,7 +121,7 @@ export function app(options={})
 {
 	const app = new SimplyApp(options)
 	if (app.hooks?.start) {
-		app.hooks.start.call(app)
+		const promise = app.hooks.start.call(app)
 		// yagni - for now do this in your own app.hooks.start
 		// if (app.components) {
 		// 	for (const name in app.components) {
@@ -130,7 +130,11 @@ export function app(options={})
 		// 		}
 		// 	}
 		// }
-		.then(() => initRoutes(app))
+		if (promise instanceof Promise) {
+			promise.then(() => initRoutes(app))
+		} else {
+			initRoutes(app)
+		}
 	} else {
 		initRoutes(app)
 	}
