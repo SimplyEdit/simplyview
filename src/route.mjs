@@ -8,7 +8,7 @@ export function routes(options, optionsCompat)
     return new SimplyRoute(options)
 }
 
-class SimplyRoute
+export class SimplyRoute
 {
     constructor(options={})
     {
@@ -16,9 +16,13 @@ class SimplyRoute
         this.app = options.app || {}
         this.addMissingSlash = !!options.addMissingSlash
         this.matchExact = !!options.matchExact
+        this.hijackLinks = !!options.hijackLinks
         this.clear()
         if (options.routes) {
             this.load(options.routes)
+        }
+        if (globalThis.simply) { // backwards compatibility feature
+            globalThis.simply.route = this
         }
     }
 
@@ -139,7 +143,8 @@ class SimplyRoute
                 if ( this.has(path) ) {
                     let params = this.runListeners('goto', { path: path});
                     if (params.path) {
-                        if (this.goto(params.path)) {
+                        const followLink = this.goto(params.path)
+                        if (!followLink || (this.options.hijackLinks && followLink!==false)) {
                             // now cancel the browser navigation, since a route handler was found
                             evt.preventDefault();
                             return false;
