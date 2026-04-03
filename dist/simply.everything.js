@@ -136,9 +136,13 @@
       this.app = options.app || {};
       this.addMissingSlash = !!options.addMissingSlash;
       this.matchExact = !!options.matchExact;
+      this.hijackLinks = !!options.hijackLinks;
       this.clear();
       if (options.routes) {
         this.load(options.routes);
+      }
+      if (globalThis.simply) {
+        globalThis.simply.route = this;
       }
     }
     load(routes2) {
@@ -243,7 +247,8 @@
           if (this.has(path2)) {
             let params = this.runListeners("goto", { path: path2 });
             if (params.path) {
-              if (this.goto(params.path)) {
+              const followLink = this.goto(params.path);
+              if (!followLink || this.options.hijackLinks && followLink !== false) {
                 evt.preventDefault();
                 return false;
               }
@@ -750,7 +755,12 @@
   function app(options = {}) {
     const app2 = new SimplyApp(options);
     if (app2.hooks?.start) {
-      app2.hooks.start.call(app2).then(() => initRoutes(app2));
+      const promise = app2.hooks.start.call(app2);
+      if (promise instanceof Promise) {
+        promise.then(() => initRoutes(app2));
+      } else {
+        initRoutes(app2);
+      }
     } else {
       initRoutes(app2);
     }
@@ -1026,7 +1036,7 @@
     include,
     key: keys,
     path: path_default,
-    route: routes,
+    route: new SimplyRoute(),
     view,
     findAttribute
   };
