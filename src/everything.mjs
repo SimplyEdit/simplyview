@@ -5,7 +5,7 @@ import { commands as command } from './command.mjs'
 import { include } from './include.mjs'
 import { keys as key } from './key.mjs'
 import path from './path.mjs'
-import { routes as route } from './route.mjs'
+import { SimplyRoute } from './route.mjs'
 import { view } from './view.mjs'
 import { findAttribute } from './dom.mjs'
 
@@ -17,7 +17,7 @@ const simply = {
 	include,
 	key,
 	path,
-	route,
+	route: new SimplyRoute(),
 	view,
 	findAttribute
 }
